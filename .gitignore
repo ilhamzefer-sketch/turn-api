@@ -1,0 +1,12 @@
+/target/
+/.mvn/wrapper/maven-wrapper.jar
+/.tmp-spring/
+/.tmp-spring.zip
+/spring-run.log
+/spring-run.err.log
+/.idea/
+/*.iml
+/data/
+/.env
+/.env.*
+!/.env.example

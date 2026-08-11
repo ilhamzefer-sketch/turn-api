@@ -1,0 +1,30 @@
+spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  data:
+    redis:
+      repositories:
+        enabled: false
+  datasource:
+    url: jdbc:h2:mem:turn-api-test;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  flyway:
+    enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+
+app:
+  env: test
+  admin:
+    username: admin
+    password-hash: $2a$10$zwPCg/UvweKFgljqUXrMReEg5tIJvrsOuqoiPIT6tWjQSFjpniL.i
+  security:
+    jwt-secret: test-only-secret-test-only-secret-test-only-secret-123456

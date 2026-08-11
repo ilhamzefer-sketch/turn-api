@@ -1,0 +1,34 @@
+groups:
+  - name: turn-api
+    rules:
+      - alert: TurnApiDown
+        expr: up{application="turn-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "turn-api əlçatan deyil"
+
+      - alert: TurnApiHigh5xxRate
+        expr: sum(rate(http_server_requests_seconds_count{application="turn-api",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{application="turn-api"}[5m])), 1) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "5xx cavablarının nisbəti 5%-dən yüksəkdir"
+
+      - alert: TurnApiJvmMemoryHigh
+        expr: sum(jvm_memory_used_bytes{application="turn-api",area="heap"}) / sum(jvm_memory_max_bytes{application="turn-api",area="heap"}) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM heap istifadəsi 85%-dən yüksəkdir"
+
+      - alert: TurnApiDatabasePoolExhausted
+        expr: hikaricp_connections_active{application="turn-api"} >= hikaricp_connections_max{application="turn-api"}
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool doludur"
