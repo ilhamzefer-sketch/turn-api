@@ -16,11 +16,11 @@ import java.util.List;
 public class PaymentReconciliationJob {
     private static final Logger logger = LoggerFactory.getLogger(PaymentReconciliationJob.class);
     private final PaymentSessionRepository paymentSessionRepository;
-    private final QueueService queueService;
+    private final PaymentSessionService paymentSessionService;
 
-    public PaymentReconciliationJob(PaymentSessionRepository paymentSessionRepository, QueueService queueService) {
+    public PaymentReconciliationJob(PaymentSessionRepository paymentSessionRepository, PaymentSessionService paymentSessionService) {
         this.paymentSessionRepository = paymentSessionRepository;
-        this.queueService = queueService;
+        this.paymentSessionService = paymentSessionService;
     }
 
     @Scheduled(fixedDelayString = "${app.payment.reconciliation-delay-ms:60000}",
@@ -33,7 +33,7 @@ public class PaymentReconciliationJob {
 
         for (Long paymentSessionId : pendingIds) {
             try {
-                queueService.reconcilePendingPayment(paymentSessionId);
+                paymentSessionService.reconcilePendingPayment(paymentSessionId);
             } catch (ResponseStatusException exception) {
                 logger.warn("Payment reconciliation failed: paymentSessionId={}, status={}",
                         paymentSessionId, exception.getStatusCode().value());

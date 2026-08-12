@@ -1,0 +1,61 @@
+package az.turn.api;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class AuthController {
+
+    private final AccountService accountService;
+    private final ApiSessionService apiSessionService;
+
+    public AuthController(AccountService accountService, ApiSessionService apiSessionService) {
+        this.accountService = accountService;
+        this.apiSessionService = apiSessionService;
+    }
+
+    @PostMapping("/api/login")
+    public RegistrationResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        return apiSessionService.authenticateRegistration(accountService.login(request), response);
+    }
+
+    @PostMapping("/api/customers/register")
+    public CustomerResponse registerCustomer(@Valid @RequestBody CustomerRegistrationRequest request, HttpServletResponse response) {
+        return apiSessionService.authenticateCustomer(accountService.registerCustomer(request), response);
+    }
+
+    @PostMapping("/api/customers/login")
+    public CustomerResponse loginCustomer(@Valid @RequestBody CustomerLoginRequest request, HttpServletResponse response) {
+        return apiSessionService.authenticateCustomer(accountService.loginCustomer(request), response);
+    }
+
+    @PostMapping("/api/queue-managers/login")
+    public QueueManagerLoginResponse loginQueueManager(@Valid @RequestBody QueueManagerLoginRequest request, HttpServletResponse response) {
+        return apiSessionService.authenticateQueueManager(accountService.loginQueueManager(request), response);
+    }
+
+    @PostMapping("/api/admin/login")
+    public AdminLoginResponse loginAdmin(@Valid @RequestBody AdminLoginRequest request, HttpServletResponse response) {
+        return apiSessionService.authenticateAdmin(accountService.loginAdmin(request), response);
+    }
+
+    @GetMapping("/api/auth/csrf")
+    public CsrfTokenResponse csrf(HttpServletRequest request) {
+        return new CsrfTokenResponse((String) request.getAttribute("csrfToken"));
+    }
+
+    @PostMapping("/api/auth/refresh")
+    public AccessTokenResponse refresh(HttpServletRequest request, HttpServletResponse response) {
+        return apiSessionService.refresh(request, response);
+    }
+
+    @PostMapping("/api/auth/logout")
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        apiSessionService.logout(request, response);
+    }
+}
