@@ -16,6 +16,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.DayOfWeek;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,11 +43,14 @@ class UserPostgresIntegrationTests {
     private WeeklyAvailabilityRuleRepository weeklyAvailabilityRuleRepository;
 
     @Autowired
+    private PlannedBookingRepository plannedBookingRepository;
+
+    @Autowired
     private Flyway flyway;
 
     @Test
     void appliesUnifiedAccountMigrationAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("16");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("17");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
@@ -101,6 +105,21 @@ class UserPostgresIntegrationTests {
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> weeklyAvailabilityRuleRepository.saveAndFlush(rule)
+        );
+    }
+
+    @Test
+    void preventsTwoActiveBookingsForTheSameRoomStartInPostgres() {
+        UserEntity owner = userRepository.saveAndFlush(activeUser("+994505556700"));
+        UserEntity firstCustomer = userRepository.saveAndFlush(activeUser("+994505556701"));
+        UserEntity secondCustomer = userRepository.saveAndFlush(activeUser("+994505556702"));
+        RoomEntity room = savePlannedRoom(owner);
+        LocalDateTime startAt = LocalDateTime.of(2026, 9, 10, 10, 0);
+        plannedBookingRepository.saveAndFlush(booking(room, firstCustomer, "B-PG-ONE", startAt));
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> plannedBookingRepository.saveAndFlush(booking(room, secondCustomer, "B-PG-TWO", startAt))
         );
     }
 
@@ -160,5 +179,46 @@ class UserPostgresIntegrationTests {
         user.setPasswordHash("{bcrypt-sha256}$2a$10$abcdefghijklmnopqrstuuuuuuuuuuuuuuuuuuuuuuuuuuuuu");
         user.setStatus(UserStatus.ACTIVE);
         return user;
+    }
+
+    private RoomEntity savePlannedRoom(UserEntity owner) {
+        IndividualWorkspaceEntity workspace = new IndividualWorkspaceEntity();
+        workspace.setOwnerUser(owner);
+        workspace.setName("Booking postgres workspace");
+        workspace.setTimezone("Asia/Baku");
+        workspace.setStatus(ProviderStatus.ACTIVE);
+        workspace = individualWorkspaceRepository.saveAndFlush(workspace);
+
+        RoomEntity room = new RoomEntity();
+        room.setIndividualWorkspace(workspace);
+        room.setCreatedByUser(owner);
+        room.setName("Booking postgres room");
+        room.setTimezone("Asia/Baku");
+        room.setReservationMode(ReservationMode.PLANNED_BOOKING);
+        room.setDefaultSlotDurationMinutes(30);
+        room.setStatus(RoomStatus.DRAFT);
+        room.setVisibility(RoomVisibility.UNLISTED);
+        return roomRepository.saveAndFlush(room);
+    }
+
+    private PlannedBookingEntity booking(
+            RoomEntity room,
+            UserEntity customer,
+            String reference,
+            LocalDateTime startAt
+    ) {
+        PlannedBookingEntity booking = new PlannedBookingEntity();
+        booking.setRoom(room);
+        booking.setUser(customer);
+        booking.setBookingReference(reference);
+        booking.setStatus(PlannedBookingStatus.ACTIVE);
+        booking.setSource(LiveQueueEntrySource.WEB);
+        booking.setStartAt(startAt);
+        booking.setEndAt(startAt.plusMinutes(30));
+        booking.setBlockingEndAt(startAt.plusMinutes(30));
+        booking.setActiveSlot(1);
+        booking.setActiveCustomerSlot(1);
+        booking.setCreatedByUser(customer);
+        return booking;
     }
 }

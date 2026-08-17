@@ -19,6 +19,7 @@ public class RoomService {
     private final ProviderWorkspaceMapper mapper;
     private final RoomConfigurationValidator configurationValidator;
     private final LiveQueueSessionRepository liveQueueSessionRepository;
+    private final PlannedBookingRepository plannedBookingRepository;
     private final Clock clock;
 
     public RoomService(
@@ -30,6 +31,7 @@ public class RoomService {
             ProviderWorkspaceMapper mapper,
             RoomConfigurationValidator configurationValidator,
             LiveQueueSessionRepository liveQueueSessionRepository,
+            PlannedBookingRepository plannedBookingRepository,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
@@ -40,6 +42,7 @@ public class RoomService {
         this.mapper = mapper;
         this.configurationValidator = configurationValidator;
         this.liveQueueSessionRepository = liveQueueSessionRepository;
+        this.plannedBookingRepository = plannedBookingRepository;
         this.clock = clock;
     }
 
@@ -102,6 +105,17 @@ public class RoomService {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Açıq canlı növbə sessiyası bağlanmadan otaq rejimi dəyişdirilə bilməz."
+            );
+        }
+        if (room.getReservationMode() != request.reservationMode()
+                && plannedBookingRepository.existsByRoomIdAndStatusAndStartAtAfter(
+                        roomId,
+                        PlannedBookingStatus.ACTIVE,
+                        LocalDateTime.now(clock)
+                )) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Gələcək aktiv rezervasiyalar həll edilmədən otaq rejimi dəyişdirilə bilməz."
             );
         }
         String fallbackTimezone = room.getBranch() == null

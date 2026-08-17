@@ -162,7 +162,23 @@ Pending hesab yaradılması üçün başlanğıc limitlər biznesə gündə `500
 15. Guest contact eyni telefonla sonradan qeydiyyatdan keçən `USER` hesabına bağlanır və otaq canlı növbə tarixçəsi `/api/users/me/live-queue-history` vasitəsilə görünür.
 16. Açıq sessiya bağlanmadan otaq `PLANNED_BOOKING` rejiminə keçirilə və ya arxivləşdirilə bilməz.
 
-## 5.4. Legacy növbə qaydaları
+## 5.4. Planlı rezervasiya
+
+1. Yalnız `PUBLISHED` və `PLANNED_BOOKING` rejimli otaq rezervasiya qəbul edir. `PUBLIC` və `UNLISTED` otaqların boş saatları public görünür, `PRIVATE` otaq public booking axınına daxil edilmir.
+2. Boş saatlar otağın timezone-u, həftəlik intervalları, tarix istisnaları, standart müddəti və görüşdən sonrakı buffer əsasında yaradılır.
+3. Müştəri üçün tarix otağın booking window-u daxilində, başlanğıc isə minimum advance müddətindən sonra olmalıdır. Otaq operatoru manual booking yaradarkən minimum advance qaydasını keçə bilər, amma keçmiş saata booking yarada bilməz.
+4. Aktiv booking-lər `ACTIVE`, xidmət tamamlandıqda `COMPLETED`, ləğv və no-show zamanı `CANCELLED` olur. No-show ayrıca status deyil, `NO_SHOW` cancellation reason-dır.
+5. Qeydiyyatlı `USER` boş saatı seçdikdə booking ayrıca owner təsdiqi olmadan dərhal aktiv olur. Eyni istifadəçinin eyni otaqda ikinci aktiv booking-i ola bilməz.
+6. Otaq sahibi telefon, walk-in və digər offline mənbə ilə ad və telefon əsasında manual guest booking yarada bilər. Guest sonradan eyni telefonla qeydiyyatdan keçəndə booking tarixçəsi hesabına bağlanır.
+7. Müştəri cancellation cutoff keçməyibsə öz booking-ini cancel və ya yalnız başqa boş saata reschedule edə bilər. Operator cutoff-dan sonra da dəyişiklik edə bilər.
+8. Operator cancel üçün səbəb və iştirakçının məlumatlandırıldığını təsdiqləməlidir. Operator reschedule zamanı da iştirakçı ilə əlaqə təsdiqi verir.
+9. Otaq, start, end, buffer və iştirakçı məlumatı client-dən etibarlı sayılmır. End və blocking end serverdə otaq konfiqurasiyasından hesablanır.
+10. Booking yaradılması və dəyişdirilməsi otaq səviyyəsində pessimistic DB lock ilə seriallaşdırılır. Aktiv start və aktiv customer qaydaları ayrıca unique constraint-lərlə qorunur.
+11. Hər booking qısa, unikal `B-...` reference alır. Create, reschedule, cancel və complete əməliyyatları actor, əvvəlki/yeni saat, səbəb və məlumatlandırma təsdiqi ilə audit cədvəlində saxlanılır.
+12. Müştəri öz booking tarixçəsində owner-in daxili qeydini görmür. Otaq owner/admin yalnız idarə etdiyi otaqların iştirakçı adı, telefonu və daxili qeydlərini görə bilər.
+13. Gələcək aktiv booking-lər tamamlanmadan, ləğv edilmədən və ya köçürülmədən otaq `LIVE_QUEUE` rejiminə keçirilə bilməz.
+
+## 5.5. Legacy növbə qaydaları
 
 Növbə üçün aşağıdakılar tələb olunur:
 
@@ -291,9 +307,9 @@ Bu maddələr gələcək biznes işi kimi qalır:
 
 1. Hazırkı ödəniş bir dəfəlik qeydiyyat ödənişidir. Hədəf model aylıq abunəlik, növbəti ödəniş tarixi, grace period və yenilənmə tarixçəsi tələb edir.
 2. Admin aylıq gəliri hazırda tamamlanmış payment session-ların tarixinə görə hesablayır. Tam abunəlik modelində ayrıca dəyişməz payment ledger yaradılmalıdır.
-3. Business, branch, individual workspace, membership, room, room assignment, həftəlik availability, tarix istisnaları, xidmət siyahısı, publish validation və otaq əsaslı canlı növbə hazırdır. Boş slot hesablanması və planlı booking növbəti development mərhələsində əlavə ediləcək.
+3. Business, branch, individual workspace, membership, room, room assignment, həftəlik availability, tarix istisnaları, xidmət siyahısı, publish validation, otaq əsaslı canlı növbə, boş slot hesablanması və planlı booking hazırdır.
 4. Email/SMS/push növbə bildirişləri hələ yoxdur.
-5. Planlı rezervasiya üçün cancellation, reschedule və no-show hələ modelləşdirilməyib; canlı növbədə skip, restore, remove, reset və complete statusları hazırdır.
+5. Planlı rezervasiyada customer/operator cancellation, reschedule, complete, no-show və audit hazırdır. Business-wide calendar, notification və operational Excel hesabatı gələcək mərhələdədir.
 6. Köhnə legacy guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan legacy və yeni room live-queue qeydləri avtomatik hesaba bağlana bilər.
 
 ## 13. Dəyişiklik zamanı qorunacaq qaydalar
