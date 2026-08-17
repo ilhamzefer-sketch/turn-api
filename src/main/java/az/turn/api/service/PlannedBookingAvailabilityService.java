@@ -18,17 +18,20 @@ public class PlannedBookingAvailabilityService {
     private final RoomRepository roomRepository;
     private final PlannedBookingRepository bookingRepository;
     private final RoomAvailabilityService roomAvailabilityService;
+    private final SubscriptionGateService subscriptionGateService;
     private final Clock clock;
 
     public PlannedBookingAvailabilityService(
             RoomRepository roomRepository,
             PlannedBookingRepository bookingRepository,
             RoomAvailabilityService roomAvailabilityService,
+            SubscriptionGateService subscriptionGateService,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
         this.bookingRepository = bookingRepository;
         this.roomAvailabilityService = roomAvailabilityService;
+        this.subscriptionGateService = subscriptionGateService;
         this.clock = clock;
     }
 
@@ -37,6 +40,7 @@ public class PlannedBookingAvailabilityService {
         RoomEntity room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Otaq tapılmadı."));
         requirePublicPlannedRoom(room);
+        subscriptionGateService.requireRoomOperations(room);
         return availableSlots(room, date, true, null).stream()
                 .map(range -> new AvailableSlotDto(range.startAt(), range.endAt(), room.getTimezone()))
                 .toList();

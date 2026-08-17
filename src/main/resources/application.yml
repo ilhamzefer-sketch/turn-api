@@ -48,6 +48,13 @@ server:
 
 app:
   env: ${APP_ENV:local}
+  legacy-api:
+    enabled: ${APP_LEGACY_API_ENABLED:false}
+  subscription:
+    lifecycle-delay-ms: ${APP_SUBSCRIPTION_LIFECYCLE_DELAY_MS:300000}
+    enforcement-enabled: ${APP_SUBSCRIPTION_ENFORCEMENT_ENABLED:true}
+  privacy:
+    guest-anonymization-cron: ${APP_GUEST_ANONYMIZATION_CRON:0 30 3 * * *}
   live-queue:
     reset-enabled: ${APP_LIVE_QUEUE_RESET_ENABLED:true}
     reset-delay-ms: ${APP_LIVE_QUEUE_RESET_DELAY_MS:30000}

@@ -30,7 +30,7 @@ public class UserEntity {
     @Column(nullable = false, length = 80)
     private String lastName;
 
-    @Column(nullable = false, unique = true, length = 13)
+    @Column(unique = true, length = 13)
     private String normalizedPhone;
 
     @Column

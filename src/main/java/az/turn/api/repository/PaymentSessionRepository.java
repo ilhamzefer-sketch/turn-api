@@ -17,4 +17,6 @@ public interface PaymentSessionRepository extends JpaRepository<PaymentSessionEn
     List<PaymentSessionEntity> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
             PaymentStatus status, LocalDateTime createdBefore, Pageable pageable
     );
+    long countByPaymentPurposeAndStatus(PaymentPurpose purpose, PaymentStatus status);
+    List<PaymentSessionEntity> findByProviderSubscriptionIdOrderByCreatedAtDesc(Long subscriptionId);
 }

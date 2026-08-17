@@ -73,4 +73,9 @@ public interface PlannedBookingRepository extends JpaRepository<PlannedBookingEn
             PlannedBookingStatus status,
             LocalDateTime startAt
     );
+    List<PlannedBookingEntity> findByRoomIdInAndStartAtGreaterThanEqualAndStartAtLessThan(
+            List<Long> roomIds,
+            LocalDateTime from,
+            LocalDateTime to
+    );
 }

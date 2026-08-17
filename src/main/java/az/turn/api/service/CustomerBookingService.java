@@ -17,6 +17,8 @@ public class CustomerBookingService {
     private final PlannedBookingCommandSupport support;
     private final BookingAuditService auditService;
     private final PlannedBookingMapper mapper;
+    private final SubscriptionGateService subscriptionGateService;
+    private final RoomCustomerBlockService customerBlockService;
     private final Clock clock;
 
     public CustomerBookingService(
@@ -26,6 +28,8 @@ public class CustomerBookingService {
             PlannedBookingCommandSupport support,
             BookingAuditService auditService,
             PlannedBookingMapper mapper,
+            SubscriptionGateService subscriptionGateService,
+            RoomCustomerBlockService customerBlockService,
             Clock clock
     ) {
         this.bookingRepository = bookingRepository;
@@ -34,6 +38,8 @@ public class CustomerBookingService {
         this.support = support;
         this.auditService = auditService;
         this.mapper = mapper;
+        this.subscriptionGateService = subscriptionGateService;
+        this.customerBlockService = customerBlockService;
         this.clock = clock;
     }
 
@@ -41,6 +47,8 @@ public class CustomerBookingService {
     public PlannedBookingDto create(long userId, BookingCreateRequestDto request) {
         UserEntity user = accessService.requireActiveUser(userId);
         RoomEntity room = support.lockRoom(request.roomId());
+        subscriptionGateService.requireRoomOperations(room);
+        customerBlockService.requireAllowed(room.getId(), userId);
         availabilityService.requirePublicPlannedRoom(room);
         if (bookingRepository.hasActiveBookingForUser(
                 room.getId(),

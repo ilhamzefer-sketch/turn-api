@@ -21,7 +21,7 @@ public class GuestContactEntity {
     private Long id;
     @Column(nullable = false, length = 160)
     private String displayName;
-    @Column(nullable = false, unique = true, length = 13)
+    @Column(unique = true, length = 13)
     private String normalizedPhone;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "linked_user_id")

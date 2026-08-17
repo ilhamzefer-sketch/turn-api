@@ -109,7 +109,7 @@ public class ApiSessionService {
         ResponseCookie cookie = ResponseCookie.from(PAYMENT_SESSION_COOKIE, sessionToken)
                 .httpOnly(true)
                 .secure(secureCookies)
-                .path("/api/payments/registration-sessions")
+                .path("/api")
                 .sameSite("Lax")
                 .maxAge(30 * 60)
                 .build();
@@ -120,7 +120,7 @@ public class ApiSessionService {
         ResponseCookie cookie = ResponseCookie.from(PAYMENT_SESSION_COOKIE, "")
                 .httpOnly(true)
                 .secure(secureCookies)
-                .path("/api/payments/registration-sessions")
+                .path("/api")
                 .sameSite("Lax")
                 .maxAge(0)
                 .build();

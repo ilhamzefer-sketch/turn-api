@@ -9,6 +9,8 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByNormalizedPhone(String normalizedPhone);
+    boolean existsByNormalizedPhone(String normalizedPhone);
+    long countByStatus(UserStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from UserEntity user where user.normalizedPhone = :normalizedPhone")

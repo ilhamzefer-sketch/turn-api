@@ -14,10 +14,16 @@ public class AdminController {
 
     private final QueueService queueService;
     private final RequestAuthenticationService requestAuthenticationService;
+    private final AdminPlatformService adminPlatformService;
 
-    public AdminController(QueueService queueService, RequestAuthenticationService requestAuthenticationService) {
+    public AdminController(
+            QueueService queueService,
+            RequestAuthenticationService requestAuthenticationService,
+            AdminPlatformService adminPlatformService
+    ) {
         this.queueService = queueService;
         this.requestAuthenticationService = requestAuthenticationService;
+        this.adminPlatformService = adminPlatformService;
     }
 
     @GetMapping("/api/admin/dashboard")
@@ -30,5 +36,11 @@ public class AdminController {
     ) {
         requestAuthenticationService.requireUser(authentication, AuthUserType.ADMIN);
         return queueService.getAdminDashboard(search, registrationType, paymentStatus, month);
+    }
+
+    @GetMapping("/api/admin/overview")
+    public AdminPlatformOverviewDto overview(Authentication authentication) {
+        requestAuthenticationService.requireUser(authentication, AuthUserType.ADMIN);
+        return adminPlatformService.overview();
     }
 }

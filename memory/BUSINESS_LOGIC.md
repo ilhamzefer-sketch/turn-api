@@ -12,7 +12,7 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 - `0501234567`, `501234567` və `+994501234567` eyni `+994501234567` identifikatoruna normallaşdırılır.
 - Eyni normallaşdırılmış telefon yalnız bir `USER` hesabına aid ola bilər.
 - Hesab pulsuz yaradılır və gələcəkdə eyni profil müştəri, individual specialist, business sahibi/admini və room owner kontekstlərində istifadə ediləcək.
-- Hazırkı keçid dövründə köhnə `REGISTRATION`, `CUSTOMER` və `QUEUE_MANAGER` hesabları işləməyə davam edir.
+- Köhnə `REGISTRATION`, `CUSTOMER` və `QUEUE_MANAGER` modeli yalnız geri dönüş ehtiyacı üçün kodda saxlanılır; legacy API production default olaraq bağlıdır.
 
 ### Növbə yaradan (`REGISTRATION`)
 
@@ -59,7 +59,9 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 - Yeni üzvlük və otaq təyinatı əvvəlcə `PENDING_ACCEPTANCE` olur və istifadəçi tərəfindən ayrıca qəbul və ya rədd edilir.
 - Biznesdən çıxarılan əməkdaşın aktiv otaq təyinatları ləğv olunur, tarixi qeydlər silinmir.
 
-## 3. Növbə yaradanın qeydiyyat və ödəniş axını
+## 3. Legacy növbə yaradanın qeydiyyat və ödəniş axını
+
+Bu axın artıq əsas məhsul axını deyil və `app.legacy-api.enabled=false` olduqda `410 Gone` qaytarır.
 
 1. İstifadəçi ad, soyad, email, şifrə və hesab növünü daxil edir.
 2. Sistem qeydiyyatı `PENDING_PAYMENT` statusunda yaradır.
@@ -88,6 +90,18 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 10. Köhnə email əsaslı endpoint-lər frontend migrasiyası tamamlanana qədər compatibility üçün saxlanılır.
 
 Yeni şifrələr 8-128 simvol qəbul edir, geniş istifadə olunan zəif şifrələr rədd olunur və SHA-256 pre-hash üzərindən BCrypt ilə saxlanılır.
+
+## 3.2. Provider abunəliyi və ödənişi
+
+1. Hər `IndividualWorkspace` və hər `Business` ayrıca abunəliyə, limitlərə, bitmə tarixinə və ödəniş tarixçəsinə malikdir.
+2. Aktiv paketlər aylıq və endirimli illik billing dövrü təklif edir. İlkin seed paketləri `STANDARD_MONTHLY` və `STANDARD_YEARLY`-dir.
+3. Şəxsi workspace sahibi, biznes `PRIMARY_OWNER` və `ADMIN` paketləri görə, checkout yarada, mock/Birbank ödənişini təsdiqləyə və qəbz tarixçəsini görə bilər.
+4. Tamamlanmış ödəniş abunəliyi `ACTIVE` edir və mövcud aktiv müddət varsa yeni dövr onun sonuna əlavə olunur.
+5. Abunəlik bitdikdən sonra yeddi günlük `GRACE_PERIOD`, sonra `SUSPENDED` statusu tətbiq olunur.
+6. Aktiv və ya grace-period abunəliyi olmadan otaq publish edilmir, canlı sessiya açılmır, canlı növbəyə yeni qoşulma və yeni planlı booking qəbul edilmir.
+7. Suspension mövcud booking-ləri, otaqları və tarixçəni silmir. Səlahiyyətli operator əvvəlcədən yaranmış booking-i complete, cancel və reschedule edə bilər.
+8. Paket otaq və əməkdaş sayını limitləyir; canlı iştirakçı və booking sayı limitlənmir. Limit aşımı məlumat silmir, yalnız yeni əməliyyatları dayandırır.
+9. Ödəniş sessiyası tokeni yalnız `HttpOnly` cookie ilə daşınır və bazada SHA-256 hash kimi saxlanılır.
 
 ## 4. Hesab statusları
 
@@ -301,16 +315,31 @@ Yeni `USER` tarixçəsi həm hesabla birbaşa yaradılmış queue entry-ləri, h
 - PostgreSQL və Redis portları internetə açılmamalıdır.
 - Növbə sahibi, müştəri və queue manager ID-ləri request body-dən etibarlı sayılmır; JWT istifadəçisi ilə əvəz edilir.
 
-## 12. Hazırkı implementasiya ilə hədəf model arasındakı fərqlər
+## 12. Step 6: subscription, support və reporting
 
-Bu maddələr gələcək biznes işi kimi qalır:
+1. Provider abunəliyi aylıq/illik paket, ayrıca scope, room/employee limiti, expiry, grace period, suspension və payment receipt tarixçəsi ilə hazırdır.
+2. Otaq əməliyyatları abunəlik gate-i ilə qorunur. Test mühitində əvvəlki mərhələlərin regression testləri üçün gate ayrıca söndürülə bilər; production default aktivdir.
+3. Hesab sahibliyi mübahisəsi public support müraciəti ilə yaradılır və admin `NO_ACTION`, `SUSPEND`, `RESET_PASSWORD` və ya `RESTORE_ACCESS` qərarı verə bilər.
+4. Admin password reset etdikdə bütün sessiyalar ləğv edilir, şifrə silinir və hesab müddətsiz `PASSWORD_RESET_REQUIRED` olur. İstifadəçi eyni telefonla adi register ekranında yeni şifrə qoyur.
+5. Telefon dəyişməsi və hesab silinməsi yalnız support müraciəti və admin qərarı ilə aparılır. Aktiv biznes primary owner-i ownership-i ötürmədən anonymize edilmir.
+6. Biznes primary ownership transferi hədəf aktiv admin tərəfindən qəbul ediləndə atomik tamamlanır; əvvəlki owner `ADMIN` qalır.
+7. Room owner qeydiyyatlı müştərini səbəb göstərərək yalnız öz otağında block edə bilər; business owner/admin həmin block-u revoke edə bilər. Block canlı və planlı yeni girişlərə tətbiq olunur.
+8. Platform admin hesab, business, room, aktiv subscription, pending payment və açıq support müraciəti saylarını ümumi overview-da görür. Admin qərarları dəyişməz platform audit event-i yaradır.
+9. Business owner/admin bütün biznes üzrə, room owner isə səlahiyyətli otaq üzrə tarix aralığına bağlı operational statistikaları görə bilər.
+10. Hesabat canlı növbə, planlı booking, completed/cancelled/skipped/removed/reset, guest/registered iştirakçı, təxmini gözləmə, busiest day/hour və təxmini capacity göstəricilərini saxlayır.
+11. Operational hesabat `.xlsx` kimi endirilə bilər. Maliyyə gəliri, profit və average receipt Step 6 hesabatına daxil deyil.
+12. Guest şəxsi məlumatları retention job ilə 24 aydan sonra anonymize edilir, əməliyyat statistikası isə saxlanılır.
+13. Köhnə email əsaslı auth/registration/payment/queue API-ləri production default olaraq `410 Gone` qaytarır və yalnız explicit compatibility flag ilə açıla bilər.
+14. Tamamlanmış canlı giriş və ya planlı booking yalnız ona bağlı qeydiyyatlı müştəri tərəfindən bir dəfə qiymətləndirilir. Eyni rating ilk yaradılmadan sonra yeddi gün ərzində edit edilə bilər.
+15. Public otaq cavabı yalnız average score və rating count göstərir; yazılı şərhlər yalnız səlahiyyətli room/business idarəçilərinə açıqdır.
 
-1. Hazırkı ödəniş bir dəfəlik qeydiyyat ödənişidir. Hədəf model aylıq abunəlik, növbəti ödəniş tarixi, grace period və yenilənmə tarixçəsi tələb edir.
-2. Admin aylıq gəliri hazırda tamamlanmış payment session-ların tarixinə görə hesablayır. Tam abunəlik modelində ayrıca dəyişməz payment ledger yaradılmalıdır.
-3. Business, branch, individual workspace, membership, room, room assignment, həftəlik availability, tarix istisnaları, xidmət siyahısı, publish validation, otaq əsaslı canlı növbə, boş slot hesablanması və planlı booking hazırdır.
-4. Email/SMS/push növbə bildirişləri hələ yoxdur.
-5. Planlı rezervasiyada customer/operator cancellation, reschedule, complete, no-show və audit hazırdır. Business-wide calendar, notification və operational Excel hesabatı gələcək mərhələdədir.
-6. Köhnə legacy guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan legacy və yeni room live-queue qeydləri avtomatik hesaba bağlana bilər.
+## 12.1. Hədəf modeldə qalan işlər
+
+1. Email/SMS/push növbə və booking bildirişləri hələ yoxdur.
+2. Business-wide calendar görünüşü və room-owner dəyişiklik bildirişləri gələcək mərhələdədir.
+3. Service revenue, average receipt və profit kimi maliyyə analitikası customer-service payment modeli qurulandan sonra əlavə ediləcək.
+4. Avtomatik telefon təsdiqi və SMS əsaslı password recovery yoxdur; identity və telefon dəyişmə support tərəfindən manual idarə olunur.
+5. Köhnə legacy guest qeydlərində telefon yoxdursa həmin tarixçə avtomatik vahid hesaba bağlana bilməz.
 
 ## 13. Dəyişiklik zamanı qorunacaq qaydalar
 

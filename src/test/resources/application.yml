@@ -23,6 +23,10 @@ spring:
 
 app:
   env: test
+  legacy-api:
+    enabled: true
+  subscription:
+    enforcement-enabled: false
   admin:
     username: admin
     password-hash: $2a$10$zwPCg/UvweKFgljqUXrMReEg5tIJvrsOuqoiPIT6tWjQSFjpniL.i

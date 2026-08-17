@@ -88,10 +88,13 @@ public class SecurityConfig {
                                 "/api/payments/registration-sessions/*/confirm",
                                 "/api/payments/registration-sessions/*/cancel", "/api/queues/scan",
                                 "/api/public/rooms/*/live-queue/join",
+                                "/api/support/ownership-disputes",
                                 "/api/public/qr/*/live-queue/join").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/payments/registration-sessions/*", "/api/queues/public",
+                                "/api/subscriptions/plans",
                                 "/api/public/rooms/*/live-queue",
+                                "/api/public/rooms/*/rating-summary",
                                 "/api/public/rooms/*/available-slots",
                                 "/api/public/qr/*/live-queue",
                                 "/api/public/live-queue/entries/*").permitAll()

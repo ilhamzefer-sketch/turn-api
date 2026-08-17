@@ -11,17 +11,20 @@ public class RoomConfigurationService {
     private final ProviderAccessService accessService;
     private final RoomConfigurationValidator validator;
     private final ProviderWorkspaceMapper mapper;
+    private final SubscriptionGateService subscriptionGateService;
 
     public RoomConfigurationService(
             RoomRepository roomRepository,
             ProviderAccessService accessService,
             RoomConfigurationValidator validator,
-            ProviderWorkspaceMapper mapper
+            ProviderWorkspaceMapper mapper,
+            SubscriptionGateService subscriptionGateService
     ) {
         this.roomRepository = roomRepository;
         this.accessService = accessService;
         this.validator = validator;
         this.mapper = mapper;
+        this.subscriptionGateService = subscriptionGateService;
     }
 
     @Transactional
@@ -57,6 +60,7 @@ public class RoomConfigurationService {
     public RoomResponseDto publish(long roomId, long userId) {
         RoomEntity room = accessService.requireEditableRoom(roomId, userId);
         validator.validatePublishable(room);
+        subscriptionGateService.requirePublish(room);
         room.setStatus(RoomStatus.PUBLISHED);
         return mapper.toDto(roomRepository.save(room));
     }

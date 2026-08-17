@@ -19,6 +19,7 @@ public class RoomBookingService {
     private final GuestContactService guestContactService;
     private final BookingAuditService auditService;
     private final PlannedBookingMapper mapper;
+    private final SubscriptionGateService subscriptionGateService;
     private final Clock clock;
 
     public RoomBookingService(
@@ -29,6 +30,7 @@ public class RoomBookingService {
             GuestContactService guestContactService,
             BookingAuditService auditService,
             PlannedBookingMapper mapper,
+            SubscriptionGateService subscriptionGateService,
             Clock clock
     ) {
         this.bookingRepository = bookingRepository;
@@ -38,6 +40,7 @@ public class RoomBookingService {
         this.guestContactService = guestContactService;
         this.auditService = auditService;
         this.mapper = mapper;
+        this.subscriptionGateService = subscriptionGateService;
         this.clock = clock;
     }
 
@@ -61,6 +64,7 @@ public class RoomBookingService {
     ) {
         accessService.requireEditableRoom(roomId, userId);
         RoomEntity room = support.lockRoom(roomId);
+        subscriptionGateService.requireRoomOperations(room);
         validateManualSource(request.source());
         BookingTimeRange range = availabilityService.requireAvailable(room, request.startAt(), false, null);
         UserEntity creator = accessService.requireActiveUser(userId);

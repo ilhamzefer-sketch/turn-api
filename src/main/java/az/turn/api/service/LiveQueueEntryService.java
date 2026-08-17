@@ -22,6 +22,8 @@ public class LiveQueueEntryService {
     private final ProviderAccessService accessService;
     private final SecureTokenService tokenService;
     private final LiveQueueMapper mapper;
+    private final SubscriptionGateService subscriptionGateService;
+    private final RoomCustomerBlockService customerBlockService;
 
     public LiveQueueEntryService(
             LiveQueueSessionService sessionService,
@@ -30,7 +32,9 @@ public class LiveQueueEntryService {
             GuestContactService guestContactService,
             ProviderAccessService accessService,
             SecureTokenService tokenService,
-            LiveQueueMapper mapper
+            LiveQueueMapper mapper,
+            SubscriptionGateService subscriptionGateService,
+            RoomCustomerBlockService customerBlockService
     ) {
         this.sessionService = sessionService;
         this.entryRepository = entryRepository;
@@ -39,6 +43,8 @@ public class LiveQueueEntryService {
         this.accessService = accessService;
         this.tokenService = tokenService;
         this.mapper = mapper;
+        this.subscriptionGateService = subscriptionGateService;
+        this.customerBlockService = customerBlockService;
     }
 
     @Transactional
@@ -50,6 +56,9 @@ public class LiveQueueEntryService {
         sessionService.requirePublicRoom(roomId);
         LiveQueueSessionEntity session = requireAcceptingSession(roomId);
         GuestContactEntity contact = guestContactService.resolve(request.displayName(), request.phone());
+        if (contact.getLinkedUser() != null) {
+            customerBlockService.requireAllowed(roomId, contact.getLinkedUser().getId());
+        }
         String identityKey = guestContactService.identityKey(contact.getNormalizedPhone());
         LiveQueueEntryEntity existing = findExisting(session, identityKey);
         if (existing != null) return joinDto(existing, session);
@@ -63,6 +72,7 @@ public class LiveQueueEntryService {
         sessionService.requirePublicRoom(roomId);
         LiveQueueSessionEntity session = requireAcceptingSession(roomId);
         UserEntity user = accessService.requireActiveUser(userId);
+        customerBlockService.requireAllowed(roomId, userId);
         String identityKey = guestContactService.identityKey(user.getNormalizedPhone());
         LiveQueueEntryEntity existing = findExisting(session, identityKey);
         if (existing != null) return joinDto(existing, session);
@@ -131,6 +141,7 @@ public class LiveQueueEntryService {
 
     private LiveQueueSessionEntity requireAcceptingSession(long roomId) {
         LiveQueueSessionEntity session = sessionService.requireOpenSessionForUpdate(roomId);
+        subscriptionGateService.requireRoomOperations(session.getRoom());
         if (!sessionService.isAccepting(session)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Canlı növbə hazırda yeni iştirakçı qəbul etmir.");
         }

@@ -17,28 +17,37 @@ public class PaymentReconciliationJob {
     private static final Logger logger = LoggerFactory.getLogger(PaymentReconciliationJob.class);
     private final PaymentSessionRepository paymentSessionRepository;
     private final PaymentSessionService paymentSessionService;
+    private final SubscriptionPaymentService subscriptionPaymentService;
 
-    public PaymentReconciliationJob(PaymentSessionRepository paymentSessionRepository, PaymentSessionService paymentSessionService) {
+    public PaymentReconciliationJob(
+            PaymentSessionRepository paymentSessionRepository,
+            PaymentSessionService paymentSessionService,
+            SubscriptionPaymentService subscriptionPaymentService
+    ) {
         this.paymentSessionRepository = paymentSessionRepository;
         this.paymentSessionService = paymentSessionService;
+        this.subscriptionPaymentService = subscriptionPaymentService;
     }
 
     @Scheduled(fixedDelayString = "${app.payment.reconciliation-delay-ms:60000}",
             initialDelayString = "${app.payment.reconciliation-initial-delay-ms:30000}")
     public void reconcile() {
-        List<Long> pendingIds = paymentSessionRepository
+        List<PaymentSessionEntity> pendingSessions = paymentSessionRepository
                 .findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
-                        PaymentStatus.PENDING, LocalDateTime.now().minusSeconds(15), PageRequest.of(0, 100))
-                .stream().map(PaymentSessionEntity::getId).toList();
+                        PaymentStatus.PENDING, LocalDateTime.now().minusSeconds(15), PageRequest.of(0, 100));
 
-        for (Long paymentSessionId : pendingIds) {
+        for (PaymentSessionEntity session : pendingSessions) {
             try {
-                paymentSessionService.reconcilePendingPayment(paymentSessionId);
+                if (session.getPaymentPurpose() == PaymentPurpose.PROVIDER_SUBSCRIPTION) {
+                    subscriptionPaymentService.reconcile(session.getId());
+                } else {
+                    paymentSessionService.reconcilePendingPayment(session.getId());
+                }
             } catch (ResponseStatusException exception) {
                 logger.warn("Payment reconciliation failed: paymentSessionId={}, status={}",
-                        paymentSessionId, exception.getStatusCode().value());
+                        session.getId(), exception.getStatusCode().value());
             } catch (RuntimeException exception) {
-                logger.error("Payment reconciliation error: paymentSessionId={}", paymentSessionId, exception);
+                logger.error("Payment reconciliation error: paymentSessionId={}", session.getId(), exception);
             }
         }
     }

@@ -24,6 +24,7 @@ public class LiveQueueSessionService {
     private final LiveQueueAvailabilityService availabilityService;
     private final LiveQueueSessionFactory sessionFactory;
     private final LiveQueueMapper mapper;
+    private final SubscriptionGateService subscriptionGateService;
     private final Clock clock;
 
     public LiveQueueSessionService(
@@ -34,6 +35,7 @@ public class LiveQueueSessionService {
             LiveQueueAvailabilityService availabilityService,
             LiveQueueSessionFactory sessionFactory,
             LiveQueueMapper mapper,
+            SubscriptionGateService subscriptionGateService,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
@@ -43,6 +45,7 @@ public class LiveQueueSessionService {
         this.availabilityService = availabilityService;
         this.sessionFactory = sessionFactory;
         this.mapper = mapper;
+        this.subscriptionGateService = subscriptionGateService;
         this.clock = clock;
     }
 
@@ -165,6 +168,7 @@ public class LiveQueueSessionService {
         if (room.getLiveQueueResetPolicy() == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Canlı növbənin reset qaydası tamamlanmayıb.");
         }
+        subscriptionGateService.requireRoomOperations(room);
         return room;
     }
 

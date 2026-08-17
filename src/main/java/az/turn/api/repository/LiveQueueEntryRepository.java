@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface LiveQueueEntryRepository extends JpaRepository<LiveQueueEntryEntity, Long> {
     List<LiveQueueEntryEntity> findBySessionIdOrderByQueuePositionAsc(Long sessionId);
@@ -23,5 +24,10 @@ public interface LiveQueueEntryRepository extends JpaRepository<LiveQueueEntryEn
     List<LiveQueueEntryEntity> findByUserIdOrGuestContactLinkedUserIdOrderByCreatedAtDesc(
             Long userId,
             Long linkedUserId
+    );
+    List<LiveQueueEntryEntity> findByRoomIdInAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+            List<Long> roomIds,
+            LocalDateTime from,
+            LocalDateTime to
     );
 }

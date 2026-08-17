@@ -37,8 +37,20 @@ public class PaymentSessionEntity {
     private PaymentStatus status;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column
     private RegistrationType registrationType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private PaymentPurpose paymentPurpose;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "provider_subscription_id")
+    private ProviderSubscriptionEntity providerSubscription;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subscription_plan_id")
+    private SubscriptionPlanEntity subscriptionPlan;
 
     @Column(nullable = false)
     private long amount;
@@ -46,16 +58,16 @@ public class PaymentSessionEntity {
     @Column(nullable = false)
     private String currency;
 
-    @Column(nullable = false)
+    @Column
     private String firstName;
 
-    @Column(nullable = false)
+    @Column
     private String lastName;
 
-    @Column(nullable = false)
+    @Column
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String passwordHash;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -104,6 +116,12 @@ public class PaymentSessionEntity {
     public void setStatus(PaymentStatus status) { this.status = status; }
     public RegistrationType getRegistrationType() { return registrationType; }
     public void setRegistrationType(RegistrationType registrationType) { this.registrationType = registrationType; }
+    public PaymentPurpose getPaymentPurpose() { return paymentPurpose; }
+    public void setPaymentPurpose(PaymentPurpose value) { this.paymentPurpose = value; }
+    public ProviderSubscriptionEntity getProviderSubscription() { return providerSubscription; }
+    public void setProviderSubscription(ProviderSubscriptionEntity value) { this.providerSubscription = value; }
+    public SubscriptionPlanEntity getSubscriptionPlan() { return subscriptionPlan; }
+    public void setSubscriptionPlan(SubscriptionPlanEntity value) { this.subscriptionPlan = value; }
     public long getAmount() { return amount; }
     public void setAmount(long amount) { this.amount = amount; }
     public String getCurrency() { return currency; }
@@ -141,6 +159,7 @@ public class PaymentSessionEntity {
 
     @PrePersist
     public void prePersist() {
+        if (paymentPurpose == null) paymentPurpose = PaymentPurpose.LEGACY_REGISTRATION;
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }

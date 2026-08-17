@@ -13,6 +13,9 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
     List<RoomEntity> findByBranchIdOrderByCreatedAtAsc(Long branchId);
     Optional<RoomEntity> findByIndividualWorkspaceId(Long workspaceId);
     boolean existsByBranchIdAndStatusNot(Long branchId, RoomStatus status);
+    long countByBranchBusinessIdAndStatusNot(Long businessId, RoomStatus status);
+    long countByIndividualWorkspaceIdAndStatusNot(Long workspaceId, RoomStatus status);
+    long countByStatusNot(RoomStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select room from RoomEntity room where room.id = :roomId")
