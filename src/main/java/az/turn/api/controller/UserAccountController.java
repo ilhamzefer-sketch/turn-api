@@ -21,15 +21,18 @@ public class UserAccountController {
     private final RequestAuthenticationService requestAuthenticationService;
     private final UserSessionService userSessionService;
     private final QueueService queueService;
+    private final LiveQueueEntryService liveQueueEntryService;
 
     public UserAccountController(
             RequestAuthenticationService requestAuthenticationService,
             UserSessionService userSessionService,
-            QueueService queueService
+            QueueService queueService,
+            LiveQueueEntryService liveQueueEntryService
     ) {
         this.requestAuthenticationService = requestAuthenticationService;
         this.userSessionService = userSessionService;
         this.queueService = queueService;
+        this.liveQueueEntryService = liveQueueEntryService;
     }
 
     @GetMapping("/sessions")
@@ -66,6 +69,12 @@ public class UserAccountController {
     public List<UserQueueHistoryItemDto> getQueueHistory(Authentication authentication) {
         AuthenticatedUser user = requireUser(authentication);
         return queueService.getUserHistory(user.userId());
+    }
+
+    @GetMapping("/live-queue-history")
+    public List<LiveQueueHistoryItemDto> getLiveQueueHistory(Authentication authentication) {
+        AuthenticatedUser user = requireUser(authentication);
+        return liveQueueEntryService.getUserHistory(user.userId());
     }
 
     private AuthenticatedUser requireUser(Authentication authentication) {

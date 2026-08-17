@@ -14,6 +14,7 @@ public class UserAccountService {
 
     private final UserRepository userRepository;
     private final GuestQueueEntryRepository guestQueueEntryRepository;
+    private final GuestContactRepository guestContactRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PhoneNumberService phoneNumberService;
     private final UserPasswordService userPasswordService;
@@ -23,6 +24,7 @@ public class UserAccountService {
     public UserAccountService(
             UserRepository userRepository,
             GuestQueueEntryRepository guestQueueEntryRepository,
+            GuestContactRepository guestContactRepository,
             RefreshTokenRepository refreshTokenRepository,
             PhoneNumberService phoneNumberService,
             UserPasswordService userPasswordService,
@@ -31,6 +33,7 @@ public class UserAccountService {
     ) {
         this.userRepository = userRepository;
         this.guestQueueEntryRepository = guestQueueEntryRepository;
+        this.guestContactRepository = guestContactRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.phoneNumberService = phoneNumberService;
         this.userPasswordService = userPasswordService;
@@ -50,9 +53,19 @@ public class UserAccountService {
         try {
             UserEntity savedUser = userRepository.saveAndFlush(user);
             guestQueueEntryRepository.linkUnclaimedEntries(savedUser, normalizedPhone);
+            linkGuestContact(savedUser, normalizedPhone);
             return savedUser;
         } catch (DataIntegrityViolationException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu telefon nömrəsi artıq qeydiyyatdan keçib.");
+        }
+    }
+
+    private void linkGuestContact(UserEntity user, String normalizedPhone) {
+        GuestContactEntity contact = guestContactRepository.findByNormalizedPhoneForUpdate(normalizedPhone).orElse(null);
+        if (contact != null && contact.getLinkedUser() == null) {
+            contact.setLinkedUser(user);
+            contact.setLinkedAt(LocalDateTime.now(clock));
+            guestContactRepository.save(contact);
         }
     }
 

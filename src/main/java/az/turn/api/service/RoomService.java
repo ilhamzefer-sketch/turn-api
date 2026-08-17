@@ -18,6 +18,7 @@ public class RoomService {
     private final ProviderInputService inputService;
     private final ProviderWorkspaceMapper mapper;
     private final RoomConfigurationValidator configurationValidator;
+    private final LiveQueueSessionRepository liveQueueSessionRepository;
     private final Clock clock;
 
     public RoomService(
@@ -28,6 +29,7 @@ public class RoomService {
             ProviderInputService inputService,
             ProviderWorkspaceMapper mapper,
             RoomConfigurationValidator configurationValidator,
+            LiveQueueSessionRepository liveQueueSessionRepository,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
@@ -37,6 +39,7 @@ public class RoomService {
         this.inputService = inputService;
         this.mapper = mapper;
         this.configurationValidator = configurationValidator;
+        this.liveQueueSessionRepository = liveQueueSessionRepository;
         this.clock = clock;
     }
 
@@ -94,6 +97,13 @@ public class RoomService {
     @Transactional
     public RoomResponseDto update(long roomId, long userId, RoomUpsertRequestDto request) {
         RoomEntity room = accessService.requireEditableRoom(roomId, userId);
+        if (room.getReservationMode() != request.reservationMode()
+                && liveQueueSessionRepository.findByRoomIdAndOpenSlot(roomId, 1).isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Açıq canlı növbə sessiyası bağlanmadan otaq rejimi dəyişdirilə bilməz."
+            );
+        }
         String fallbackTimezone = room.getBranch() == null
                 ? room.getIndividualWorkspace().getTimezone()
                 : room.getBranch().getTimezone();
@@ -105,6 +115,12 @@ public class RoomService {
     @Transactional
     public void archive(long roomId, long userId) {
         RoomEntity room = accessService.requireEditableRoom(roomId, userId);
+        if (liveQueueSessionRepository.findByRoomIdAndOpenSlot(roomId, 1).isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Açıq canlı növbə sessiyası bağlanmadan otaq arxivləşdirilə bilməz."
+            );
+        }
         room.setStatus(RoomStatus.ARCHIVED);
         room.setVisibility(RoomVisibility.UNLISTED);
         room.setArchivedAt(LocalDateTime.now(clock));

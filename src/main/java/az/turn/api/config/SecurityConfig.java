@@ -86,8 +86,14 @@ public class SecurityConfig {
                                 "/api/queue-managers/login", "/api/admin/login", "/api/auth/refresh",
                                 "/api/auth/logout", "/api/payments/registration-sessions",
                                 "/api/payments/registration-sessions/*/confirm",
-                                "/api/payments/registration-sessions/*/cancel", "/api/queues/scan").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/payments/registration-sessions/*", "/api/queues/public").permitAll()
+                                "/api/payments/registration-sessions/*/cancel", "/api/queues/scan",
+                                "/api/public/rooms/*/live-queue/join",
+                                "/api/public/qr/*/live-queue/join").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/payments/registration-sessions/*", "/api/queues/public",
+                                "/api/public/rooms/*/live-queue",
+                                "/api/public/qr/*/live-queue",
+                                "/api/public/live-queue/entries/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

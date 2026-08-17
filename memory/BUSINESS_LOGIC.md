@@ -143,7 +143,26 @@ Pending hesab yaradılması üçün başlanğıc limitlər biznesə gündə `500
 12. Otaq yalnız səlahiyyətli business owner/admin, aktiv room owner və ya individual workspace sahibi tərəfindən konfiqurasiya edilə bilər.
 13. Yayımlanmış otağın konfiqurasiyası onu etibarsız vəziyyətə sala bilməz. Otaq ayrıca `INACTIVE` edilə və sonradan şərtlər tamam olduqda yenidən yayımlana bilər.
 
-## 5.3. Legacy növbə qaydaları
+## 5.3. Otaq əsaslı canlı növbə
+
+1. Yayımlanmış `LIVE_QUEUE` otağı üçün eyni anda yalnız bir açıq `LiveQueueSession` ola bilər.
+2. Sessiya gündəlik yerli saatda və ya konfiqurasiya edilmiş intervaldan sonra reset olunur. Reset köhnə sessiyanı `CLOSED`, bütün aktiv iştirakçıları `RESET` edir və yeni boş sessiya yaradır.
+3. Yeni iştirakçı yalnız sessiya açıq, otaq qəbul vəziyyətində və iştirakçı limiti dolmamış olduqda qoşula bilər.
+4. `AUTO` qəbul rejimi otağın həftəlik cədvəli və tarix istisnalarına baxır. Otaq sahibi qəbul vəziyyətini `FORCE_OPEN` və ya `FORCE_CLOSED` ilə manual override edə, sonra yenidən avtomatik rejimə qaytara bilər.
+5. Guest istifadəçi public link və ya QR ilə yalnız ad və Azərbaycan telefon nömrəsi daxil edir. Şifrə və hesab məcburi deyil.
+6. Eyni normallaşdırılmış telefon eyni sessiyada ikinci aktiv giriş yarada bilməz; təkrar sorğu mövcud girişin public reference-ını qaytarır.
+7. Otaq sahibi telefon, walk-in və digər offline mənbə ilə manual guest əlavə edə bilər. Ad, telefon və daxili qeyd yalnız səlahiyyətli operator cavabında görünür.
+8. Aktiv iştirakçı statusları `WAITING`, `CURRENT` və `SKIPPED`, terminal statuslar `COMPLETED`, `REMOVED` və `RESET`-dir.
+9. `call-next` ilk gözləyəni cari edir. Cari iştirakçını tamamlamaq avtomatik növbəti gözləyəni cari edir.
+10. Otaq sahibi iştirakçını skip, restore, send-to-end və remove edə bilər. Arbitrary sıra dəyişmə yoxdur və bütün terminal qeydlər tarixçədə saxlanılır.
+11. Nömrə verilməsi sessiya səviyyəsində pessimistic DB lock ilə seriallaşdırılır. Sessiya daxilində mövqe, aktiv telefon və cari iştirakçı ayrıca unique constraint-lərlə qorunur.
+12. Otağın standart müddəti public təxmini gözləmə vaxtının hesablanmasında istifadə olunur.
+13. Public cavab yalnız anonim `publicReference`, mövqe və status göstərir; guest adı, telefonu və daxili qeydi göstərmir.
+14. Bir otaq üçün istənilən sayda daimi QR credential yaradıla bilər. Token yalnız yaradılarkən qaytarılır, bazada SHA-256 hash saxlanılır və hər credential ayrıca regenerate və revoke edilə bilər.
+15. Guest contact eyni telefonla sonradan qeydiyyatdan keçən `USER` hesabına bağlanır və otaq canlı növbə tarixçəsi `/api/users/me/live-queue-history` vasitəsilə görünür.
+16. Açıq sessiya bağlanmadan otaq `PLANNED_BOOKING` rejiminə keçirilə və ya arxivləşdirilə bilməz.
+
+## 5.4. Legacy növbə qaydaları
 
 Növbə üçün aşağıdakılar tələb olunur:
 
@@ -272,10 +291,10 @@ Bu maddələr gələcək biznes işi kimi qalır:
 
 1. Hazırkı ödəniş bir dəfəlik qeydiyyat ödənişidir. Hədəf model aylıq abunəlik, növbəti ödəniş tarixi, grace period və yenilənmə tarixçəsi tələb edir.
 2. Admin aylıq gəliri hazırda tamamlanmış payment session-ların tarixinə görə hesablayır. Tam abunəlik modelində ayrıca dəyişməz payment ledger yaradılmalıdır.
-3. Business, branch, individual workspace, membership, room, room assignment, həftəlik availability, tarix istisnaları, xidmət siyahısı və publish validation hazırdır. Boş slot hesablanması və planlı booking növbəti development mərhələsində əlavə ediləcək.
+3. Business, branch, individual workspace, membership, room, room assignment, həftəlik availability, tarix istisnaları, xidmət siyahısı, publish validation və otaq əsaslı canlı növbə hazırdır. Boş slot hesablanması və planlı booking növbəti development mərhələsində əlavə ediləcək.
 4. Email/SMS/push növbə bildirişləri hələ yoxdur.
-5. Növbədən çıxma, çağırışı ötürmə, no-show və xidmətin tamamlanması ayrıca statuslarla modelləşdirilməyib.
-6. Köhnə guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan yeni qeydlər avtomatik hesaba bağlana bilər.
+5. Planlı rezervasiya üçün cancellation, reschedule və no-show hələ modelləşdirilməyib; canlı növbədə skip, restore, remove, reset və complete statusları hazırdır.
+6. Köhnə legacy guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan legacy və yeni room live-queue qeydləri avtomatik hesaba bağlana bilər.
 
 ## 13. Dəyişiklik zamanı qorunacaq qaydalar
 

@@ -48,6 +48,10 @@ server:
 
 app:
   env: ${APP_ENV:local}
+  live-queue:
+    reset-enabled: ${APP_LIVE_QUEUE_RESET_ENABLED:true}
+    reset-delay-ms: ${APP_LIVE_QUEUE_RESET_DELAY_MS:30000}
+    reset-initial-delay-ms: ${APP_LIVE_QUEUE_RESET_INITIAL_DELAY_MS:15000}
   limits:
     pending-accounts:
       business-daily: ${APP_PENDING_ACCOUNTS_BUSINESS_DAILY:500}
