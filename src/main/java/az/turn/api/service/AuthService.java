@@ -6,10 +6,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.security.SecureRandom;
-import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.Base64;
 
 @Service
@@ -32,7 +33,11 @@ public class AuthService {
 
     @Transactional
     public AuthTokens issueTokens(AuthenticatedUser user) {
-        String accessToken = jwtService.generateAccessToken(user);
+        return issueTokens(user, new SessionMetadata(null, null));
+    }
+
+    @Transactional
+    public AuthTokens issueTokens(AuthenticatedUser user, SessionMetadata metadata) {
 
         RefreshTokenEntity refreshToken = new RefreshTokenEntity();
         String rawRefreshToken = generateOpaqueToken();
@@ -42,26 +47,37 @@ public class AuthService {
         refreshToken.setUsername(user.username());
         refreshToken.setExpiresAt(jwtService.calculateRefreshExpiry(refreshTokenDays));
         refreshToken.setRevoked(false);
-        refreshTokenRepository.save(refreshToken);
+        refreshToken.setUserAgent(metadata.userAgent());
+        refreshToken.setIpAddress(metadata.ipAddress());
+        RefreshTokenEntity savedToken = refreshTokenRepository.save(refreshToken);
+
+        AuthenticatedUser sessionUser = new AuthenticatedUser(
+                user.userType(),
+                user.userId(),
+                user.username(),
+                savedToken.getId()
+        );
+        String accessToken = jwtService.generateAccessToken(sessionUser);
 
         return new AuthTokens(accessToken, rawRefreshToken);
     }
 
     @Transactional
-    public AuthTokens refresh(String refreshTokenValue) {
+    public AuthTokens refresh(String refreshTokenValue, SessionMetadata metadata) {
         if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token tapılmadı.");
         }
         RefreshTokenEntity existing = refreshTokenRepository.findByTokenForUpdate(hashToken(refreshTokenValue))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token tapilmadi."));
 
-        if (existing.isRevoked() || existing.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+        if (existing.isRevoked() || existing.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token vaxti bitib ve ya legv olunub.");
         }
 
         existing.setRevoked(true);
+        existing.setLastUsedAt(LocalDateTime.now());
         AuthenticatedUser user = new AuthenticatedUser(existing.getUserType(), existing.getUserId(), existing.getUsername());
-        return issueTokens(user);
+        return issueTokens(user, metadata);
     }
 
     @Transactional

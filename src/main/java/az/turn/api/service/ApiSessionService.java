@@ -14,17 +14,36 @@ public class ApiSessionService {
     private static final String PAYMENT_SESSION_COOKIE = "payment_session_token";
 
     private final AuthService authService;
+    private final UserMapper userMapper;
+    private final SessionMetadataService sessionMetadataService;
     private final boolean secureCookies;
     private final long refreshTokenDays;
 
     public ApiSessionService(
             AuthService authService,
+            UserMapper userMapper,
+            SessionMetadataService sessionMetadataService,
             @Value("${app.security.secure-cookies:false}") boolean secureCookies,
             @Value("${app.security.refresh-token-days:14}") long refreshTokenDays
     ) {
         this.authService = authService;
+        this.userMapper = userMapper;
+        this.sessionMetadataService = sessionMetadataService;
         this.secureCookies = secureCookies;
         this.refreshTokenDays = refreshTokenDays;
+    }
+
+    public UserResponseDto authenticateUser(
+            UserEntity user,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        AuthTokens tokens = authService.issueTokens(
+                new AuthenticatedUser(AuthUserType.USER, user.getId(), user.getNormalizedPhone()),
+                sessionMetadataService.from(request)
+        );
+        writeRefreshCookie(response, tokens.refreshToken());
+        return userMapper.toDto(user, tokens.accessToken());
     }
 
     public RegistrationResponse authenticateRegistration(RegistrationResponse registration, HttpServletResponse response) {
@@ -76,7 +95,7 @@ public class ApiSessionService {
 
     public AccessTokenResponse refresh(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = CsrfCookieFilter.findCookieValue(request, "refresh_token");
-        AuthTokens tokens = authService.refresh(refreshToken);
+        AuthTokens tokens = authService.refresh(refreshToken, sessionMetadataService.from(request));
         writeRefreshCookie(response, tokens.refreshToken());
         return new AccessTokenResponse(tokens.accessToken());
     }

@@ -71,6 +71,50 @@ public class QueueViewService {
         );
     }
 
+    public UserQueueHistoryItemDto toUserQueueHistoryItemDto(CustomerQueueEntryEntity entry) {
+        QueueEntity queue = entry.getQueue();
+        long waitingAhead = Math.max(0, entry.getQueueNumber() - queue.getCurrentServingNumber() - 1);
+        return new UserQueueHistoryItemDto(
+                entry.getId(),
+                "REGISTERED",
+                queue.getId(),
+                entry.getDisplayName() == null || entry.getDisplayName().isBlank()
+                        ? queue.getServiceName()
+                        : entry.getDisplayName(),
+                queue.getServiceName(),
+                queue.getAddress(),
+                copyCategories(queue),
+                entry.getQueueNumber(),
+                queue.getCurrentServingNumber(),
+                waitingAhead,
+                resolveAverageServiceMinutes(queue),
+                entry.getRating(),
+                entry.getRatingNote(),
+                entry.getJoinedAt()
+        );
+    }
+
+    public UserQueueHistoryItemDto toGuestQueueHistoryItemDto(GuestQueueEntryEntity entry) {
+        QueueEntity queue = entry.getQueue();
+        long waitingAhead = Math.max(0, entry.getQueueNumber() - queue.getCurrentServingNumber() - 1);
+        return new UserQueueHistoryItemDto(
+                entry.getId(),
+                "GUEST",
+                queue.getId(),
+                queue.getServiceName(),
+                queue.getServiceName(),
+                queue.getAddress(),
+                copyCategories(queue),
+                entry.getQueueNumber(),
+                queue.getCurrentServingNumber(),
+                waitingAhead,
+                resolveAverageServiceMinutes(queue),
+                null,
+                null,
+                entry.getJoinedAt()
+        );
+    }
+
     public QueueDetailResponse toQueueDetailResponse(QueueEntity entity) {
         long averageServiceMinutes = resolveAverageServiceMinutes(entity);
         long waitingCount = Math.max(0, entity.getLastIssuedNumber() - entity.getCurrentServingNumber());

@@ -1,10 +1,13 @@
 package az.turn.api;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import jakarta.persistence.LockModeType;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity, Long> {
@@ -13,4 +16,30 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select token from RefreshTokenEntity token where token.token = :token")
     Optional<RefreshTokenEntity> findByTokenForUpdate(String token);
+
+    List<RefreshTokenEntity> findByUserTypeAndUserIdAndRevokedFalseAndExpiresAtAfterOrderByCreatedAtDesc(
+            AuthUserType userType,
+            Long userId,
+            LocalDateTime now
+    );
+
+    Optional<RefreshTokenEntity> findByIdAndUserTypeAndUserId(Long id, AuthUserType userType, Long userId);
+
+    boolean existsByIdAndUserTypeAndUserIdAndRevokedFalseAndExpiresAtAfter(
+            Long id,
+            AuthUserType userType,
+            Long userId,
+            LocalDateTime now
+    );
+
+    @Modifying
+    @Query("update RefreshTokenEntity token set token.revoked = true "
+            + "where token.userType = :userType and token.userId = :userId and token.revoked = false")
+    int revokeAllForUser(AuthUserType userType, Long userId);
+
+    @Modifying
+    @Query("update RefreshTokenEntity token set token.revoked = true "
+            + "where token.userType = :userType and token.userId = :userId "
+            + "and token.id <> :currentSessionId and token.revoked = false")
+    int revokeOtherSessions(AuthUserType userType, Long userId, Long currentSessionId);
 }

@@ -46,6 +46,7 @@ public class JwtService {
                 .subject(user.username())
                 .claim("userType", user.userType().name())
                 .claim("userId", user.userId())
+                .claim("sessionId", user.sessionId())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
                 .signWith(secretKey)
@@ -61,10 +62,12 @@ public class JwtService {
 
         AuthUserType userType = AuthUserType.valueOf(claims.get("userType", String.class));
         Number userId = claims.get("userId", Number.class);
+        Number sessionId = claims.get("sessionId", Number.class);
         return new AuthenticatedUser(
                 userType,
                 userId == null ? null : userId.longValue(),
-                claims.getSubject()
+                claims.getSubject(),
+                sessionId == null ? null : sessionId.longValue()
         );
     }
 

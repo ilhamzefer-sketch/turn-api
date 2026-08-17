@@ -19,9 +19,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final SessionValidationService sessionValidationService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, SessionValidationService sessionValidationService) {
         this.jwtService = jwtService;
+        this.sessionValidationService = sessionValidationService;
     }
 
     @Override
@@ -33,6 +35,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             try {
                 AuthenticatedUser user = jwtService.parseAccessToken(token);
+                if (!sessionValidationService.isActive(user)) {
+                    SecurityContextHolder.clearContext();
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         user,
                         null,

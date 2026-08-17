@@ -6,6 +6,14 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 
 ## 2. Rollar
 
+### Vahid istifadəçi (`USER`)
+
+- Yeni əsas hesab modelidir və Azərbaycan telefon nömrəsi ilə tanınır.
+- `0501234567`, `501234567` və `+994501234567` eyni `+994501234567` identifikatoruna normallaşdırılır.
+- Eyni normallaşdırılmış telefon yalnız bir `USER` hesabına aid ola bilər.
+- Hesab pulsuz yaradılır və gələcəkdə eyni profil müştəri, individual specialist, business sahibi/admini və room owner kontekstlərində istifadə ediləcək.
+- Hazırkı keçid dövründə köhnə `REGISTRATION`, `CUSTOMER` və `QUEUE_MANAGER` hesabları işləməyə davam edir.
+
 ### Növbə yaradan (`REGISTRATION`)
 
 - `FƏRDİ` və ya `KORPORATİV` hesab kimi qeydiyyatdan keçir.
@@ -24,7 +32,9 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 
 - Hesab yaratmadan yalnız QR/UID vasitəsilə növbəyə qoşulur.
 - Ad və soyad yazması məcburidir.
-- Kabineti və davamlı tarixçəsi yoxdur.
+- Yeni axında telefon nömrəsi saxlanır; köhnə UI uyğunluğu üçün telefon sahəsi keçid müddətində nullable-dır.
+- Telefon aktiv `USER` hesabına aiddirsə giriş dərhal həmin hesaba bağlanır.
+- Şəxs sonradan eyni telefonla qeydiyyatdan keçərsə əvvəlki uyğun guest tarixçəsi hesaba bağlanır.
 
 ### Növbə idarəçisi (`QUEUE_MANAGER`)
 
@@ -56,7 +66,32 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 
 Ödəniş sessiyası tokeni URL-də və JSON-da göstərilmir. Browser onu `HttpOnly` cookie ilə göndərir, DB-də isə yalnız SHA-256 hash saxlanılır.
 
+## 3.1. Yeni vahid hesab qeydiyyatı və girişi
+
+1. `POST /api/auth/register` ad, soyad, telefon və şifrə qəbul edir.
+2. Telefon yalnız Azərbaycan `+994` nömrəsi kimi normallaşdırılır və unikal saxlanır.
+3. Telefon mövcud deyilsə pulsuz `ACTIVE` hesab yaranır.
+4. Telefon `PENDING` hesabına aiddirsə eyni hesab aktivləşdirilir; yeni hesab yaradılmır və dəvətdə yazılmış ilkin adlar audit məlumatı kimi qorunur.
+5. Telefon `PASSWORD_RESET_REQUIRED` hesabına aiddirsə eyni hesaba yeni şifrə qoyulur və əvvəlki bütün sessiyalar ləğv edilir.
+6. Aktiv hesab üçün təkrar qeydiyyat rədd edilir.
+7. `POST /api/auth/login` telefon və şifrə ilə vahid girişdir.
+8. Beş ardıcıl səhv şifrə hesabı telefon səviyyəsində 15 dəqiqə kilidləyir.
+9. `USER` öz aktiv refresh sessiyalarını görə, konkret sessiyanı, digər sessiyaları və ya bütün sessiyaları ləğv edə bilər.
+10. Köhnə email əsaslı endpoint-lər frontend migrasiyası tamamlanana qədər compatibility üçün saxlanılır.
+
+Yeni şifrələr 8-128 simvol qəbul edir, geniş istifadə olunan zəif şifrələr rədd olunur və SHA-256 pre-hash üzərindən BCrypt ilə saxlanılır.
+
 ## 4. Hesab statusları
+
+Vahid `USER` statusları:
+
+- `PENDING` - biznes tərəfindən hazırlanmış, şifrəsiz hesabdır və login edə bilməz.
+- `ACTIVE` - qeydiyyatı tamamlanmış hesabdır.
+- `PASSWORD_RESET_REQUIRED` - admin resetindən sonra şifrəsi olmayan hesabdır; adi qeydiyyat forması ilə yeni şifrə qoyur.
+- `SUSPENDED` - girişə icazə verilməyən hesabdır.
+- `ANONYMIZED` - şəxsi məlumatları silinmiş hesabdır.
+
+Köhnə ödənişli `REGISTRATION` statusları keçid dövründə aşağıdakı kimi qalır:
 
 - `PENDING_PAYMENT` - ödəniş yaradılıb, amma təsdiqlənməyib.
 - `ACTIVE` - ödəniş təsdiqlənib və növbə yaratmağa icazə var.
@@ -99,7 +134,7 @@ Növbə yarananda unikal UUID tipli QR/UID token yaradılır. QR çapında həmi
 
 ### Evdən qoşulma
 
-- Yalnız daxil olmuş `CUSTOMER` açıq növbələr siyahısından queue ID və ya QR token ilə qoşula bilər.
+- Daxil olmuş `CUSTOMER` və ya yeni vahid `USER` açıq növbələr siyahısından queue ID və ya QR token ilə qoşula bilər.
 - Müştəri növbəni öz kabinetində istədiyi görünən adla saxlaya bilər.
 
 ### Nömrənin verilməsi
@@ -175,9 +210,11 @@ Qeydiyyatlı müştərinin hər qoşulması tarixçədə saxlanılır:
 
 Müştəri yalnız öz tarixçə qeydini dəyişə və qiymətləndirə bilər.
 
+Yeni `USER` tarixçəsi həm hesabla birbaşa yaradılmış queue entry-ləri, həm də eyni normallaşdırılmış telefonla bağlanmış guest entry-ləri bir siyahıda göstərir. Mənbə `REGISTERED` və ya `GUEST` kimi ayrılır. Guest qeydin ilkin şəxsi və audit məlumatları yenidən yazılmır.
+
 ## 11. Təhlükəsizlik invariatları
 
-- Şifrələr yalnız BCrypt hash kimi saxlanılır.
+- Köhnə şifrələr BCrypt, yeni `USER` şifrələri SHA-256 pre-hash üzərindən BCrypt kimi saxlanılır.
 - Access token qısaömürlü JWT-dir; refresh token `HttpOnly` cookie-də, DB-də hash kimi saxlanılır.
 - Dəyişiklik edən browser sorğuları CSRF token tələb edir.
 - Ödəniş təsdiqi server-to-server bank cavabı ilə aparılır.
@@ -191,10 +228,10 @@ Bu maddələr gələcək biznes işi kimi qalır:
 
 1. Hazırkı ödəniş bir dəfəlik qeydiyyat ödənişidir. Hədəf model aylıq abunəlik, növbəti ödəniş tarixi, grace period və yenilənmə tarixçəsi tələb edir.
 2. Admin aylıq gəliri hazırda tamamlanmış payment session-ların tarixinə görə hesablayır. Tam abunəlik modelində ayrıca dəyişməz payment ledger yaradılmalıdır.
-3. Hazırda korporativ növbəyə bir idarəçi bağlıdır. Bir növbəyə çox idarəçi lazım olarsa əlaqə modeli genişləndirilməlidir.
+3. Vahid `USER` hazırdır, lakin business, branch, room membership və room assignment modeli növbəti development mərhələsində əlavə ediləcək.
 4. Email/SMS/push növbə bildirişləri hələ yoxdur.
 5. Növbədən çıxma, çağırışı ötürmə, no-show və xidmətin tamamlanması ayrıca statuslarla modelləşdirilməyib.
-6. Guest tarixçəsi hesabla sonradan birləşdirilmir.
+6. Köhnə guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan yeni qeydlər avtomatik hesaba bağlana bilər.
 
 ## 13. Dəyişiklik zamanı qorunacaq qaydalar
 

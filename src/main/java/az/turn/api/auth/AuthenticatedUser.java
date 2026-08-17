@@ -3,8 +3,13 @@ package az.turn.api;
 public record AuthenticatedUser(
         AuthUserType userType,
         Long userId,
-        String username
+        String username,
+        Long sessionId
 ) {
+    public AuthenticatedUser(AuthUserType userType, Long userId, String username) {
+        this(userType, userId, username, null);
+    }
+
     public boolean isAdmin() {
         return userType == AuthUserType.ADMIN;
     }
@@ -19,5 +24,9 @@ public record AuthenticatedUser(
 
     public boolean isQueueManager() {
         return userType == AuthUserType.QUEUE_MANAGER;
+    }
+
+    public boolean isUser() {
+        return userType == AuthUserType.USER;
     }
 }

@@ -53,6 +53,11 @@ public class QueueService {
     }
 
     @Transactional
+    public CustomerQueueJoinResponse joinQueueForUser(CustomerQueueJoinRequest request, long userId) {
+        return customerQueueService.joinQueueForUser(request, userId);
+    }
+
+    @Transactional
     public QueueDetailResponse advanceQueue(long queueId, QueueAdvanceRequest request) {
         return queueManagementService.advanceQueue(queueId, request);
     }
@@ -65,6 +70,11 @@ public class QueueService {
     @Transactional
     public List<CustomerQueueHistoryItemResponse> getCustomerHistory(long customerId) {
         return customerQueueService.getCustomerHistory(customerId);
+    }
+
+    @Transactional
+    public List<UserQueueHistoryItemDto> getUserHistory(long userId) {
+        return customerQueueService.getUserHistory(userId);
     }
 
     @Transactional

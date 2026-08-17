@@ -12,11 +12,35 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AccountService accountService;
+    private final UserAccountService userAccountService;
     private final ApiSessionService apiSessionService;
 
-    public AuthController(AccountService accountService, ApiSessionService apiSessionService) {
+    public AuthController(
+            AccountService accountService,
+            UserAccountService userAccountService,
+            ApiSessionService apiSessionService
+    ) {
         this.accountService = accountService;
+        this.userAccountService = userAccountService;
         this.apiSessionService = apiSessionService;
+    }
+
+    @PostMapping("/api/auth/register")
+    public UserResponseDto registerUser(
+            @Valid @RequestBody UserRegistrationRequestDto request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
+    ) {
+        return apiSessionService.authenticateUser(userAccountService.register(request), httpRequest, response);
+    }
+
+    @PostMapping("/api/auth/login")
+    public UserResponseDto loginUser(
+            @Valid @RequestBody UserLoginRequestDto request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response
+    ) {
+        return apiSessionService.authenticateUser(userAccountService.login(request), httpRequest, response);
     }
 
     @PostMapping("/api/login")

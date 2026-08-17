@@ -10,6 +10,7 @@ public record QueueScanRequest(
         @Positive(message = "Müştəri ID müsbət olmalıdır.") Long customerId,
         @Size(max = 150, message = "Növbə adı maksimum 150 simvol ola bilər.") String displayName,
         @Size(min = 2, max = 80, message = "Ad 2-80 simvol olmalıdır.") @Pattern(regexp = "^[\\p{L}][\\p{L} .'-]*$", message = "Ad düzgün formatda deyil.") String firstName,
-        @Size(min = 2, max = 80, message = "Soyad 2-80 simvol olmalıdır.") @Pattern(regexp = "^[\\p{L}][\\p{L} .'-]*$", message = "Soyad düzgün formatda deyil.") String lastName
+        @Size(min = 2, max = 80, message = "Soyad 2-80 simvol olmalıdır.") @Pattern(regexp = "^[\\p{L}][\\p{L} .'-]*$", message = "Soyad düzgün formatda deyil.") String lastName,
+        @Size(max = 30, message = "Telefon maksimum 30 simvol ola bilər.") String phone
 ) {
 }

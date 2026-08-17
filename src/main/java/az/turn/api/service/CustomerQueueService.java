@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -15,6 +17,8 @@ public class CustomerQueueService {
     private final QueueRepository queueRepository;
     private final CustomerQueueEntryRepository customerQueueEntryRepository;
     private final GuestQueueEntryRepository guestQueueEntryRepository;
+    private final UserRepository userRepository;
+    private final PhoneNumberService phoneNumberService;
     private final QueueManagementService queueManagementService;
     private final QueueViewService queueViewService;
 
@@ -23,6 +27,8 @@ public class CustomerQueueService {
             QueueRepository queueRepository,
             CustomerQueueEntryRepository customerQueueEntryRepository,
             GuestQueueEntryRepository guestQueueEntryRepository,
+            UserRepository userRepository,
+            PhoneNumberService phoneNumberService,
             QueueManagementService queueManagementService,
             QueueViewService queueViewService
     ) {
@@ -30,6 +36,8 @@ public class CustomerQueueService {
         this.queueRepository = queueRepository;
         this.customerQueueEntryRepository = customerQueueEntryRepository;
         this.guestQueueEntryRepository = guestQueueEntryRepository;
+        this.userRepository = userRepository;
+        this.phoneNumberService = phoneNumberService;
         this.queueManagementService = queueManagementService;
         this.queueViewService = queueViewService;
     }
@@ -43,7 +51,15 @@ public class CustomerQueueService {
         if (!queue.isActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu novbe artiq deaktivdir.");
         }
-        QueueJoinResult result = createQueueEntry(queue, request.customerId(), request.displayName(), request.firstName(), request.lastName());
+        QueueJoinResult result = createQueueEntry(
+                queue,
+                request.customerId(),
+                null,
+                request.displayName(),
+                request.firstName(),
+                request.lastName(),
+                request.phone()
+        );
 
         return new QueueScanResponse(
                 result.queue().getId(),
@@ -76,7 +92,7 @@ public class CustomerQueueService {
         if (!queue.isActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu novbe artiq deaktivdir.");
         }
-        QueueJoinResult result = createQueueEntry(queue, request.customerId(), request.displayName(), null, null);
+        QueueJoinResult result = createQueueEntry(queue, request.customerId(), null, request.displayName(), null, null, null);
 
         return new CustomerQueueJoinResponse(
                 result.entry() != null ? result.entry().getId() : null,
@@ -104,6 +120,16 @@ public class CustomerQueueService {
     }
 
     @Transactional
+    public CustomerQueueJoinResponse joinQueueForUser(CustomerQueueJoinRequest request, long userId) {
+        QueueEntity queue = queueManagementService.ensureQueueState(resolveQueueForJoin(request));
+        if (!queue.isActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu növbə artıq deaktivdir.");
+        }
+        QueueJoinResult result = createQueueEntry(queue, null, userId, request.displayName(), null, null, null);
+        return toJoinResponse(result);
+    }
+
+    @Transactional
     public List<CustomerQueueHistoryItemResponse> getCustomerHistory(long customerId) {
         if (!customerRepository.existsById(customerId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Musteri tapilmadi.");
@@ -116,6 +142,23 @@ public class CustomerQueueService {
                     return queueViewService.toCustomerQueueHistoryItemResponse(entry);
                 })
                 .toList();
+    }
+
+    @Transactional
+    public List<UserQueueHistoryItemDto> getUserHistory(long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "İstifadəçi tapılmadı.");
+        }
+
+        List<UserQueueHistoryItemDto> history = new ArrayList<>();
+        customerQueueEntryRepository.findByUserIdOrderByJoinedAtDesc(userId).stream()
+                .map(queueViewService::toUserQueueHistoryItemDto)
+                .forEach(history::add);
+        guestQueueEntryRepository.findByLinkedUserIdOrderByJoinedAtDesc(userId).stream()
+                .map(queueViewService::toGuestQueueHistoryItemDto)
+                .forEach(history::add);
+        history.sort(Comparator.comparing(UserQueueHistoryItemDto::joinedAt).reversed());
+        return List.copyOf(history);
     }
 
     @Transactional
@@ -156,7 +199,15 @@ public class CustomerQueueService {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Queue ID ve ya QR token mutleqdir.");
     }
 
-    private QueueJoinResult createQueueEntry(QueueEntity queue, Long customerId, String displayName, String guestFirstName, String guestLastName) {
+    private QueueJoinResult createQueueEntry(
+            QueueEntity queue,
+            Long customerId,
+            Long userId,
+            String displayName,
+            String guestFirstName,
+            String guestLastName,
+            String guestPhone
+    ) {
         queue.setLastIssuedNumber(queue.getLastIssuedNumber() + 1);
         QueueEntity updatedQueue = queueRepository.save(queue);
 
@@ -166,12 +217,17 @@ public class CustomerQueueService {
         long estimatedWaitMinutes = waitingBeforeThisCustomer * queueViewService.resolveAverageServiceMinutes(updatedQueue);
 
         CustomerQueueEntryEntity savedEntry = null;
-        if (customerId != null) {
-            CustomerEntity customer = customerRepository.findById(customerId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Musteri tapilmadi."));
-
+        if (customerId != null || userId != null) {
             CustomerQueueEntryEntity entry = new CustomerQueueEntryEntity();
-            entry.setCustomer(customer);
+            if (customerId != null) {
+                CustomerEntity customer = customerRepository.findById(customerId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Müştəri tapılmadı."));
+                entry.setCustomer(customer);
+            } else {
+                UserEntity user = userRepository.findById(userId)
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "İstifadəçi tapılmadı."));
+                entry.setUser(user);
+            }
             entry.setQueue(updatedQueue);
             entry.setQueueNumber(queueNumber);
             entry.setDisplayName(displayName == null || displayName.isBlank() ? updatedQueue.getServiceName() : displayName.trim());
@@ -182,10 +238,48 @@ public class CustomerQueueService {
             guestEntry.setQueueNumber(queueNumber);
             guestEntry.setFirstName(normalizeRequired(guestFirstName, "Qeydiyyatsiz musteri ucun ad mutleqdir."));
             guestEntry.setLastName(normalizeRequired(guestLastName, "Qeydiyyatsiz musteri ucun soyad mutleqdir."));
+            linkGuestIdentity(guestEntry, guestPhone);
             guestQueueEntryRepository.save(guestEntry);
         }
 
         return new QueueJoinResult(updatedQueue, savedEntry, queueNumber, waitingCount, estimatedWaitMinutes);
+    }
+
+    private CustomerQueueJoinResponse toJoinResponse(QueueJoinResult result) {
+        return new CustomerQueueJoinResponse(
+                result.entry().getId(),
+                null,
+                result.queue().getId(),
+                result.queue().getAddress(),
+                result.queue().getServiceName(),
+                queueViewService.copyCategories(result.queue()),
+                result.queue().getRegistration().getFullName(),
+                result.queueNumber(),
+                result.queue().getCurrentServingNumber(),
+                result.waitingCount(),
+                result.queue().getLastIssuedNumber(),
+                result.estimatedWaitMinutes(),
+                queueViewService.resolveAverageServiceMinutes(result.queue()),
+                result.queue().getQrToken(),
+                result.entry().getDisplayName(),
+                queueViewService.buildScanMessage(
+                        result.queueNumber(),
+                        result.queue().getCurrentServingNumber(),
+                        result.waitingCount(),
+                        result.estimatedWaitMinutes()
+                )
+        );
+    }
+
+    private void linkGuestIdentity(GuestQueueEntryEntity guestEntry, String guestPhone) {
+        if (guestPhone == null || guestPhone.isBlank()) {
+            return;
+        }
+        String normalizedPhone = phoneNumberService.normalizeAzerbaijaniPhone(guestPhone);
+        guestEntry.setNormalizedPhone(normalizedPhone);
+        userRepository.findByNormalizedPhone(normalizedPhone)
+                .filter(user -> user.getStatus() == UserStatus.ACTIVE)
+                .ifPresent(guestEntry::setLinkedUser);
     }
 
     private void validateCustomerQueueEntryAccess(CustomerQueueEntryEntity entry, Long customerId) {
@@ -201,12 +295,4 @@ public class CustomerQueueService {
         return value.trim();
     }
 
-    private record QueueJoinResult(
-            QueueEntity queue,
-            CustomerQueueEntryEntity entry,
-            long queueNumber,
-            long waitingCount,
-            long estimatedWaitMinutes
-    ) {
-    }
 }

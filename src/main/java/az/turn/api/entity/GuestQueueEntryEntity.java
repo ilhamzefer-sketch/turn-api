@@ -34,6 +34,13 @@ public class GuestQueueEntryEntity {
     @Column(nullable = false)
     private String lastName;
 
+    @Column(length = 13)
+    private String normalizedPhone;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "linked_user_id")
+    private UserEntity linkedUser;
+
     @Column(nullable = false)
     private LocalDateTime joinedAt;
 
@@ -75,6 +82,22 @@ public class GuestQueueEntryEntity {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    public String getNormalizedPhone() {
+        return normalizedPhone;
+    }
+
+    public void setNormalizedPhone(String normalizedPhone) {
+        this.normalizedPhone = normalizedPhone;
+    }
+
+    public UserEntity getLinkedUser() {
+        return linkedUser;
+    }
+
+    public void setLinkedUser(UserEntity linkedUser) {
+        this.linkedUser = linkedUser;
     }
 
     public LocalDateTime getJoinedAt() {

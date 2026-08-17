@@ -82,6 +82,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/error", "/api/auth/csrf", "/actuator/health", "/actuator/health/**", "/actuator/prometheus").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/login", "/api/customers/register", "/api/customers/login",
+                                "/api/auth/register", "/api/auth/login",
                                 "/api/queue-managers/login", "/api/admin/login", "/api/auth/refresh",
                                 "/api/auth/logout", "/api/payments/registration-sessions",
                                 "/api/payments/registration-sessions/*/confirm",

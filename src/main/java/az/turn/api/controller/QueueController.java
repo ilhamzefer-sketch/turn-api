@@ -53,8 +53,20 @@ public class QueueController {
 
     @PostMapping("/api/queues/join")
     public CustomerQueueJoinResponse joinQueue(@Valid @RequestBody CustomerQueueJoinRequest request, Authentication authentication) {
-        AuthenticatedUser user = requestAuthenticationService.requireUser(authentication, AuthUserType.CUSTOMER);
-        return queueService.joinQueue(new CustomerQueueJoinRequest(user.userId(), request.queueId(), request.qrToken(), request.displayName()));
+        AuthenticatedUser user = requestAuthenticationService.requireAuthenticated(authentication);
+        CustomerQueueJoinRequest authenticatedRequest = new CustomerQueueJoinRequest(
+                user.isCustomer() ? user.userId() : null,
+                request.queueId(),
+                request.qrToken(),
+                request.displayName()
+        );
+        if (user.isCustomer()) {
+            return queueService.joinQueue(authenticatedRequest);
+        }
+        if (user.isUser()) {
+            return queueService.joinQueueForUser(authenticatedRequest, user.userId());
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu əməliyyat üçün icazəniz yoxdur.");
     }
 
     @PostMapping("/api/queues/{queueId}/next")
