@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "rooms")
@@ -48,6 +49,25 @@ public class RoomEntity {
     private ReservationMode reservationMode;
     @Column(nullable = false)
     private int defaultSlotDurationMinutes;
+    @Column(nullable = false)
+    private int appointmentBufferMinutes;
+    @Column(nullable = false)
+    private int bookingWindowDays;
+    @Column(nullable = false)
+    private int minimumAdvanceMinutes;
+    @Column(nullable = false)
+    private int cancellationCutoffMinutes;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private LiveQueueResetPolicy liveQueueResetPolicy;
+    @Column
+    private LocalTime liveQueueResetLocalTime;
+    @Column
+    private Integer liveQueueResetIntervalMinutes;
+    @Column
+    private Integer liveQueueMaxParticipants;
+    @Column(nullable = false)
+    private boolean liveQueueAcceptingNewEntries;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private RoomStatus status;
@@ -89,6 +109,24 @@ public class RoomEntity {
     public void setReservationMode(ReservationMode value) { this.reservationMode = value; }
     public int getDefaultSlotDurationMinutes() { return defaultSlotDurationMinutes; }
     public void setDefaultSlotDurationMinutes(int value) { this.defaultSlotDurationMinutes = value; }
+    public int getAppointmentBufferMinutes() { return appointmentBufferMinutes; }
+    public void setAppointmentBufferMinutes(int value) { this.appointmentBufferMinutes = value; }
+    public int getBookingWindowDays() { return bookingWindowDays; }
+    public void setBookingWindowDays(int value) { this.bookingWindowDays = value; }
+    public int getMinimumAdvanceMinutes() { return minimumAdvanceMinutes; }
+    public void setMinimumAdvanceMinutes(int value) { this.minimumAdvanceMinutes = value; }
+    public int getCancellationCutoffMinutes() { return cancellationCutoffMinutes; }
+    public void setCancellationCutoffMinutes(int value) { this.cancellationCutoffMinutes = value; }
+    public LiveQueueResetPolicy getLiveQueueResetPolicy() { return liveQueueResetPolicy; }
+    public void setLiveQueueResetPolicy(LiveQueueResetPolicy value) { this.liveQueueResetPolicy = value; }
+    public LocalTime getLiveQueueResetLocalTime() { return liveQueueResetLocalTime; }
+    public void setLiveQueueResetLocalTime(LocalTime value) { this.liveQueueResetLocalTime = value; }
+    public Integer getLiveQueueResetIntervalMinutes() { return liveQueueResetIntervalMinutes; }
+    public void setLiveQueueResetIntervalMinutes(Integer value) { this.liveQueueResetIntervalMinutes = value; }
+    public Integer getLiveQueueMaxParticipants() { return liveQueueMaxParticipants; }
+    public void setLiveQueueMaxParticipants(Integer value) { this.liveQueueMaxParticipants = value; }
+    public boolean isLiveQueueAcceptingNewEntries() { return liveQueueAcceptingNewEntries; }
+    public void setLiveQueueAcceptingNewEntries(boolean value) { this.liveQueueAcceptingNewEntries = value; }
     public RoomStatus getStatus() { return status; }
     public void setStatus(RoomStatus status) { this.status = status; }
     public RoomVisibility getVisibility() { return visibility; }
@@ -111,6 +149,9 @@ public class RoomEntity {
         LocalDateTime now = LocalDateTime.now();
         if (createdAt == null) createdAt = now;
         if (updatedAt == null) updatedAt = now;
+        if (bookingWindowDays == 0) bookingWindowDays = 30;
+        if (minimumAdvanceMinutes == 0) minimumAdvanceMinutes = 30;
+        liveQueueAcceptingNewEntries = true;
     }
 
     @PreUpdate

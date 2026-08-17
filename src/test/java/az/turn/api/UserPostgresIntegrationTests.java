@@ -15,6 +15,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,11 +36,17 @@ class UserPostgresIntegrationTests {
     private RoomRepository roomRepository;
 
     @Autowired
+    private IndividualWorkspaceRepository individualWorkspaceRepository;
+
+    @Autowired
+    private WeeklyAvailabilityRuleRepository weeklyAvailabilityRuleRepository;
+
+    @Autowired
     private Flyway flyway;
 
     @Test
     void appliesUnifiedAccountMigrationAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("14");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("15");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
@@ -60,6 +68,40 @@ class UserPostgresIntegrationTests {
         room.setVisibility(RoomVisibility.UNLISTED);
 
         assertThrows(DataIntegrityViolationException.class, () -> roomRepository.saveAndFlush(room));
+    }
+
+    @Test
+    void enforcesWeeklyAvailabilityIntervalInPostgres() {
+        UserEntity user = userRepository.saveAndFlush(activeUser("+994505556699"));
+        IndividualWorkspaceEntity workspace = new IndividualWorkspaceEntity();
+        workspace.setOwnerUser(user);
+        workspace.setName("Postgres workspace");
+        workspace.setTimezone("Asia/Baku");
+        workspace.setStatus(ProviderStatus.ACTIVE);
+        workspace = individualWorkspaceRepository.saveAndFlush(workspace);
+
+        RoomEntity room = new RoomEntity();
+        room.setIndividualWorkspace(workspace);
+        room.setCreatedByUser(user);
+        room.setName("Postgres room");
+        room.setTimezone("Asia/Baku");
+        room.setReservationMode(ReservationMode.PLANNED_BOOKING);
+        room.setDefaultSlotDurationMinutes(30);
+        room.setStatus(RoomStatus.DRAFT);
+        room.setVisibility(RoomVisibility.UNLISTED);
+        room = roomRepository.saveAndFlush(room);
+
+        WeeklyAvailabilityRuleEntity rule = new WeeklyAvailabilityRuleEntity();
+        rule.setRoom(room);
+        rule.setDayOfWeek(DayOfWeek.MONDAY);
+        rule.setStartTime(LocalTime.of(18, 0));
+        rule.setEndTime(LocalTime.of(9, 0));
+        rule.setActive(true);
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> weeklyAvailabilityRuleRepository.saveAndFlush(rule)
+        );
     }
 
     @Test

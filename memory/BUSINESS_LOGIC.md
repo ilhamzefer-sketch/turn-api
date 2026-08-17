@@ -127,7 +127,23 @@ Köhnə ödənişli `REGISTRATION` statusları keçid dövründə aşağıdakı 
 
 Pending hesab yaradılması üçün başlanğıc limitlər biznesə gündə `500`, dəvət edən idarəçiyə gündə `100` və dəqiqədə `20`-dir. Dəyərlər environment konfiqurasiyası ilə dəyişdirilə bilər.
 
-## 5.2. Legacy növbə qaydaları
+## 5.2. Otaq cədvəli və konfiqurasiyası
+
+1. Hər otaq bir həftə günü üçün bir neçə iş intervalı saxlaya bilər. Aktiv intervallar üst-üstə düşə bilməz.
+2. Bir günün cədvəli eyni əməliyyatla seçilmiş digər günlərə kopyalana bilər. Hədəf günlərin əvvəlki intervalları əvəz edilir.
+3. Tarix istisnaları `CLOSED`, `CUSTOM_HOURS` və `BLOCKED_INTERVAL` növlərində saxlanılır.
+4. `CLOSED` olan tarixdə başqa istisna saxlanmır. Xüsusi və bloklanan eyni növlü intervallar üst-üstə düşmür.
+5. Otağın standart görüş müddəti 1-1440 dəqiqədir və bütün xidmətlər üçün eynidir.
+6. Görüşdən sonrakı buffer 0-1440 dəqiqə, rezervasiya pəncərəsi 1-90 gün, minimum advance 0-10080 dəqiqədir.
+7. Xidmət siyahısı optional-dır. Xidmətin adı, açıqlaması, aktivliyi və optional sabit AZN qiyməti olur; xidmət ayrıca görüş müddəti müəyyən etmir.
+8. Canlı növbə reseti `DAILY_AT_TIME` və ya `EVERY_INTERVAL` qaydası ilə konfiqurasiya edilir. Günlük qayda yalnız yerli saat, interval qaydası yalnız müsbət dəqiqə intervalı qəbul edir.
+9. Canlı otaqda iştirakçı limiti optional-dır və yeni iştirakçı qəbulunun açıq/bağlı konfiqurasiyası saxlanılır.
+10. Yayımlanma üçün otağın əsas məlumatları, aktiv owner assignment-i və ən azı bir aktiv həftəlik intervalı olmalıdır.
+11. `LIVE_QUEUE` otağı əlavə olaraq reset qaydısı, `PLANNED_BOOKING` otağı rezervasiya pəncərəsi və ləğv parametrləri tələb edir.
+12. Otaq yalnız səlahiyyətli business owner/admin, aktiv room owner və ya individual workspace sahibi tərəfindən konfiqurasiya edilə bilər.
+13. Yayımlanmış otağın konfiqurasiyası onu etibarsız vəziyyətə sala bilməz. Otaq ayrıca `INACTIVE` edilə və sonradan şərtlər tamam olduqda yenidən yayımlana bilər.
+
+## 5.3. Legacy növbə qaydaları
 
 Növbə üçün aşağıdakılar tələb olunur:
 
@@ -256,7 +272,7 @@ Bu maddələr gələcək biznes işi kimi qalır:
 
 1. Hazırkı ödəniş bir dəfəlik qeydiyyat ödənişidir. Hədəf model aylıq abunəlik, növbəti ödəniş tarixi, grace period və yenilənmə tarixçəsi tələb edir.
 2. Admin aylıq gəliri hazırda tamamlanmış payment session-ların tarixinə görə hesablayır. Tam abunəlik modelində ayrıca dəyişməz payment ledger yaradılmalıdır.
-3. Business, branch, individual workspace, business membership, room və room assignment modeli hazırdır. Həftəlik availability, publish validation və planlı slot hesablanması növbəti development mərhələsində əlavə ediləcək.
+3. Business, branch, individual workspace, membership, room, room assignment, həftəlik availability, tarix istisnaları, xidmət siyahısı və publish validation hazırdır. Boş slot hesablanması və planlı booking növbəti development mərhələsində əlavə ediləcək.
 4. Email/SMS/push növbə bildirişləri hələ yoxdur.
 5. Növbədən çıxma, çağırışı ötürmə, no-show və xidmətin tamamlanması ayrıca statuslarla modelləşdirilməyib.
 6. Köhnə guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan yeni qeydlər avtomatik hesaba bağlana bilər.

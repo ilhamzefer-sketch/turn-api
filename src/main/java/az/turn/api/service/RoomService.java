@@ -17,6 +17,7 @@ public class RoomService {
     private final IndividualWorkspaceService individualWorkspaceService;
     private final ProviderInputService inputService;
     private final ProviderWorkspaceMapper mapper;
+    private final RoomConfigurationValidator configurationValidator;
     private final Clock clock;
 
     public RoomService(
@@ -26,6 +27,7 @@ public class RoomService {
             IndividualWorkspaceService individualWorkspaceService,
             ProviderInputService inputService,
             ProviderWorkspaceMapper mapper,
+            RoomConfigurationValidator configurationValidator,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
@@ -34,6 +36,7 @@ public class RoomService {
         this.individualWorkspaceService = individualWorkspaceService;
         this.inputService = inputService;
         this.mapper = mapper;
+        this.configurationValidator = configurationValidator;
         this.clock = clock;
     }
 
@@ -49,6 +52,7 @@ public class RoomService {
         room.setBranch(branch);
         room.setCreatedByUser(creator);
         apply(room, request, branch.getTimezone(), false);
+        applyConfigurationDefaults(room);
         room.setStatus(RoomStatus.DRAFT);
         return mapper.toDto(roomRepository.save(room));
     }
@@ -68,6 +72,7 @@ public class RoomService {
         room.setIndividualWorkspace(workspace);
         room.setCreatedByUser(creator);
         apply(room, request, workspace.getTimezone(), true);
+        applyConfigurationDefaults(room);
         room.setStatus(RoomStatus.DRAFT);
         RoomEntity saved = roomRepository.save(room);
         assignmentRepository.save(activeOwnerAssignment(saved, creator));
@@ -93,6 +98,7 @@ public class RoomService {
                 ? room.getIndividualWorkspace().getTimezone()
                 : room.getBranch().getTimezone();
         apply(room, request, fallbackTimezone, room.getIndividualWorkspace() != null);
+        if (room.getStatus() == RoomStatus.PUBLISHED) configurationValidator.validatePublishable(room);
         return mapper.toDto(roomRepository.save(room));
     }
 
@@ -116,11 +122,25 @@ public class RoomService {
         room.setNotes(inputService.optional(request.notes()));
         room.setTimezone(inputService.timezone(request.timezone(), fallbackTimezone));
         room.setReservationMode(request.reservationMode());
+        if (request.reservationMode() == ReservationMode.PLANNED_BOOKING) {
+            room.setLiveQueueResetPolicy(null);
+            room.setLiveQueueResetLocalTime(null);
+            room.setLiveQueueResetIntervalMinutes(null);
+            room.setLiveQueueMaxParticipants(null);
+        }
         room.setDefaultSlotDurationMinutes(request.defaultSlotDurationMinutes());
         room.setVisibility(request.visibility());
         room.setPersonalPublicAddress(individual ? inputService.optional(request.personalPublicAddress()) : null);
         room.setPersonalLatitude(individual ? request.personalLatitude() : null);
         room.setPersonalLongitude(individual ? request.personalLongitude() : null);
+    }
+
+    private void applyConfigurationDefaults(RoomEntity room) {
+        room.setAppointmentBufferMinutes(0);
+        room.setBookingWindowDays(30);
+        room.setMinimumAdvanceMinutes(30);
+        room.setCancellationCutoffMinutes(0);
+        room.setLiveQueueAcceptingNewEntries(true);
     }
 
     private RoomAssignmentEntity activeOwnerAssignment(RoomEntity room, UserEntity owner) {
