@@ -31,17 +31,35 @@ class UserPostgresIntegrationTests {
     private UserRepository userRepository;
 
     @Autowired
+    private RoomRepository roomRepository;
+
+    @Autowired
     private Flyway flyway;
 
     @Test
     void appliesUnifiedAccountMigrationAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("13");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("14");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> userRepository.saveAndFlush(activeUser("+994505556677"))
         );
+    }
+
+    @Test
+    void enforcesExactlyOneRoomOwnerScopeInPostgres() {
+        UserEntity user = userRepository.saveAndFlush(activeUser("+994505556688"));
+        RoomEntity room = new RoomEntity();
+        room.setCreatedByUser(user);
+        room.setName("Invalid scope room");
+        room.setTimezone("Asia/Baku");
+        room.setReservationMode(ReservationMode.LIVE_QUEUE);
+        room.setDefaultSlotDurationMinutes(15);
+        room.setStatus(RoomStatus.DRAFT);
+        room.setVisibility(RoomVisibility.UNLISTED);
+
+        assertThrows(DataIntegrityViolationException.class, () -> roomRepository.saveAndFlush(room));
     }
 
     @Test

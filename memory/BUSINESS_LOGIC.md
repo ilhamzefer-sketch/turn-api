@@ -51,6 +51,14 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 - Son 50 bank əməliyyatının statusunu, məbləğini, order ID-sini və tarixini izləyir.
 - Növbələrin cari xidmət nömrəsini, gözləyən sayını, orta xidmət vaxtını və aktivlik vəziyyətini monitorinq edir.
 
+### Biznes üzvləri
+
+- Hər biznesin bir `PRIMARY_OWNER` üzvü olur və həmin şəxs birdən çox biznes yarada bilər.
+- `ADMIN` biznes profilini, filialları, otaqları, üzvləri və otaq təyinatlarını əsas sahibə ehtiyac olmadan idarə edir.
+- `EMPLOYEE` biznes səviyyəsində idarəetmə icazəsi almır; yalnız qəbul etdiyi otaq təyinatlarını idarə edir.
+- Yeni üzvlük və otaq təyinatı əvvəlcə `PENDING_ACCEPTANCE` olur və istifadəçi tərəfindən ayrıca qəbul və ya rədd edilir.
+- Biznesdən çıxarılan əməkdaşın aktiv otaq təyinatları ləğv olunur, tarixi qeydlər silinmir.
+
 ## 3. Növbə yaradanın qeydiyyat və ödəniş axını
 
 1. İstifadəçi ad, soyad, email, şifrə və hesab növünü daxil edir.
@@ -99,7 +107,27 @@ Köhnə ödənişli `REGISTRATION` statusları keçid dövründə aşağıdakı 
 
 `ACTIVE` olmayan növbə yaradan sistemə daxil ola və aktiv növbə idarə edə bilməz.
 
-## 5. Növbə yaratma qaydaları
+## 5. Provider və növbə yaratma qaydaları
+
+## 5.1. Yeni provider strukturu
+
+1. Hər aktiv `USER` pulsuz şəxsi müştəri kontekstinə malikdir.
+2. İstifadəçi maksimum bir `IndividualWorkspace` yarada və onun daxilində maksimum bir şəxsi otaq saxlaya bilər.
+3. İstifadəçi birdən çox biznes yarada, bizneslərdə owner/admin ola və başqa bizneslərin otaqlarına sahib təyin edilə bilər.
+4. Biznes yarananda yaradan istifadəçi avtomatik aktiv `PRIMARY_OWNER` üzvlüyü alır.
+5. Biznes otaq yaratmazdan əvvəl filial yaratmalıdır. Biznes otağının ünvanı filiala aiddir.
+6. Şəxsi otaq filialsız ola bilər və şəxsi public ünvanı optional saxlayır.
+7. Yeni otaq `DRAFT` statusunda yaranır, `LIVE_QUEUE` və ya `PLANNED_BOOKING` rejimlərindən yalnız birini seçir.
+8. Otaq `PUBLIC`, `UNLISTED` və ya `PRIVATE` görünürlüyə malikdir.
+9. Biznes otağına bir neçə `ROOM_OWNER` təyin edilə bilər və eyni istifadəçi bir neçə otağa sahib ola bilər.
+10. Otaq təyinatı biznes üzvlüyündən ayrıca qəbul edilir. Pending biznes üzvlüyü qəbul edilmədən otaq dəvəti aktivləşmir.
+11. Hər otaq sahibi öz telefonunun həmin otağın public səhifəsində göstərilib-göstərilməməsini özü seçir.
+12. Workspace switcher müştəri, individual workspace, idarə edilən biznes və qəbul edilmiş otaq kontekstlərini qaytarır.
+13. Filial aktiv otaqları olduğu müddətdə arxivləşdirilə bilməz. Otaq silinməsi fiziki delete deyil, `ARCHIVED` statusudur.
+
+Pending hesab yaradılması üçün başlanğıc limitlər biznesə gündə `500`, dəvət edən idarəçiyə gündə `100` və dəqiqədə `20`-dir. Dəyərlər environment konfiqurasiyası ilə dəyişdirilə bilər.
+
+## 5.2. Legacy növbə qaydaları
 
 Növbə üçün aşağıdakılar tələb olunur:
 
@@ -228,7 +256,7 @@ Bu maddələr gələcək biznes işi kimi qalır:
 
 1. Hazırkı ödəniş bir dəfəlik qeydiyyat ödənişidir. Hədəf model aylıq abunəlik, növbəti ödəniş tarixi, grace period və yenilənmə tarixçəsi tələb edir.
 2. Admin aylıq gəliri hazırda tamamlanmış payment session-ların tarixinə görə hesablayır. Tam abunəlik modelində ayrıca dəyişməz payment ledger yaradılmalıdır.
-3. Vahid `USER` hazırdır, lakin business, branch, room membership və room assignment modeli növbəti development mərhələsində əlavə ediləcək.
+3. Business, branch, individual workspace, business membership, room və room assignment modeli hazırdır. Həftəlik availability, publish validation və planlı slot hesablanması növbəti development mərhələsində əlavə ediləcək.
 4. Email/SMS/push növbə bildirişləri hələ yoxdur.
 5. Növbədən çıxma, çağırışı ötürmə, no-show və xidmətin tamamlanması ayrıca statuslarla modelləşdirilməyib.
 6. Köhnə guest qeydlərində telefon yoxdur; yalnız telefonla yaradılan yeni qeydlər avtomatik hesaba bağlana bilər.

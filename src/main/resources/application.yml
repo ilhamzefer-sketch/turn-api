@@ -48,6 +48,11 @@ server:
 
 app:
   env: ${APP_ENV:local}
+  limits:
+    pending-accounts:
+      business-daily: ${APP_PENDING_ACCOUNTS_BUSINESS_DAILY:500}
+      administrator-daily: ${APP_PENDING_ACCOUNTS_ADMINISTRATOR_DAILY:100}
+      administrator-per-minute: ${APP_PENDING_ACCOUNTS_ADMINISTRATOR_PER_MINUTE:20}
   payment:
     mode: ${APP_PAYMENT_MODE:test}
     provider: ${APP_PAYMENT_PROVIDER:birbank}

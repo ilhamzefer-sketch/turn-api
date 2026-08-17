@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -48,6 +49,14 @@ public class ApiExceptionHandler {
                 .sorted()
                 .findFirst().orElse("Sorğu parametrləri düzgün deyil.");
         return error(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.CONFLICT, "Məlumat mövcud qeyd və ya biznes qaydası ilə ziddiyyət təşkil edir.", request);
     }
 
     @ExceptionHandler(Exception.class)
