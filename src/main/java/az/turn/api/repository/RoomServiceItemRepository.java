@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface RoomServiceItemRepository extends JpaRepository<RoomServiceItemEntity, Long> {
     List<RoomServiceItemEntity> findByRoomIdOrderByCreatedAtAsc(Long roomId);
     Optional<RoomServiceItemEntity> findByIdAndRoomId(Long id, Long roomId);
+    List<RoomServiceItemEntity> findByRoomIdInAndActiveTrueOrderByRoomIdAscCreatedAtAsc(List<Long> roomIds);
 }

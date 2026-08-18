@@ -333,7 +333,18 @@ Yeni `USER` tarixçəsi həm hesabla birbaşa yaradılmış queue entry-ləri, h
 14. Tamamlanmış canlı giriş və ya planlı booking yalnız ona bağlı qeydiyyatlı müştəri tərəfindən bir dəfə qiymətləndirilir. Eyni rating ilk yaradılmadan sonra yeddi gün ərzində edit edilə bilər.
 15. Public otaq cavabı yalnız average score və rating count göstərir; yazılı şərhlər yalnız səlahiyyətli room/business idarəçilərinə açıqdır.
 
-## 12.1. Hədəf modeldə qalan işlər
+## 12.1. Public discovery və frontend contract
+
+1. Platform idarə olunan biznes kateqoriyaları `business_categories` cədvəlində saxlanılır. Biznes optional kateqoriya və yalnız `OTHER` kateqoriyası üçün optional xüsusi alt kateqoriya saxlaya bilər.
+2. `GET /api/public/categories` aktiv kateqoriyaları sabit display sırası ilə qaytarır.
+3. `GET /api/public/rooms` yalnız `PUBLISHED` və `PUBLIC` otaqları səhifələnmiş formada qaytarır. Səhifə ölçüsü 1-24 aralığında məhduddur və nəticə ad, sonra ID üzrə deterministik sıralanır.
+4. Public discovery axtarışı otaq, biznes, filial, ünvan, şəhər, rayon, kateqoriya, xüsusi alt kateqoriya və aktiv xidmət adı üzrə işləyir; category, city, district və reservation mode ayrıca filter ola bilər.
+5. `GET /api/public/rooms/{roomId}` `PUBLISHED` otaq profilini qaytarır. `UNLISTED` otaq birbaşa linklə görünür, `PRIVATE` otaq isə public API-də `404` qaytarır.
+6. Public profil daxili room/branch qeydlərini, user ID-lərini və gizli telefonları göstərmir. Aktiv owner-in telefonu yalnız həmin assignment üçün `showPhonePublicly=true` olduqda görünür; əks halda biznes otağında filial və ya biznes telefonu effective contact olur.
+7. `GET /api/public/qr/{token}` aktiv, ləğv edilməmiş daimi QR tokenini public/unlisted otağın ID-si, reservation mode-u və public frontend yolu ilə resolve edir. Private, draft, inactive, archived və revoked QR public olaraq açılmır.
+8. `GET /api/users/me` aktiv bearer sessiyası əsasında cari vahid user profilini access token və password hash kimi həssas sahələrsiz qaytarır.
+
+## 12.2. Hədəf modeldə qalan işlər
 
 1. Email/SMS/push növbə və booking bildirişləri hələ yoxdur.
 2. Business-wide calendar görünüşü və room-owner dəyişiklik bildirişləri gələcək mərhələdədir.

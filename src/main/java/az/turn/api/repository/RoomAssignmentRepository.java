@@ -24,4 +24,8 @@ public interface RoomAssignmentRepository extends JpaRepository<RoomAssignmentEn
             List<RoomAssignmentStatus> statuses
     );
     long countByRoomIdAndStatus(Long roomId, RoomAssignmentStatus status);
+    List<RoomAssignmentEntity> findByRoomIdInAndStatusOrderByCreatedAtAsc(
+            List<Long> roomIds,
+            RoomAssignmentStatus status
+    );
 }

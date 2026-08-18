@@ -93,9 +93,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/payments/registration-sessions/*", "/api/queues/public",
                                 "/api/subscriptions/plans",
+                                "/api/public/categories",
+                                "/api/public/rooms",
+                                "/api/public/rooms/*",
                                 "/api/public/rooms/*/live-queue",
                                 "/api/public/rooms/*/rating-summary",
                                 "/api/public/rooms/*/available-slots",
+                                "/api/public/qr/*",
                                 "/api/public/qr/*/live-queue",
                                 "/api/public/live-queue/entries/*").permitAll()
                         .anyRequest().authenticated()

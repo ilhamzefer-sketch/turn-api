@@ -33,6 +33,11 @@ public class BusinessEntity {
     private String legalName;
     @Column(length = 2000)
     private String description;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private BusinessCategoryEntity category;
+    @Column(length = 160)
+    private String customSubcategory;
     @Column(length = 40)
     private String taxId;
     @Column(length = 1000)
@@ -61,6 +66,10 @@ public class BusinessEntity {
     public void setLegalName(String legalName) { this.legalName = legalName; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public BusinessCategoryEntity getCategory() { return category; }
+    public void setCategory(BusinessCategoryEntity category) { this.category = category; }
+    public String getCustomSubcategory() { return customSubcategory; }
+    public void setCustomSubcategory(String value) { this.customSubcategory = value; }
     public String getTaxId() { return taxId; }
     public void setTaxId(String taxId) { this.taxId = taxId; }
     public String getLogoUrl() { return logoUrl; }

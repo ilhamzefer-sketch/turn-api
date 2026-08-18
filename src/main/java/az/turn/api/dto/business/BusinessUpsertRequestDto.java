@@ -18,6 +18,9 @@ public record BusinessUpsertRequestDto(
         @NotBlank(message = "Biznes telefonu mütləqdir.")
         String phone,
         @Size(max = 60, message = "Saat qurşağı maksimum 60 simvol ola bilər.")
-        String timezone
+        String timezone,
+        Long categoryId,
+        @Size(max = 160, message = "Alt kateqoriya maksimum 160 simvol ola bilər.")
+        String customSubcategory
 ) {
 }

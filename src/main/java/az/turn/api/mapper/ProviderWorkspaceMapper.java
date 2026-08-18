@@ -30,7 +30,9 @@ public class ProviderWorkspaceMapper {
                 business.getTimezone(),
                 business.getStatus(),
                 business.getCreatedAt(),
-                business.getArchivedAt()
+                business.getArchivedAt(),
+                toCategoryDto(business.getCategory()),
+                business.getCustomSubcategory()
         );
     }
 
@@ -129,5 +131,10 @@ public class ProviderWorkspaceMapper {
                 assignment.getInvitedAt(),
                 assignment.getRespondedAt()
         );
+    }
+
+    public PublicCategoryDto toCategoryDto(BusinessCategoryEntity category) {
+        if (category == null) return null;
+        return new PublicCategoryDto(category.getId(), category.getCode(), category.getNameAz());
     }
 }

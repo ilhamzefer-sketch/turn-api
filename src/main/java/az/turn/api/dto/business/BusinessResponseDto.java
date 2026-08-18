@@ -14,6 +14,8 @@ public record BusinessResponseDto(
         String timezone,
         ProviderStatus status,
         LocalDateTime createdAt,
-        LocalDateTime archivedAt
+        LocalDateTime archivedAt,
+        PublicCategoryDto category,
+        String customSubcategory
 ) {
 }

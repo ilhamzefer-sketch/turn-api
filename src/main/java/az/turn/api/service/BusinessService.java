@@ -17,6 +17,7 @@ public class BusinessService {
     private final ProviderInputService inputService;
     private final PhoneNumberService phoneNumberService;
     private final ProviderWorkspaceMapper mapper;
+    private final BusinessCategoryRepository categoryRepository;
     private final Clock clock;
 
     public BusinessService(
@@ -26,6 +27,7 @@ public class BusinessService {
             ProviderInputService inputService,
             PhoneNumberService phoneNumberService,
             ProviderWorkspaceMapper mapper,
+            BusinessCategoryRepository categoryRepository,
             Clock clock
     ) {
         this.businessRepository = businessRepository;
@@ -34,6 +36,7 @@ public class BusinessService {
         this.inputService = inputService;
         this.phoneNumberService = phoneNumberService;
         this.mapper = mapper;
+        this.categoryRepository = categoryRepository;
         this.clock = clock;
     }
 
@@ -98,9 +101,33 @@ public class BusinessService {
         business.setName(inputService.required(request.name(), "Biznes adı mütləqdir."));
         business.setLegalName(inputService.optional(request.legalName()));
         business.setDescription(inputService.optional(request.description()));
+        business.setCategory(resolveCategory(request.categoryId()));
+        business.setCustomSubcategory(resolveCustomSubcategory(business.getCategory(), request.customSubcategory()));
         business.setTaxId(inputService.optional(request.taxId()));
         business.setLogoUrl(inputService.optional(request.logoUrl()));
         business.setNormalizedPhone(phoneNumberService.normalizeAzerbaijaniPhone(request.phone()));
         business.setTimezone(inputService.timezone(request.timezone(), "Asia/Baku"));
+    }
+
+    private BusinessCategoryEntity resolveCategory(Long categoryId) {
+        if (categoryId == null) return null;
+        BusinessCategoryEntity category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Biznes kateqoriyası tapılmadı."));
+        if (!category.isActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Biznes kateqoriyası aktiv deyil.");
+        }
+        return category;
+    }
+
+    private String resolveCustomSubcategory(BusinessCategoryEntity category, String value) {
+        String normalized = inputService.optional(value);
+        if (normalized == null) return null;
+        if (category == null || !"OTHER".equals(category.getCode())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Xüsusi alt kateqoriya yalnız Digər kateqoriyası üçün yazıla bilər."
+            );
+        }
+        return normalized;
     }
 }

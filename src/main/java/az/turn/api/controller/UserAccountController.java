@@ -22,17 +22,25 @@ public class UserAccountController {
     private final UserSessionService userSessionService;
     private final QueueService queueService;
     private final LiveQueueEntryService liveQueueEntryService;
+    private final CurrentUserQueryService currentUserQueryService;
 
     public UserAccountController(
             RequestAuthenticationService requestAuthenticationService,
             UserSessionService userSessionService,
             QueueService queueService,
-            LiveQueueEntryService liveQueueEntryService
+            LiveQueueEntryService liveQueueEntryService,
+            CurrentUserQueryService currentUserQueryService
     ) {
         this.requestAuthenticationService = requestAuthenticationService;
         this.userSessionService = userSessionService;
         this.queueService = queueService;
         this.liveQueueEntryService = liveQueueEntryService;
+        this.currentUserQueryService = currentUserQueryService;
+    }
+
+    @GetMapping
+    public CurrentUserDto getCurrentUser(Authentication authentication) {
+        return currentUserQueryService.get(requireUser(authentication).userId());
     }
 
     @GetMapping("/sessions")

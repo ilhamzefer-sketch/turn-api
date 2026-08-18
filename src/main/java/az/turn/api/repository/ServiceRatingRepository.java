@@ -15,4 +15,12 @@ public interface ServiceRatingRepository extends JpaRepository<ServiceRatingEnti
     Double averageScoreByRoomId(Long roomId);
 
     List<ServiceRatingEntity> findByRoomIdOrderByCreatedAtDesc(Long roomId);
+
+    @Query("""
+            select rating.room.id as roomId, avg(rating.score) as averageScore, count(rating.id) as ratingCount
+            from ServiceRatingEntity rating
+            where rating.room.id in :roomIds
+            group by rating.room.id
+            """)
+    List<RoomRatingAggregate> summarizeByRoomIds(List<Long> roomIds);
 }

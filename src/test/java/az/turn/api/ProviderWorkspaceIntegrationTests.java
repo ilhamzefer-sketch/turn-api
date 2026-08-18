@@ -33,6 +33,8 @@ class ProviderWorkspaceIntegrationTests {
     private WorkspaceQueryService workspaceQueryService;
     @Autowired
     private UserAccountService userAccountService;
+    @Autowired
+    private BusinessCategoryRepository categoryRepository;
 
     @Test
     void businessOwnerBuildsBranchAndRoomThenEmployeeAcceptsBothInvitations() {
@@ -180,6 +182,33 @@ class ProviderWorkspaceIntegrationTests {
                 .containsExactly(ProviderStatus.ARCHIVED);
     }
 
+    @Test
+    void businessUsesPlatformCategoryAndCustomSubcategoryOnlyForOther() {
+        UserEntity owner = saveActiveUser("+994507000008", "Kateqoriya", "Sahibi");
+        BusinessCategoryEntity health = categoryRepository.findByCodeAndActiveTrue("HEALTH_MEDICAL").orElseThrow();
+        BusinessResponseDto business = businessService.create(
+                owner.getId(),
+                new BusinessUpsertRequestDto(
+                        "Sağlamlıq mərkəzi", null, null, null, null, "0507000008", "Asia/Baku",
+                        health.getId(), null
+                )
+        );
+
+        assertThat(business.category().code()).isEqualTo("HEALTH_MEDICAL");
+        ResponseStatusException invalidCustom = assertThrows(
+                ResponseStatusException.class,
+                () -> businessService.update(
+                        business.id(),
+                        owner.getId(),
+                        new BusinessUpsertRequestDto(
+                                "Sağlamlıq mərkəzi", null, null, null, null, "0507000008", "Asia/Baku",
+                                health.getId(), "Xüsusi sahə"
+                        )
+                )
+        );
+        assertThat(invalidCustom.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     private UserEntity saveActiveUser(String phone, String firstName, String lastName) {
         UserEntity user = new UserEntity();
         user.setFirstName(firstName);
@@ -191,7 +220,7 @@ class ProviderWorkspaceIntegrationTests {
     }
 
     private BusinessUpsertRequestDto businessRequest(String name, String phone) {
-        return new BusinessUpsertRequestDto(name, null, null, null, null, phone, "Asia/Baku");
+        return new BusinessUpsertRequestDto(name, null, null, null, null, phone, "Asia/Baku", null, null);
     }
 
     private BranchUpsertRequestDto branchRequest(String name, String phone) {
