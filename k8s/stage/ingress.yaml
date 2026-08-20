@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: turn-stage
   annotations:
+    argocd.argoproj.io/ignore-healthcheck: "true"
     kubernetes.io/ingress.class: traefik
 spec:
   ingressClassName: traefik
