@@ -107,7 +107,7 @@ jobs:
           path = Path("k8s/stage/kustomization.yaml")
           lines = path.read_text().splitlines()
           for index, line in enumerate(lines):
-              if line.strip() == "name: ghcr.io/ilhamzefer-sketch/turn-api":
+              if line.strip() == "- name: ghcr.io/ilhamzefer-sketch/turn-api":
                   lines[index + 1] = f"    newTag: {os.environ['IMAGE_TAG']}"
                   break
           else:
