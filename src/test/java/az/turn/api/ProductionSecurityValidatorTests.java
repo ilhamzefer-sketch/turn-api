@@ -32,4 +32,16 @@ class ProductionSecurityValidatorTests {
         );
         assertDoesNotThrow(validator::validate);
     }
+
+    @Test
+    void acceptsSecureProductionConfigurationWithTemporaryMockPayments() {
+        ProductionSecurityValidator validator = new ProductionSecurityValidator(
+                "prod", "Kq9vL8nR2sT7xW4zY6bC1dF3gH5jM0pQ8uV2aN7e",
+                "https://app.example.com", "", "", "",
+                List.of("https://app.example.com"), "turn-admin",
+                "$2a$12$123456789012345678901u12345678901234567890123456789012",
+                "test", "mock", "redis", true, true
+        );
+        assertDoesNotThrow(validator::validate);
+    }
 }

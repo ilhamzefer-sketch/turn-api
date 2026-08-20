@@ -19,24 +19,21 @@ docker compose -f compose.local.yml up -d
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_SSL_ENABLED`
 - `APP_JWT_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`
 - `APP_ALLOWED_ORIGINS`, `APP_PAYMENT_CALLBACK_BASE_URL`
+- `APP_PAYMENT_MODE=test`, `APP_PAYMENT_PROVIDER=mock`
 - `BIRBANK_API_BASE_URL=https://txpgtst.kapitalbank.az/api`
 - `BIRBANK_USERNAME`, `BIRBANK_PASSWORD`
 
 ## Prod
 
-`prod` profilində tətbiq təhlükəli konfiqurasiya ilə başlamır. HTTPS origin/callback, real Kapital URL-i, unikal JWT secret, dəyişdirilmiş BCrypt admin şifrəsi, `live` payment və TLS-li Redis məcburidir.
+`prod` profilində tətbiq təhlükəli konfiqurasiya ilə başlamır. Hazırda ödənişlər müvəqqəti olaraq mock rejimindədir. HTTPS origin/callback, unikal JWT secret, dəyişdirilmiş BCrypt admin şifrəsi və TLS-li Redis məcburidir.
 
 - `SPRING_PROFILES_ACTIVE=prod`
 - `APP_ENV=prod`
-- `APP_PAYMENT_MODE=live`
-- `APP_PAYMENT_PROVIDER=abb`
-- ABB Business test payment credentials and account details are supplied through
-  `ABB_*` environment variables. They must remain in the deployment secret and
-  must not be committed to Git.
+- `APP_PAYMENT_MODE=test`
+- `APP_PAYMENT_PROVIDER=mock`
+- Payments are completed by the internal mock provider without contacting a bank.
 - `APP_ALLOWED_ORIGINS=https://app.example.az`
 - `APP_PAYMENT_CALLBACK_BASE_URL=https://app.example.az`
-- `BIRBANK_API_BASE_URL=<bankın verdiyi real production URL>`
-- `BIRBANK_USERNAME`, `BIRBANK_PASSWORD`
 - `APP_JWT_SECRET=<ən azı 32 simvolluq random secret>`
 - `ADMIN_USERNAME=<admin-dən fərqli ad>`
 - `ADMIN_PASSWORD_HASH=<BCrypt hash>`

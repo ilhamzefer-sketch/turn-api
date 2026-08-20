@@ -8,6 +8,7 @@ public class SandboxPaymentProvider implements PaymentProvider {
     @Override
     public void initialize(PaymentSessionEntity session) {
         session.setExternalOrderId("sandbox-" + session.getId());
+        session.setPaymentReference("MOCK-" + session.getId());
     }
 
     @Override
