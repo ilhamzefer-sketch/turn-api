@@ -51,7 +51,7 @@ public class SubscriptionPaymentService {
         this.paymentMode = paymentMode;
         this.paymentProviderName = switch (paymentProviderName.toLowerCase()) {
             case "mock" -> "sandbox";
-            case "test" -> "birbank";
+            case "test" -> "abb";
             default -> paymentProviderName.toLowerCase();
         };
         this.clock = clock;
@@ -137,7 +137,7 @@ public class SubscriptionPaymentService {
         if (session.getStatus() == PaymentStatus.COMPLETED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Tamamlanmış ödəniş ləğv edilə bilməz.");
         }
-        if ("birbank".equalsIgnoreCase(session.getProvider())) {
+        if ("birbank".equalsIgnoreCase(session.getProvider()) || "abb".equalsIgnoreCase(session.getProvider())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bank ödənişini bank səhifəsində ləğv edin.");
         }
         session.setStatus(PaymentStatus.CANCELLED);

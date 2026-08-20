@@ -72,6 +72,15 @@ app:
       base-url: ${BIRBANK_API_BASE_URL:https://txpgtst.kapitalbank.az/api}
       username: ${BIRBANK_USERNAME:}
       password: ${BIRBANK_PASSWORD:}
+    abb:
+      base-url: ${ABB_API_BASE_URL:https://api-test-c2b.abb-bank.az}
+      username: ${ABB_USERNAME:}
+      password: ${ABB_PASSWORD:}
+      debit-account: ${ABB_DEBIT_ACCOUNT:}
+      recipient-name: ${ABB_RECIPIENT_NAME:}
+      recipient-account: ${ABB_RECIPIENT_ACCOUNT:}
+      recipient-tax-id: ${ABB_RECIPIENT_TAX_ID:}
+      recipient-bank-code: ${ABB_RECIPIENT_BANK_CODE:805250}
     reconciliation-enabled: ${APP_PAYMENT_RECONCILIATION_ENABLED:true}
     reconciliation-delay-ms: ${APP_PAYMENT_RECONCILIATION_DELAY_MS:60000}
     reconciliation-initial-delay-ms: ${APP_PAYMENT_RECONCILIATION_INITIAL_DELAY_MS:30000}

@@ -137,7 +137,7 @@ spec:
             - name: APP_PAYMENT_MODE
               value: test
             - name: APP_PAYMENT_PROVIDER
-              value: birbank
+              value: abb
             - name: APP_PAYMENT_CALLBACK_BASE_URL
               valueFrom:
                 secretKeyRef:
@@ -155,6 +155,43 @@ spec:
                 secretKeyRef:
                   name: turn-stage-secrets
                   key: BIRBANK_PASSWORD
+            - name: ABB_API_BASE_URL
+              value: https://api-test-c2b.abb-bank.az
+            - name: ABB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_USERNAME
+            - name: ABB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_PASSWORD
+            - name: ABB_DEBIT_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_DEBIT_ACCOUNT
+            - name: ABB_RECIPIENT_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_RECIPIENT_NAME
+            - name: ABB_RECIPIENT_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_RECIPIENT_ACCOUNT
+            - name: ABB_RECIPIENT_TAX_ID
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_RECIPIENT_TAX_ID
+            - name: ABB_RECIPIENT_BANK_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ABB_RECIPIENT_BANK_CODE
             - name: APP_PAYMENT_RECONCILIATION_ENABLED
               value: "true"
             - name: APP_PAYMENT_RECONCILIATION_DELAY_MS
