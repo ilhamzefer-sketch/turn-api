@@ -5,6 +5,7 @@ metadata:
   annotations:
     argocd.argoproj.io/ignore-healthcheck: "true"
     kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.priority: "10000"
 spec:
   ingressClassName: traefik
   rules:
