@@ -16,17 +16,23 @@ public class SessionValidationService {
 
     @Transactional(readOnly = true)
     public boolean isActive(AuthenticatedUser user) {
-        if (!user.isUser()) {
-            return true;
-        }
-        if (user.sessionId() == null || user.userId() == null) {
+        if (user.sessionId() == null) {
             return false;
         }
-        return refreshTokenRepository.existsByIdAndUserTypeAndUserIdAndRevokedFalseAndExpiresAtAfter(
-                user.sessionId(),
-                AuthUserType.USER,
-                user.userId(),
-                LocalDateTime.now()
-        );
+        if (user.userId() != null) {
+            return refreshTokenRepository.existsByIdAndUserTypeAndUserIdAndRevokedFalseAndExpiresAtAfter(
+                    user.sessionId(),
+                    user.userType(),
+                    user.userId(),
+                    LocalDateTime.now()
+            );
+        }
+        return user.username() != null
+                && refreshTokenRepository.existsByIdAndUserTypeAndUsernameAndRevokedFalseAndExpiresAtAfter(
+                        user.sessionId(),
+                        user.userType(),
+                        user.username(),
+                        LocalDateTime.now()
+                );
     }
 }

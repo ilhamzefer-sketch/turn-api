@@ -67,7 +67,7 @@ app:
   payment:
     mode: ${APP_PAYMENT_MODE:test}
     provider: ${APP_PAYMENT_PROVIDER:birbank}
-    callback-base-url: ${APP_PAYMENT_CALLBACK_BASE_URL:http://127.0.0.1:5173}
+    callback-base-url: ${APP_PAYMENT_CALLBACK_BASE_URL:http://127.0.0.1:5275}
     birbank:
       base-url: ${BIRBANK_API_BASE_URL:https://txpgtst.kapitalbank.az/api}
       username: ${BIRBANK_USERNAME:}
@@ -79,8 +79,9 @@ app:
     jwt-secret: ${APP_JWT_SECRET:local-only-default-secret-change-before-production-1234567890}
     access-token-minutes: ${APP_ACCESS_TOKEN_MINUTES:15}
     refresh-token-days: ${APP_REFRESH_TOKEN_DAYS:14}
+    refresh-reuse-grace-seconds: ${APP_REFRESH_REUSE_GRACE_SECONDS:10}
     secure-cookies: ${APP_SECURE_COOKIES:false}
-    allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+    allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:5275,http://127.0.0.1:5275,http://localhost:5173,http://127.0.0.1:5173}
     trust-proxy-headers: ${APP_TRUST_PROXY_HEADERS:false}
     rate-limit:
       enabled: ${APP_RATE_LIMIT_ENABLED:true}

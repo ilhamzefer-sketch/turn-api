@@ -47,7 +47,7 @@ public class CustomerBookingController {
         return bookingService.get(bookingId, userId(authentication));
     }
 
-    @GetMapping("/customers/me/bookings")
+    @GetMapping("/users/me/bookings")
     public List<PlannedBookingDto> history(Authentication authentication) {
         return bookingService.history(userId(authentication));
     }

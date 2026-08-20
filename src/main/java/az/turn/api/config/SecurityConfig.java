@@ -27,7 +27,7 @@ public class SecurityConfig {
     private final List<String> allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, CsrfCookieFilter csrfCookieFilter,
-            @Value("${app.security.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") List<String> allowedOrigins) {
+            @Value("${app.security.allowed-origins:http://localhost:5275,http://127.0.0.1:5275,http://localhost:5173,http://127.0.0.1:5173}") List<String> allowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.csrfCookieFilter = csrfCookieFilter;
         this.allowedOrigins = allowedOrigins;

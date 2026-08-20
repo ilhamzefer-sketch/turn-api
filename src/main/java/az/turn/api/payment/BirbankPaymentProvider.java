@@ -36,7 +36,7 @@ public class BirbankPaymentProvider implements PaymentProvider {
     public BirbankPaymentProvider(
             ObjectMapper objectMapper,
             @Value("${app.payment.birbank.base-url:}") String baseUrl,
-            @Value("${app.payment.callback-base-url:http://127.0.0.1:5173}") String callbackBaseUrl,
+            @Value("${app.payment.callback-base-url:http://127.0.0.1:5275}") String callbackBaseUrl,
             @Value("${app.payment.birbank.username:}") String username,
             @Value("${app.payment.birbank.password:}") String password
     ) {

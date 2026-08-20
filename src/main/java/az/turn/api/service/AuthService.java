@@ -17,18 +17,24 @@ import java.util.Base64;
 public class AuthService {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenHistoryRepository refreshTokenHistoryRepository;
     private final JwtService jwtService;
     private final long refreshTokenDays;
+    private final long refreshReuseGraceSeconds;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(
             RefreshTokenRepository refreshTokenRepository,
+            RefreshTokenHistoryRepository refreshTokenHistoryRepository,
             JwtService jwtService,
-            @Value("${app.security.refresh-token-days:14}") long refreshTokenDays
+            @Value("${app.security.refresh-token-days:14}") long refreshTokenDays,
+            @Value("${app.security.refresh-reuse-grace-seconds:10}") long refreshReuseGraceSeconds
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
+        this.refreshTokenHistoryRepository = refreshTokenHistoryRepository;
         this.jwtService = jwtService;
         this.refreshTokenDays = refreshTokenDays;
+        this.refreshReuseGraceSeconds = refreshReuseGraceSeconds;
     }
 
     @Transactional
@@ -62,22 +68,43 @@ public class AuthService {
         return new AuthTokens(accessToken, rawRefreshToken);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = ResponseStatusException.class)
     public AuthTokens refresh(String refreshTokenValue, SessionMetadata metadata) {
         if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token tapılmadı.");
         }
-        RefreshTokenEntity existing = refreshTokenRepository.findByTokenForUpdate(hashToken(refreshTokenValue))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token tapilmadi."));
+        String currentTokenHash = hashToken(refreshTokenValue);
+        RefreshTokenEntity existing = refreshTokenRepository.findByTokenForUpdate(currentTokenHash)
+                .orElseGet(() -> rejectReusedToken(currentTokenHash));
 
         if (existing.isRevoked() || existing.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token vaxti bitib ve ya legv olunub.");
+            existing.setRevoked(true);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Sessiyanın vaxtı bitib və ya sessiya ləğv olunub.");
         }
 
-        existing.setRevoked(true);
+        RefreshTokenHistoryEntity history = new RefreshTokenHistoryEntity();
+        history.setRefreshTokenId(existing.getId());
+        history.setTokenHash(currentTokenHash);
+        refreshTokenHistoryRepository.save(history);
+
+        String rawRefreshToken = generateOpaqueToken();
+        existing.setToken(hashToken(rawRefreshToken));
+        existing.setExpiresAt(jwtService.calculateRefreshExpiry(refreshTokenDays));
         existing.setLastUsedAt(LocalDateTime.now());
-        AuthenticatedUser user = new AuthenticatedUser(existing.getUserType(), existing.getUserId(), existing.getUsername());
-        return issueTokens(user, metadata);
+        if (metadata.userAgent() != null) {
+            existing.setUserAgent(metadata.userAgent());
+        }
+        if (metadata.ipAddress() != null) {
+            existing.setIpAddress(metadata.ipAddress());
+        }
+
+        AuthenticatedUser user = new AuthenticatedUser(
+                existing.getUserType(),
+                existing.getUserId(),
+                existing.getUsername(),
+                existing.getId()
+        );
+        return new AuthTokens(jwtService.generateAccessToken(user), rawRefreshToken);
     }
 
     @Transactional
@@ -85,16 +112,33 @@ public class AuthService {
         if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
             return;
         }
-        refreshTokenRepository.findByToken(hashToken(refreshTokenValue)).ifPresent(token -> {
-            token.setRevoked(true);
-            refreshTokenRepository.save(token);
-        });
+        String tokenHash = hashToken(refreshTokenValue);
+        RefreshTokenEntity session = refreshTokenRepository.findByTokenForUpdate(tokenHash)
+                .orElseGet(() -> refreshTokenHistoryRepository.findByTokenHash(tokenHash)
+                        .flatMap(history -> refreshTokenRepository.findByIdForUpdate(history.getRefreshTokenId()))
+                        .orElse(null));
+        if (session != null) {
+            session.setRevoked(true);
+        }
     }
 
     private String generateOpaqueToken() {
         byte[] bytes = new byte[48];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private RefreshTokenEntity rejectReusedToken(String tokenHash) {
+        refreshTokenHistoryRepository.findByTokenHash(tokenHash).ifPresent(history -> {
+            RefreshTokenEntity session = refreshTokenRepository.findByIdForUpdate(history.getRefreshTokenId())
+                    .orElse(null);
+            if (session != null
+                    && !session.isRevoked()
+                    && history.getRotatedAt().isBefore(LocalDateTime.now().minusSeconds(refreshReuseGraceSeconds))) {
+                session.setRevoked(true);
+            }
+        });
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token etibarsızdır.");
     }
 
     private String hashToken(String token) {

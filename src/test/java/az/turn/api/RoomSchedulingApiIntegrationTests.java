@@ -33,6 +33,13 @@ class RoomSchedulingApiIntegrationTests {
         long workspaceId = createWorkspace(csrf, token);
         long roomId = createRoom(csrf, token, workspaceId);
 
+        mockMvc.perform(get("/api/individual-workspaces/{workspaceId}/rooms", workspaceId)
+                        .cookie(csrf.cookie())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(roomId));
+
         mockMvc.perform(put("/api/rooms/{roomId}/availability-rules", roomId)
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())

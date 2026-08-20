@@ -17,6 +17,10 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
     @Query("select token from RefreshTokenEntity token where token.token = :token")
     Optional<RefreshTokenEntity> findByTokenForUpdate(String token);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select token from RefreshTokenEntity token where token.id = :id")
+    Optional<RefreshTokenEntity> findByIdForUpdate(Long id);
+
     List<RefreshTokenEntity> findByUserTypeAndUserIdAndRevokedFalseAndExpiresAtAfterOrderByCreatedAtDesc(
             AuthUserType userType,
             Long userId,
@@ -29,6 +33,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
             Long id,
             AuthUserType userType,
             Long userId,
+            LocalDateTime now
+    );
+
+    boolean existsByIdAndUserTypeAndUsernameAndRevokedFalseAndExpiresAtAfter(
+            Long id,
+            AuthUserType userType,
+            String username,
             LocalDateTime now
     );
 

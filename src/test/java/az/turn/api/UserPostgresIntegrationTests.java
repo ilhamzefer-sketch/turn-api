@@ -50,7 +50,7 @@ class UserPostgresIntegrationTests {
 
     @Test
     void appliesUnifiedAccountMigrationAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("18");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("21");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
@@ -72,6 +72,26 @@ class UserPostgresIntegrationTests {
         room.setVisibility(RoomVisibility.UNLISTED);
 
         assertThrows(DataIntegrityViolationException.class, () -> roomRepository.saveAndFlush(room));
+    }
+
+    @Test
+    void allowsAReplacementAfterTheIndividualRoomIsArchived() {
+        UserEntity owner = userRepository.saveAndFlush(activeUser("+994505556689"));
+        IndividualWorkspaceEntity workspace = new IndividualWorkspaceEntity();
+        workspace.setOwnerUser(owner);
+        workspace.setName("Replacement workspace");
+        workspace.setTimezone("Asia/Baku");
+        workspace.setStatus(ProviderStatus.ACTIVE);
+        workspace = individualWorkspaceRepository.saveAndFlush(workspace);
+
+        RoomEntity archivedRoom = individualRoom(owner, workspace, "Archived room");
+        archivedRoom.setStatus(RoomStatus.ARCHIVED);
+        archivedRoom.setArchivedAt(LocalDateTime.of(2026, 8, 20, 11, 0));
+        roomRepository.saveAndFlush(archivedRoom);
+
+        RoomEntity replacement = roomRepository.saveAndFlush(individualRoom(owner, workspace, "Replacement room"));
+
+        assertThat(replacement.getId()).isNotEqualTo(archivedRoom.getId());
     }
 
     @Test
@@ -199,6 +219,23 @@ class UserPostgresIntegrationTests {
         room.setStatus(RoomStatus.DRAFT);
         room.setVisibility(RoomVisibility.UNLISTED);
         return roomRepository.saveAndFlush(room);
+    }
+
+    private RoomEntity individualRoom(
+            UserEntity owner,
+            IndividualWorkspaceEntity workspace,
+            String name
+    ) {
+        RoomEntity room = new RoomEntity();
+        room.setIndividualWorkspace(workspace);
+        room.setCreatedByUser(owner);
+        room.setName(name);
+        room.setTimezone("Asia/Baku");
+        room.setReservationMode(ReservationMode.PLANNED_BOOKING);
+        room.setDefaultSlotDurationMinutes(30);
+        room.setStatus(RoomStatus.DRAFT);
+        room.setVisibility(RoomVisibility.UNLISTED);
+        return room;
     }
 
     private PlannedBookingEntity booking(

@@ -15,7 +15,7 @@ class ProductionSecurityValidatorTests {
                 "prod", "replace-with-a-random-secret-of-at-least-32-characters",
                 "http://app.example.com", "https://txpgtst.kapitalbank.az/api",
                 "replace-with-bank-username", "replace-with-bank-password",
-                List.of("http://app.example.com"), "admin", "not-bcrypt", "test", "sandbox", "memory", false
+                List.of("http://app.example.com"), "admin", "not-bcrypt", "test", "sandbox", "memory", false, false
         );
         assertThrows(IllegalStateException.class, validator::validate);
     }
@@ -28,7 +28,7 @@ class ProductionSecurityValidatorTests {
                 "merchant-user", "merchant-password",
                 List.of("https://app.example.com"), "turn-admin",
                 "$2a$12$123456789012345678901u12345678901234567890123456789012",
-                "live", "birbank", "redis", true
+                "live", "birbank", "redis", true, true
         );
         assertDoesNotThrow(validator::validate);
     }

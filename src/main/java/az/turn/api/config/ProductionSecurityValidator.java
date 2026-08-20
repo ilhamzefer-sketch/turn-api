@@ -22,6 +22,7 @@ public class ProductionSecurityValidator {
     private final String paymentProvider;
     private final String rateLimitStore;
     private final boolean redisSslEnabled;
+    private final boolean secureCookies;
 
     public ProductionSecurityValidator(@Value("${app.env:local}") String environment,
             @Value("${app.security.jwt-secret:}") String jwtSecret,
@@ -29,13 +30,14 @@ public class ProductionSecurityValidator {
             @Value("${app.payment.birbank.base-url:}") String bankBaseUrl,
             @Value("${app.payment.birbank.username:}") String bankUsername,
             @Value("${app.payment.birbank.password:}") String bankPassword,
-            @Value("${app.security.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") List<String> allowedOrigins,
+            @Value("${app.security.allowed-origins:http://localhost:5275,http://127.0.0.1:5275,http://localhost:5173,http://127.0.0.1:5173}") List<String> allowedOrigins,
             @Value("${app.admin.username:admin}") String adminUsername,
             @Value("${app.admin.password-hash:}") String adminPasswordHash,
             @Value("${app.payment.mode:test}") String paymentMode,
             @Value("${app.payment.provider:birbank}") String paymentProvider,
             @Value("${app.security.rate-limit.store:memory}") String rateLimitStore,
-            @Value("${spring.data.redis.ssl.enabled:false}") boolean redisSslEnabled) {
+            @Value("${spring.data.redis.ssl.enabled:false}") boolean redisSslEnabled,
+            @Value("${app.security.secure-cookies:false}") boolean secureCookies) {
         this.environment = environment;
         this.jwtSecret = jwtSecret;
         this.callbackBaseUrl = callbackBaseUrl;
@@ -49,6 +51,7 @@ public class ProductionSecurityValidator {
         this.paymentProvider = paymentProvider;
         this.rateLimitStore = rateLimitStore;
         this.redisSslEnabled = redisSslEnabled;
+        this.secureCookies = secureCookies;
     }
 
     @PostConstruct
@@ -68,6 +71,7 @@ public class ProductionSecurityValidator {
                 "Prod ödəniş rejimi live və provider birbank olmalıdır.");
         require("redis".equalsIgnoreCase(rateLimitStore), "Prod rate limit Redis istifadə etməlidir.");
         require(redisSslEnabled, "Prod Redis bağlantısında TLS aktiv olmalıdır.");
+        require(secureCookies, "Prod refresh və CSRF cookie-ləri Secure olmalıdır.");
     }
 
     private boolean isHttps(String value) {

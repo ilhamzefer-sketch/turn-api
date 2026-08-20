@@ -69,8 +69,8 @@ public class RoomService {
             long userId,
             RoomUpsertRequestDto request
     ) {
-        IndividualWorkspaceEntity workspace = individualWorkspaceService.requireOwned(workspaceId, userId);
-        if (roomRepository.findByIndividualWorkspaceId(workspaceId).isPresent()) {
+        IndividualWorkspaceEntity workspace = individualWorkspaceService.requireOwnedForUpdate(workspaceId, userId);
+        if (roomRepository.existsByIndividualWorkspaceIdAndStatusNot(workspaceId, RoomStatus.ARCHIVED)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Şəxsi workspace üçün artıq otaq yaradılıb.");
         }
         UserEntity creator = accessService.requireActiveUser(userId);
@@ -90,6 +90,18 @@ public class RoomService {
         accessService.requireBusinessManager(businessId, userId);
         return roomRepository.findByBranchBusinessIdOrderByCreatedAtAsc(businessId)
                 .stream().map(mapper::toDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomResponseDto> listIndividualRooms(long workspaceId, long userId) {
+        individualWorkspaceService.requireOwned(workspaceId, userId);
+        return roomRepository.findByIndividualWorkspaceIdAndStatusNotOrderByCreatedAtDesc(
+                        workspaceId,
+                        RoomStatus.ARCHIVED
+                )
+                .stream()
+                .map(mapper::toDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)

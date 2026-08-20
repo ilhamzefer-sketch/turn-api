@@ -14,16 +14,23 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.security.rate-limit.auth-per-minute=100")
+@SpringBootTest(properties = {
+        "app.security.rate-limit.auth-per-minute=100",
+        "app.security.refresh-reuse-grace-seconds=0"
+})
 @AutoConfigureMockMvc
 class UserAuthenticationIntegrationTests {
 
@@ -140,6 +147,70 @@ class UserAuthenticationIntegrationTests {
     }
 
     @Test
+    void rotatesRefreshTokenWithoutChangingSessionAndLogoutRevokesAccessImmediately() throws Exception {
+        TestCsrfToken csrf = csrf();
+        MvcResult registration = register(csrf, "0501889900", "Etibarlı", "Sessiya", "Rotate-safe-2026")
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(String.join(
+                                "\n",
+                                result.getResponse().getHeaders(HttpHeaders.SET_COOKIE)
+                        ))
+                        .contains("refresh_token=")
+                        .contains("HttpOnly")
+                        .contains("SameSite=Lax")
+                        .contains("Path=/api/auth"))
+                .andReturn();
+        String firstAccessToken = accessToken(registration);
+        Cookie firstRefreshCookie = refreshCookie(registration);
+
+        MvcResult refresh = mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(csrf.cookie(), firstRefreshCookie)
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andReturn();
+        String secondAccessToken = accessToken(refresh);
+        Cookie secondRefreshCookie = refreshCookie(refresh);
+
+        mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + firstAccessToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + secondAccessToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .cookie(csrf.cookie(), secondRefreshCookie)
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()))
+                .andExpect(status().isOk())
+                .andExpect(header().stringValues(HttpHeaders.SET_COOKIE, hasItem(containsString("refresh_token=;"))));
+
+        mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + secondAccessToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void detectsRefreshTokenReuseAndRevokesTheSession() throws Exception {
+        TestCsrfToken csrf = csrf();
+        MvcResult registration = register(csrf, "0501990011", "Təkrar", "Yoxlama", "Replay-safe-2026")
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie firstRefreshCookie = refreshCookie(registration);
+
+        MvcResult refresh = mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(csrf.cookie(), firstRefreshCookie)
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()))
+                .andExpect(status().isOk())
+                .andReturn();
+        String rotatedAccessToken = accessToken(refresh);
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(csrf.cookie(), firstRefreshCookie)
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + rotatedAccessToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void completesPendingAccountWithoutChangingItsIdentityOrInvitationNames() throws Exception {
         UserEntity pending = new UserEntity();
         pending.setFirstName("Dəvət");
@@ -241,6 +312,18 @@ class UserAuthenticationIntegrationTests {
         Cookie cookie = result.getResponse().getCookie(CsrfCookieFilter.CSRF_COOKIE_NAME);
         JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
         return new TestCsrfToken(cookie, body.get("csrfToken").asText());
+    }
+
+    private String accessToken(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("accessToken").asText();
+    }
+
+    private Cookie refreshCookie(MvcResult result) {
+        return Arrays.stream(result.getResponse().getCookies())
+                .filter(cookie -> "refresh_token".equals(cookie.getName()))
+                .filter(cookie -> "/api/auth".equals(cookie.getPath()))
+                .findFirst()
+                .orElseThrow();
     }
 
     private QueueEntity createLegacyQueue() {

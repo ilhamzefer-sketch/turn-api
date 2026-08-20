@@ -1,0 +1,4 @@
+*
+!Dockerfile.test
+!target/
+!target/turn-api-*.jar

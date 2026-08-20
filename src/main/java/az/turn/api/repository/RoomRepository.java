@@ -14,7 +14,11 @@ import java.util.Optional;
 public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
     List<RoomEntity> findByBranchBusinessIdOrderByCreatedAtAsc(Long businessId);
     List<RoomEntity> findByBranchIdOrderByCreatedAtAsc(Long branchId);
-    Optional<RoomEntity> findByIndividualWorkspaceId(Long workspaceId);
+    List<RoomEntity> findByIndividualWorkspaceIdAndStatusNotOrderByCreatedAtDesc(
+            Long workspaceId,
+            RoomStatus status
+    );
+    boolean existsByIndividualWorkspaceIdAndStatusNot(Long workspaceId, RoomStatus status);
     boolean existsByBranchIdAndStatusNot(Long branchId, RoomStatus status);
     long countByBranchBusinessIdAndStatusNot(Long businessId, RoomStatus status);
     long countByIndividualWorkspaceIdAndStatusNot(Long workspaceId, RoomStatus status);

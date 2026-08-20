@@ -48,12 +48,24 @@ public class IndividualWorkspaceService {
     public IndividualWorkspaceEntity requireOwned(long workspaceId, long userId) {
         IndividualWorkspaceEntity workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Şəxsi workspace tapılmadı."));
+        validateOwned(workspace, userId);
+        return workspace;
+    }
+
+    @Transactional
+    public IndividualWorkspaceEntity requireOwnedForUpdate(long workspaceId, long userId) {
+        IndividualWorkspaceEntity workspace = workspaceRepository.findByIdForUpdate(workspaceId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Şəxsi workspace tapılmadı."));
+        validateOwned(workspace, userId);
+        return workspace;
+    }
+
+    private void validateOwned(IndividualWorkspaceEntity workspace, long userId) {
         if (!workspace.getOwnerUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu workspace üçün icazəniz yoxdur.");
         }
         if (workspace.getStatus() == ProviderStatus.ARCHIVED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Şəxsi workspace arxivdədir.");
         }
-        return workspace;
     }
 }

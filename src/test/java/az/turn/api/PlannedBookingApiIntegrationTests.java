@@ -21,7 +21,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.security.rate-limit.auth-per-minute=100")
+@SpringBootTest(properties = {
+        "app.security.rate-limit.auth-per-minute=100",
+        "app.legacy-api.enabled=false"
+})
 @AutoConfigureMockMvc
 class PlannedBookingApiIntegrationTests {
     @Autowired
@@ -58,7 +61,7 @@ class PlannedBookingApiIntegrationTests {
                 .andReturn();
         long bookingId = objectMapper.readTree(bookingResult.getResponse().getContentAsString()).get("id").asLong();
 
-        mockMvc.perform(get("/api/customers/me/bookings")
+        mockMvc.perform(get("/api/users/me/bookings")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(bookingId));

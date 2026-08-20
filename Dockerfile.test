@@ -1,0 +1,9 @@
+FROM eclipse-temurin:25-jre
+
+WORKDIR /app
+
+COPY target/turn-api-*.jar app.jar
+
+EXPOSE 8080 9090
+
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/app.jar"]

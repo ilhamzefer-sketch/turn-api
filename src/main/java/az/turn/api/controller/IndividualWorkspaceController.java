@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @Validated
 @RequestMapping("/api/individual-workspaces")
@@ -56,6 +58,14 @@ public class IndividualWorkspaceController {
             Authentication auth
     ) {
         return roomService.createIndividualRoom(workspaceId, userId(auth), request);
+    }
+
+    @GetMapping("/{workspaceId}/rooms")
+    public List<RoomResponseDto> rooms(
+            @PathVariable @Positive long workspaceId,
+            Authentication auth
+    ) {
+        return roomService.listIndividualRooms(workspaceId, userId(auth));
     }
 
     private long userId(Authentication auth) {
