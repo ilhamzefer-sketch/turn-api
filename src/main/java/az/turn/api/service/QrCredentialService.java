@@ -35,12 +35,13 @@ public class QrCredentialService {
         return createCredential(room, creator);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<QrCredentialDto> list(long roomId, long userId) {
         accessService.requireRoomViewer(roomId, userId);
         return qrCredentialRepository.findByRoomIdOrderByCreatedAtDesc(roomId)
                 .stream()
-                .map(value -> toDto(value, null))
+                .map(this::ensurePublicToken)
+                .map(this::toDto)
                 .toList();
     }
 
@@ -72,7 +73,7 @@ public class QrCredentialService {
         if (token == null || token.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "QR kod tapılmadı.");
         }
-        return qrCredentialRepository.findByTokenHashAndActiveTrue(tokenService.hash(token.trim()))
+        return qrCredentialRepository.findActiveByCurrentOrLegacyTokenHash(tokenService.hash(token.trim()))
                 .map(QrCredentialEntity::getRoom)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "QR kod tapılmadı və ya ləğv edilib."));
     }
@@ -82,10 +83,11 @@ public class QrCredentialService {
         QrCredentialEntity credential = new QrCredentialEntity();
         credential.setRoom(room);
         credential.setTokenHash(tokenService.hash(rawToken));
+        credential.setPublicToken(rawToken);
         credential.setType(QrCredentialType.PERMANENT_ROOM);
         credential.setActive(true);
         credential.setCreatedByUser(creator);
-        return toDto(qrCredentialRepository.save(credential), rawToken);
+        return toDto(qrCredentialRepository.save(credential));
     }
 
     private QrCredentialEntity find(long roomId, long credentialId) {
@@ -93,13 +95,25 @@ public class QrCredentialService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "QR kod tapılmadı."));
     }
 
-    private QrCredentialDto toDto(QrCredentialEntity value, String token) {
+    private QrCredentialEntity ensurePublicToken(QrCredentialEntity credential) {
+        if (!credential.isActive() || (credential.getPublicToken() != null && !credential.getPublicToken().isBlank())) {
+            return credential;
+        }
+
+        String rawToken = tokenService.generate();
+        credential.setLegacyTokenHash(credential.getTokenHash());
+        credential.setTokenHash(tokenService.hash(rawToken));
+        credential.setPublicToken(rawToken);
+        return qrCredentialRepository.save(credential);
+    }
+
+    private QrCredentialDto toDto(QrCredentialEntity value) {
         return new QrCredentialDto(
                 value.getId(),
                 value.getRoom().getId(),
                 value.getType(),
                 value.isActive(),
-                token,
+                value.getPublicToken(),
                 value.getCreatedAt(),
                 value.getRevokedAt()
         );

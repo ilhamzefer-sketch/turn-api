@@ -45,6 +45,8 @@ class LiveQueueIntegrationTests {
     private LiveQueueEntryRepository entryRepository;
     @Autowired
     private QrCredentialService qrCredentialService;
+    @Autowired
+    private QrCredentialRepository qrCredentialRepository;
 
     @Test
     void operatesGuestLifecycleAndPreservesResetHistory() {
@@ -131,17 +133,29 @@ class LiveQueueIntegrationTests {
         QrCredentialDto second = qrCredentialService.create(roomId, owner.getId());
         QrCredentialDto regenerated = qrCredentialService.regenerate(roomId, first.id(), owner.getId());
 
+        QrCredentialEntity legacyCredential = qrCredentialRepository.findById(second.id()).orElseThrow();
+        legacyCredential.setPublicToken(null);
+        qrCredentialRepository.saveAndFlush(legacyCredential);
+        QrCredentialDto repaired = qrCredentialService.list(roomId, owner.getId()).stream()
+                .filter(credential -> credential.id() == second.id())
+                .findFirst()
+                .orElseThrow();
+
         LiveQueueJoinResponseDto joined = entryService.joinGuest(
                 qrCredentialService.resolveActiveRoom(regenerated.token()).getId(),
                 new LiveQueueJoinRequestDto("QR guest", "0507300051"),
                 LiveQueueEntrySource.QR
         );
-        qrCredentialService.revoke(roomId, second.id(), owner.getId());
-
         assertThat(joined.publicReference()).startsWith("Q-");
+        assertThat(repaired.token()).isNotBlank().isNotEqualTo(second.token());
+        assertThat(qrCredentialService.resolveActiveRoom(second.token()).getId()).isEqualTo(roomId);
+        assertThat(qrCredentialService.resolveActiveRoom(repaired.token()).getId()).isEqualTo(roomId);
         assertThat(qrCredentialService.resolveActiveRoom(regenerated.token()).getId()).isEqualTo(roomId);
         assertThrows(ResponseStatusException.class, () -> qrCredentialService.resolveActiveRoom(first.token()));
+
+        qrCredentialService.revoke(roomId, second.id(), owner.getId());
         assertThrows(ResponseStatusException.class, () -> qrCredentialService.resolveActiveRoom(second.token()));
+        assertThrows(ResponseStatusException.class, () -> qrCredentialService.resolveActiveRoom(repaired.token()));
     }
 
     @Test
