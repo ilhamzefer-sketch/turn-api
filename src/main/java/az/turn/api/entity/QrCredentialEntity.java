@@ -26,6 +26,10 @@ public class QrCredentialEntity {
     private RoomEntity room;
     @Column(nullable = false, unique = true, length = 64)
     private String tokenHash;
+    @Column(unique = true, length = 128)
+    private String publicToken;
+    @Column(unique = true, length = 64)
+    private String legacyTokenHash;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private QrCredentialType type;
@@ -45,6 +49,10 @@ public class QrCredentialEntity {
     public void setRoom(RoomEntity value) { this.room = value; }
     public String getTokenHash() { return tokenHash; }
     public void setTokenHash(String value) { this.tokenHash = value; }
+    public String getPublicToken() { return publicToken; }
+    public void setPublicToken(String value) { this.publicToken = value; }
+    public String getLegacyTokenHash() { return legacyTokenHash; }
+    public void setLegacyTokenHash(String value) { this.legacyTokenHash = value; }
     public QrCredentialType getType() { return type; }
     public void setType(QrCredentialType value) { this.type = value; }
     public boolean isActive() { return active; }
