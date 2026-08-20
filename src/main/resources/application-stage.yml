@@ -13,7 +13,7 @@ app:
   payment:
     mode: test
   security:
-    secure-cookies: true
+    secure-cookies: ${APP_SECURE_COOKIES:true}
     rate-limit:
       store: redis
 
