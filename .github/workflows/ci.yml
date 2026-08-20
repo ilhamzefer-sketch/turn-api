@@ -1,12 +1,18 @@
-name: Backend CI
+name: Backend CI/CD
 
 on:
   pull_request:
   push:
-    branches: [stage, prod]
+    branches: [stage]
+    paths-ignore:
+      - "k8s/**"
 
 permissions:
   contents: read
+
+concurrency:
+  group: backend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -18,6 +24,7 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
+      - run: chmod +x mvnw
       - run: ./mvnw -B clean verify
 
   dependency-review:
@@ -35,6 +42,7 @@ jobs:
   codeql:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       security-events: write
       packages: read
     steps:
@@ -65,9 +73,10 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=${{ github.ref_name }}
-            type=sha
+            type=raw,value=stage
+            type=raw,value=${{ github.sha }}
       - uses: docker/build-push-action@v6
+        id: build
         with:
           context: .
           push: true
@@ -75,3 +84,41 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-stage-manifest:
+    if: github.event_name == 'push' && github.ref_name == 'stage'
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stage
+          fetch-depth: 0
+      - name: Update immutable stage image tag
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path("k8s/stage/kustomization.yaml")
+          lines = path.read_text().splitlines()
+          for index, line in enumerate(lines):
+              if line.strip() == "name: ghcr.io/ilhamzefer-sketch/turn-api":
+                  lines[index + 1] = f"    newTag: {os.environ['IMAGE_TAG']}"
+                  break
+          else:
+              raise SystemExit("Backend image entry was not found in kustomization.yaml")
+          path.write_text("\n".join(lines) + "\n")
+          PY
+      - name: Commit deployment revision
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- k8s/stage/kustomization.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(stage): deploy backend ${{ github.sha }} [skip ci]"
+          git push origin HEAD:stage

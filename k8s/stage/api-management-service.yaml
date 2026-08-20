@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: turn-api-management
+spec:
+  selector:
+    app: turn-api
+  ports:
+    - name: management
+      port: 9090
+      targetPort: management

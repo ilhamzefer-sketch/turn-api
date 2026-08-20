@@ -1,15 +1,16 @@
-FROM eclipse-temurin:17-jdk-alpine AS build
+FROM eclipse-temurin:17-jdk AS build
 WORKDIR /workspace
 COPY .mvn .mvn
 COPY mvnw pom.xml ./
-RUN ./mvnw -B -DskipTests dependency:go-offline
 COPY src src
-RUN ./mvnw -B clean package
+RUN --mount=type=cache,target=/root/.m2 \
+    chmod +x mvnw && ./mvnw -B -DskipTests clean package
 
-FROM eclipse-temurin:17-jre-alpine
-RUN addgroup -S turn && adduser -S turn -G turn
+FROM eclipse-temurin:17-jre
+RUN groupadd --system --gid 10001 turn \
+    && useradd --system --uid 10001 --gid turn --home-dir /nonexistent --shell /usr/sbin/nologin turn
 WORKDIR /app
 COPY --from=build /workspace/target/turn-api-*.jar app.jar
-USER turn:turn
+USER 10001:10001
 EXPOSE 8080 9090
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-XX:+ExitOnOutOfMemoryError", "-jar", "/app/app.jar"]

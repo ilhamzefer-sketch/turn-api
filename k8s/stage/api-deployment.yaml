@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: turn-api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: turn-api
+  template:
+    metadata:
+      labels:
+        app: turn-api
+    spec:
+      imagePullSecrets:
+        - name: ghcr-creds
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: turn-api
+          image: ghcr.io/ilhamzefer-sketch/turn-api:stage
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 9090
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: stage
+            - name: SERVER_PORT
+              value: "8080"
+            - name: SERVER_FORWARD_HEADERS_STRATEGY
+              value: framework
+            - name: MANAGEMENT_SERVER_PORT
+              value: "9090"
+            - name: MANAGEMENT_SERVER_ADDRESS
+              value: "0.0.0.0"
+            - name: APP_NAME
+              value: turn-api
+            - name: APP_ENV
+              value: stage
+            - name: APP_LEGACY_API_ENABLED
+              value: "false"
+            - name: DB_CONNECTION_IP
+              value: postgres
+            - name: DB_CONNECTION_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: turn_stage
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DB_SSL_MODE
+              value: disable
+            - name: DB_MAX_POOL_SIZE
+              value: "10"
+            - name: DB_MIN_IDLE
+              value: "2"
+            - name: APP_JPA_DDL_AUTO
+              value: validate
+            - name: APP_JPA_SHOW_SQL
+              value: "false"
+            - name: APP_JPA_FORMAT_SQL
+              value: "false"
+            - name: APP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: APP_JWT_SECRET
+            - name: APP_ACCESS_TOKEN_MINUTES
+              value: "15"
+            - name: APP_REFRESH_TOKEN_DAYS
+              value: "14"
+            - name: APP_REFRESH_REUSE_GRACE_SECONDS
+              value: "10"
+            - name: APP_SECURE_COOKIES
+              value: "false"
+            - name: APP_ALLOWED_ORIGINS
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: APP_ALLOWED_ORIGINS
+            - name: APP_TRUST_PROXY_HEADERS
+              value: "true"
+            - name: APP_RATE_LIMIT_ENABLED
+              value: "true"
+            - name: APP_RATE_LIMIT_GLOBAL_PER_MINUTE
+              value: "300"
+            - name: APP_RATE_LIMIT_AUTH_PER_MINUTE
+              value: "10"
+            - name: APP_RATE_LIMIT_PAYMENT_PER_MINUTE
+              value: "30"
+            - name: APP_RATE_LIMIT_PUBLIC_QUEUE_PER_MINUTE
+              value: "60"
+            - name: APP_RATE_LIMIT_STORE
+              value: redis
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: REDIS_PASSWORD
+            - name: REDIS_SSL_ENABLED
+              value: "false"
+            - name: REDIS_CONNECT_TIMEOUT
+              value: 2s
+            - name: REDIS_COMMAND_TIMEOUT
+              value: 2s
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ADMIN_USERNAME
+            - name: ADMIN_PASSWORD_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: ADMIN_PASSWORD_HASH
+            - name: APP_PAYMENT_MODE
+              value: test
+            - name: APP_PAYMENT_PROVIDER
+              value: birbank
+            - name: APP_PAYMENT_CALLBACK_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: APP_PAYMENT_CALLBACK_BASE_URL
+            - name: BIRBANK_API_BASE_URL
+              value: https://txpgtst.kapitalbank.az/api
+            - name: BIRBANK_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: BIRBANK_USERNAME
+            - name: BIRBANK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: turn-stage-secrets
+                  key: BIRBANK_PASSWORD
+            - name: APP_PAYMENT_RECONCILIATION_ENABLED
+              value: "true"
+            - name: APP_PAYMENT_RECONCILIATION_DELAY_MS
+              value: "60000"
+            - name: APP_PAYMENT_RECONCILIATION_INITIAL_DELAY_MS
+              value: "30000"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 40
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 4
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
