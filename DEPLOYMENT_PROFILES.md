@@ -29,7 +29,10 @@ docker compose -f compose.local.yml up -d
 - `SPRING_PROFILES_ACTIVE=prod`
 - `APP_ENV=prod`
 - `APP_PAYMENT_MODE=live`
-- `APP_PAYMENT_PROVIDER=birbank`
+- `APP_PAYMENT_PROVIDER=abb`
+- ABB Business test payment credentials and account details are supplied through
+  `ABB_*` environment variables. They must remain in the deployment secret and
+  must not be committed to Git.
 - `APP_ALLOWED_ORIGINS=https://app.example.az`
 - `APP_PAYMENT_CALLBACK_BASE_URL=https://app.example.az`
 - `BIRBANK_API_BASE_URL=<bankın verdiyi real production URL>`

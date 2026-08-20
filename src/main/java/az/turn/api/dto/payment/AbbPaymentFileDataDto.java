@@ -1,0 +1,7 @@
+package az.turn.api;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record AbbPaymentFileDataDto(String batchNumber) {
+}
