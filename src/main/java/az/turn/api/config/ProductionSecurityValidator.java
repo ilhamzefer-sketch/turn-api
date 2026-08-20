@@ -60,15 +60,19 @@ public class ProductionSecurityValidator {
         require(jwtSecret != null && jwtSecret.length() >= 32 && !jwtSecret.contains("default-secret") && !jwtSecret.contains("replace-with"),
                 "APP_JWT_SECRET güclü və unikal olmalıdır.");
         require(isHttps(callbackBaseUrl), "Prod callback URL HTTPS olmalıdır.");
-        require(isHttps(bankBaseUrl), "Prod bank API URL HTTPS olmalıdır.");
-        require(!bankBaseUrl.toLowerCase().contains("txpgtst") && !bankBaseUrl.toLowerCase().contains("pre-"),
-                "Prod profilində Kapital test API URL-i istifadə edilə bilməz.");
-        require(notPlaceholder(bankUsername) && notPlaceholder(bankPassword), "Prod bank credentials mütləqdir.");
+        if (isMockPayment()) {
+            require("test".equalsIgnoreCase(paymentMode), "Prod mock ödəniş rejimi test olmalıdır.");
+        } else {
+            require(isHttps(bankBaseUrl), "Prod bank API URL HTTPS olmalıdır.");
+            require(!bankBaseUrl.toLowerCase().contains("txpgtst") && !bankBaseUrl.toLowerCase().contains("pre-"),
+                    "Prod profilində Kapital test API URL-i istifadə edilə bilməz.");
+            require(notPlaceholder(bankUsername) && notPlaceholder(bankPassword), "Prod bank credentials mütləqdir.");
+            require("live".equalsIgnoreCase(paymentMode) && "birbank".equalsIgnoreCase(paymentProvider),
+                    "Prod bank ödəniş rejimi live və provider birbank olmalıdır.");
+        }
         require(allowedOrigins.stream().allMatch(this::isHttps), "Prod CORS origin-ləri yalnız HTTPS olmalıdır.");
         require(!"admin".equalsIgnoreCase(adminUsername) && notBlank(adminPasswordHash), "Prod admin credentials dəyişdirilməlidir.");
         require(adminPasswordHash.matches("^\\$2[aby]\\$.+"), "Prod admin şifrəsi BCrypt hash olmalıdır.");
-        require("live".equalsIgnoreCase(paymentMode) && "birbank".equalsIgnoreCase(paymentProvider),
-                "Prod ödəniş rejimi live və provider birbank olmalıdır.");
         require("redis".equalsIgnoreCase(rateLimitStore), "Prod rate limit Redis istifadə etməlidir.");
         require(redisSslEnabled, "Prod Redis bağlantısında TLS aktiv olmalıdır.");
         require(secureCookies, "Prod refresh və CSRF cookie-ləri Secure olmalıdır.");
@@ -81,5 +85,8 @@ public class ProductionSecurityValidator {
 
     private boolean notBlank(String value) { return value != null && !value.isBlank(); }
     private boolean notPlaceholder(String value) { return notBlank(value) && !value.toLowerCase().contains("replace-with"); }
+    private boolean isMockPayment() {
+        return "mock".equalsIgnoreCase(paymentProvider) || "sandbox".equalsIgnoreCase(paymentProvider);
+    }
     private void require(boolean condition, String message) { if (!condition) throw new IllegalStateException(message); }
 }

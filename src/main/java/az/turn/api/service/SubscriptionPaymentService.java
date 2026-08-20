@@ -103,7 +103,13 @@ public class SubscriptionPaymentService {
         session.setCardLast4(lastFour(request.cardNumber()));
         session.setSandboxOutcome(sandboxOutcome(request.cardNumber()));
         PaymentSessionEntity saved = paymentSessionRepository.save(session);
-        resolveProvider(saved.getProvider()).initialize(saved);
+        PaymentProvider provider = resolveProvider(saved.getProvider());
+        provider.initialize(saved);
+        if ("sandbox".equalsIgnoreCase(saved.getProvider())) {
+            saved.setStatus(provider.confirm(saved));
+            if (saved.getStatus() == PaymentStatus.COMPLETED) activate(saved);
+            saved.setCompletedAt(LocalDateTime.now(clock));
+        }
         return toDto(paymentSessionRepository.save(saved), rawToken);
     }
 

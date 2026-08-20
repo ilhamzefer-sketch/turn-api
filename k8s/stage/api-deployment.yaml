@@ -137,7 +137,7 @@ spec:
             - name: APP_PAYMENT_MODE
               value: test
             - name: APP_PAYMENT_PROVIDER
-              value: abb
+              value: mock
             - name: APP_PAYMENT_CALLBACK_BASE_URL
               valueFrom:
                 secretKeyRef:

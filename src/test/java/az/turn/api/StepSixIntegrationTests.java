@@ -71,15 +71,11 @@ class StepSixIntegrationTests {
                         "4169741330151778"
                 )
         );
-        SubscriptionPaymentSessionDto confirmed = subscriptionPaymentService.confirm(
-                checkout.id(),
-                checkout.sessionToken(),
-                owner.getId()
-        );
-
-        assertThat(confirmed.status()).isEqualTo(PaymentStatus.COMPLETED);
-        assertThat(confirmed.subscription().status()).isEqualTo(SubscriptionStatus.ACTIVE);
-        assertThat(confirmed.subscription().expiresAt()).isAfter(confirmed.subscription().startsAt());
+        assertThat(checkout.status()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(checkout.provider()).isEqualTo("sandbox");
+        assertThat(checkout.paymentReference()).startsWith("MOCK-");
+        assertThat(checkout.subscription().status()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(checkout.subscription().expiresAt()).isAfter(checkout.subscription().startsAt());
         assertThatCode(() -> subscriptionGateService.requireRoomOperations(room)).doesNotThrowAnyException();
     }
 
