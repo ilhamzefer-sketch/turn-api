@@ -69,7 +69,7 @@ Hazirki `/opt/turn/turn-api/ops/Caddyfile` mentiqi:
   }
 
   handle {
-    reverse_proxy ui:8080
+    reverse_proxy 169.58.172.211:30081
   }
 }
 ```
@@ -78,7 +78,7 @@ Bu o demekdir:
 
 - `/api/*` -> `api:8080`
 - `/actuator/*` -> `404`
-- diger butun requestler -> `ui:8080`
+- diger butun requestler -> `169.58.172.211:30081`
 
 ## Hazirki Compose mentiqi
 
@@ -181,9 +181,29 @@ Serverde Kubernetes/Docker firewall chain-leri de var.
 ## Yoxlama neticeleri
 
 - `http://169.58.172.211/` cavab verdi: `200`
+- `http://169.58.172.211/` yeni NovbeTime UI title qaytarir.
+- `http://169.58.172.211/login` cavab verdi: `200`
+- `http://169.58.172.211/register` cavab verdi: `200`
 - `http://169.58.172.211/api/auth/csrf` cavab verdi: `200`
 - CSRF endpoint JSON qaytarir.
-- Bu o demekdir ki, IP -> Caddy -> UI ve `/api` -> API baglantisi hazirda isleyir.
+- Bu o demekdir ki, IP -> Caddy -> `30081` yeni UI ve `/api` -> API baglantisi hazirda isleyir.
+
+## Edilen deyisiklik
+
+- `/opt/turn/turn-api/ops/Caddyfile` icinde esas frontend route deyisdirildi:
+  - evvel: `reverse_proxy ui:8080`
+  - indi: `reverse_proxy 169.58.172.211:30081`
+- Caddy config validate edildi.
+- Caddy container restart edildi:
+  - `ops-caddy-1`
+- Docker bind mount inode problemi oldugu ucun reload tek basina kifayet etmedi; restart-dan sonra container yeni Caddyfile-i gordu.
+
+## Backup fayllari
+
+Serverde yaradilan backup fayllari:
+
+- `/opt/turn/turn-api/ops/Caddyfile.backup-current-20260821-121631`
+- `/opt/turn/turn-api/ops/Caddyfile.backup-before-30081-20260821-121631`
 
 ## Hele deqiqlestirilmeli qalanlar
 
@@ -191,18 +211,13 @@ Serverde Kubernetes/Docker firewall chain-leri de var.
 - Private key passphrase olub-olmadigi qeyd olunmayib.
 - Domain istifade olunacaqmi, yoxsa yalniz `http://169.58.172.211` qalacaqmi, qerar deqiq deyil.
 - HTTPS/SSL indi teleb olunur, yoxsa sonraki merhelede, qerar deqiq deyil.
-- Caddy config backup ve reload/restart ucun aciq icaze yazili olaraq tesdiqlenmelidir.
-- Kohne frontend-in port `80`-den cixarilmasi ile bagli artiq Caddy `80`-i tutur; amma "kohne frontend" deyilende basqa servis nezerde tutulursa, adi deqiqlestirilmelidir.
+- Kohne frontend-in port `80`-den cixarilmasi tetbiq edildi: port `80` indi Caddy vasitesile `30081` yeni UI-a yonlenir.
 
-## Deyisiklik etmek ucun lazim olacaq ehtiyat addimlar
+## Sonraki ehtiyat addimlar
 
-Bu addimlar hele icra olunmayib:
-
-1. `/opt/turn/turn-api/ops/Caddyfile` backup almaq.
-2. Lazim olsa `/opt/turn/turn-api/ops/stack.env` icinde `TURN_DOMAIN` ve `PUBLIC_BASE_URL` deyerlerini yoxlamaq/deyismek.
-3. Caddy config syntax yoxlamaq.
-4. Caddy-ni reload ve ya compose service restart etmek.
-5. Sonra yoxlamaq:
+1. Domain elave olunacaqsa, `/opt/turn/turn-api/ops/stack.env` icinde `TURN_DOMAIN` ve `PUBLIC_BASE_URL` deyerlerini yoxlamaq/deyismek.
+2. HTTPS/SSL lazim olsa, Caddy port `443` mapping ve TLS ayarlari ayrica edilmelidir.
+3. Deyisikliklerden sonra tekrar yoxlamaq:
    - `/`
    - `/login`
    - `/register`
@@ -217,4 +232,4 @@ Caddy Docker Compose daxilinde isleyir ve config yolu tapilib:
 
 `/opt/turn/turn-api/ops/Caddyfile`
 
-Hazirda IP uzerinden frontend ve `/api/auth/csrf` isleyir. Qalan esas qerarlar domain/HTTPS ve reload/restart icazesidir.
+Hazirda IP uzerinden yeni frontend ve `/api/auth/csrf` isleyir. Qalan esas qerar domain/HTTPS-dir.
