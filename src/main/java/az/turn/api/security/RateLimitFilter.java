@@ -78,7 +78,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private LimitRule resolveRule(String path) {
-        if (path.matches("/api/(login|admin/login|customers/(login|register)|queue-managers/login|auth/(login|register|refresh))")) return new LimitRule("auth", authLimit);
+        if (path.matches("/api/(login|admin/login|customers/(login|register)|queue-managers/login|auth/(login|register|registerRequest|refresh))")) return new LimitRule("auth", authLimit);
         if (path.startsWith("/api/payments/")) return new LimitRule("payment", paymentLimit);
         if (path.equals("/api/queues/scan") || path.equals("/api/queues/join")
                 || path.equals("/api/queues/public") || path.startsWith("/api/public/")) {

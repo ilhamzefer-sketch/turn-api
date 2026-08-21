@@ -25,7 +25,7 @@ public class AuthController {
         this.apiSessionService = apiSessionService;
     }
 
-    @PostMapping("/api/auth/register")
+    @PostMapping({"/api/auth/register", "/api/auth/registerRequest"})
     public UserResponseDto registerUser(
             @Valid @RequestBody UserRegistrationRequestDto request,
             HttpServletRequest httpRequest,

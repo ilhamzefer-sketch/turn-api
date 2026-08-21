@@ -90,6 +90,25 @@ class UserAuthenticationIntegrationTests {
     }
 
     @Test
+    void supportsLegacyRegisterRequestAlias() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String body = objectMapper.createObjectNode()
+                .put("firstName", "Alias")
+                .put("lastName", "Istifadeci")
+                .put("phone", "0501223344")
+                .put("password", "Alias-safe-2026")
+                .toString();
+
+        mockMvc.perform(post("/api/auth/registerRequest")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("+994501223344"));
+    }
+
+    @Test
     void revokesEverySessionExceptTheCurrentSession() throws Exception {
         TestCsrfToken csrf = csrf();
         register(csrf, "0501667788", "Sessiya", "İstifadəçi", "Session-safe-2026")
