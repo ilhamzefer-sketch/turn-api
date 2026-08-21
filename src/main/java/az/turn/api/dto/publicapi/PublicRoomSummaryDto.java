@@ -11,7 +11,6 @@ public record PublicRoomSummaryDto(
         String branchName,
         PublicCategoryDto category,
         String customSubcategory,
-        List<String> serviceNames,
         PublicRoomLocationDto location,
         double averageRating,
         long ratingCount

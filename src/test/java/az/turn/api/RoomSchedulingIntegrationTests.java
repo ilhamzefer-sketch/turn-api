@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -30,11 +29,9 @@ class RoomSchedulingIntegrationTests {
     private RoomScheduleService scheduleService;
     @Autowired
     private RoomConfigurationService configurationService;
-    @Autowired
-    private RoomOfferingService offeringService;
 
     @Test
-    void configuresAndPublishesPlannedRoomWithScheduleExceptionsAndServices() {
+    void configuresAndPublishesPlannedRoomWithScheduleExceptions() {
         UserEntity owner = saveUser("+994507200001");
         RoomResponseDto room = createRoom(owner, ReservationMode.PLANNED_BOOKING);
         ResponseStatusException missingSchedule = assertThrows(
@@ -60,11 +57,6 @@ class RoomSchedulingIntegrationTests {
                 owner.getId(),
                 plannedConfiguration()
         );
-        RoomServiceDto service = offeringService.create(
-                room.id(),
-                owner.getId(),
-                new RoomServiceUpsertRequestDto("Konsultasiya", "İlkin görüş", new BigDecimal("25.50"), true)
-        );
         AvailabilityExceptionDto exception = scheduleService.createException(
                 room.id(),
                 owner.getId(),
@@ -82,7 +74,6 @@ class RoomSchedulingIntegrationTests {
         assertThat(missingSchedule.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(copied).hasSize(6);
         assertThat(configured.appointmentBufferMinutes()).isEqualTo(10);
-        assertThat(service.currency()).isEqualTo("AZN");
         assertThat(exception.type()).isEqualTo(AvailabilityExceptionType.CUSTOM_HOURS);
         assertThat(published.status()).isEqualTo(RoomStatus.PUBLISHED);
     }

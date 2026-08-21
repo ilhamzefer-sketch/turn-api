@@ -69,8 +69,7 @@ public class RoomBookingService {
         BookingTimeRange range = availabilityService.requireAvailable(room, request.startAt(), false, null);
         UserEntity creator = accessService.requireActiveUser(userId);
         GuestContactEntity guest = guestContactService.resolve(request.displayName(), request.phone());
-        RoomServiceItemEntity service = support.resolveService(room, request.serviceId());
-        PlannedBookingEntity booking = support.baseBooking(room, range, service, request.source(), creator);
+        PlannedBookingEntity booking = support.baseBooking(room, range, request.source(), creator);
         booking.setGuestContact(guest);
         booking.setInternalNote(support.normalizeOptional(request.internalNote()));
         PlannedBookingEntity saved = support.save(booking);

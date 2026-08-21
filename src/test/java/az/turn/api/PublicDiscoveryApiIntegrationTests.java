@@ -34,8 +34,6 @@ class PublicDiscoveryApiIntegrationTests {
     @Autowired
     private RoomAssignmentRepository assignmentRepository;
     @Autowired
-    private RoomServiceItemRepository serviceRepository;
-    @Autowired
     private QrCredentialRepository qrCredentialRepository;
     @Autowired
     private SecureTokenService tokenService;
@@ -48,23 +46,22 @@ class PublicDiscoveryApiIntegrationTests {
     private RoomEntity unlistedRoom;
     private RoomEntity privateRoom;
     private String qrToken;
-    private String searchServiceName;
+    private String searchQuery;
 
     @BeforeEach
     void setUp() {
         String suffix = String.valueOf(System.nanoTime());
+        searchQuery = suffix;
         owner = userRepository.save(user("Discovery", "Owner", "+99455" + suffix.substring(suffix.length() - 7)));
         category = categoryRepository.findByActiveTrueOrderByDisplayOrderAscNameAzAsc().get(0);
         BusinessEntity business = businessRepository.save(business("Discovery Studio " + suffix, category, owner));
         BranchEntity branch = branchRepository.save(branch(business));
-        publicRoom = roomRepository.save(room(branch, "Aysel kosmetoloq", RoomVisibility.PUBLIC, ReservationMode.PLANNED_BOOKING));
+        publicRoom = roomRepository.save(room(branch, "Aysel kosmetoloq " + suffix, RoomVisibility.PUBLIC, ReservationMode.PLANNED_BOOKING));
         unlistedRoom = roomRepository.save(room(branch, "Birbaşa otaq", RoomVisibility.UNLISTED, ReservationMode.LIVE_QUEUE));
         privateRoom = roomRepository.save(room(branch, "Gizli otaq", RoomVisibility.PRIVATE, ReservationMode.PLANNED_BOOKING));
         assignmentRepository.save(assignment(publicRoom, owner, false));
         assignmentRepository.save(assignment(unlistedRoom, owner, true));
         assignmentRepository.save(assignment(privateRoom, owner, true));
-        searchServiceName = "Dəri baxımı " + suffix;
-        serviceRepository.save(service(publicRoom, searchServiceName));
         qrToken = "qr_" + suffix;
         qrCredentialRepository.save(credential(unlistedRoom, owner, qrToken));
     }
@@ -72,7 +69,7 @@ class PublicDiscoveryApiIntegrationTests {
     @Test
     void searchesOnlyPublicRoomsWithBoundedFrontendReadyMetadata() throws Exception {
         mockMvc.perform(get("/api/public/rooms")
-                        .param("q", searchServiceName)
+                        .param("q", searchQuery)
                         .param("categoryId", category.getId().toString())
                         .param("district", "Nəsimi")
                         .param("mode", "PLANNED_BOOKING")
@@ -81,7 +78,6 @@ class PublicDiscoveryApiIntegrationTests {
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(publicRoom.getId()))
                 .andExpect(jsonPath("$.items[0].providerName").exists())
-                .andExpect(jsonPath("$.items[0].serviceNames[0]").value(searchServiceName))
                 .andExpect(jsonPath("$.items[0].averageRating").value(0.0))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(12));
@@ -97,11 +93,10 @@ class PublicDiscoveryApiIntegrationTests {
 
         mockMvc.perform(get("/api/public/rooms/{roomId}", publicRoom.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Aysel kosmetoloq"))
+                .andExpect(jsonPath("$.name").value(publicRoom.getName()))
                 .andExpect(jsonPath("$.contactPhone").value("+994501112233"))
                 .andExpect(jsonPath("$.owners[0].displayName").value("Discovery Owner"))
                 .andExpect(jsonPath("$.owners[0].phone").doesNotExist())
-                .andExpect(jsonPath("$.services[0].name").value(searchServiceName))
                 .andExpect(jsonPath("$.notes").doesNotExist());
 
         mockMvc.perform(get("/api/public/rooms/{roomId}", unlistedRoom.getId()))
@@ -228,14 +223,6 @@ class PublicDiscoveryApiIntegrationTests {
         assignment.setShowPhonePublicly(showPhone);
         assignment.setRespondedAt(LocalDateTime.now());
         return assignment;
-    }
-
-    private RoomServiceItemEntity service(RoomEntity room, String name) {
-        RoomServiceItemEntity service = new RoomServiceItemEntity();
-        service.setRoom(room);
-        service.setName(name);
-        service.setActive(true);
-        return service;
     }
 
     private QrCredentialEntity credential(RoomEntity room, UserEntity user, String rawToken) {

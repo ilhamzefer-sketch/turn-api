@@ -31,9 +31,6 @@ public class PlannedBookingEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guest_contact_id")
     private GuestContactEntity guestContact;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "room_service_id")
-    private RoomServiceItemEntity roomService;
     @Column(nullable = false, unique = true, length = 24)
     private String bookingReference;
     @Enumerated(EnumType.STRING)
@@ -81,8 +78,6 @@ public class PlannedBookingEntity {
     public void setUser(UserEntity value) { this.user = value; }
     public GuestContactEntity getGuestContact() { return guestContact; }
     public void setGuestContact(GuestContactEntity value) { this.guestContact = value; }
-    public RoomServiceItemEntity getRoomService() { return roomService; }
-    public void setRoomService(RoomServiceItemEntity value) { this.roomService = value; }
     public String getBookingReference() { return bookingReference; }
     public void setBookingReference(String value) { this.bookingReference = value; }
     public PlannedBookingStatus getStatus() { return status; }

@@ -7,8 +7,6 @@ public record PlannedBookingDto(
         String bookingReference,
         Long roomId,
         String roomName,
-        Long serviceId,
-        String serviceName,
         PlannedBookingStatus status,
         String participantName,
         String participantPhone,

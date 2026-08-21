@@ -8,8 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -19,7 +17,6 @@ import java.util.stream.Collectors;
 @Service
 public class PublicRoomQueryService {
     private final RoomRepository roomRepository;
-    private final RoomServiceItemRepository serviceRepository;
     private final RoomAssignmentRepository assignmentRepository;
     private final ServiceRatingRepository ratingRepository;
     private final BusinessCategoryRepository categoryRepository;
@@ -27,14 +24,12 @@ public class PublicRoomQueryService {
 
     public PublicRoomQueryService(
             RoomRepository roomRepository,
-            RoomServiceItemRepository serviceRepository,
             RoomAssignmentRepository assignmentRepository,
             ServiceRatingRepository ratingRepository,
             BusinessCategoryRepository categoryRepository,
             QrCredentialService qrCredentialService
     ) {
         this.roomRepository = roomRepository;
-        this.serviceRepository = serviceRepository;
         this.assignmentRepository = assignmentRepository;
         this.ratingRepository = ratingRepository;
         this.categoryRepository = categoryRepository;
@@ -74,10 +69,9 @@ public class PublicRoomQueryService {
                 pageRequest
         );
         List<Long> roomIds = rooms.getContent().stream().map(RoomEntity::getId).toList();
-        Map<Long, List<RoomServiceItemEntity>> services = services(roomIds);
         Map<Long, RoomRatingAggregate> ratings = ratings(roomIds);
         List<PublicRoomSummaryDto> items = rooms.getContent().stream()
-                .map(room -> toSummary(room, services.getOrDefault(room.getId(), List.of()), ratings.get(room.getId())))
+                .map(room -> toSummary(room, ratings.get(room.getId())))
                 .toList();
         return new PublicRoomSearchPageDto(
                 items,
@@ -91,8 +85,6 @@ public class PublicRoomQueryService {
     @Transactional(readOnly = true)
     public PublicRoomProfileDto profile(long roomId) {
         RoomEntity room = requirePubliclyAccessible(roomId);
-        List<RoomServiceItemEntity> services = serviceRepository
-                .findByRoomIdInAndActiveTrueOrderByRoomIdAscCreatedAtAsc(List.of(roomId));
         List<RoomAssignmentEntity> assignments = assignmentRepository
                 .findByRoomIdInAndStatusOrderByCreatedAtAsc(List.of(roomId), RoomAssignmentStatus.ACTIVE);
         RoomRatingAggregate rating = ratings(List.of(roomId)).get(roomId);
@@ -100,7 +92,7 @@ public class PublicRoomQueryService {
                 .filter(value -> value.getUser().getStatus() == UserStatus.ACTIVE)
                 .map(this::toOwner)
                 .toList();
-        return toProfile(room, services, owners, rating);
+        return toProfile(room, owners, rating);
     }
 
     @Transactional(readOnly = true)
@@ -125,7 +117,6 @@ public class PublicRoomQueryService {
 
     private PublicRoomSummaryDto toSummary(
             RoomEntity room,
-            List<RoomServiceItemEntity> services,
             RoomRatingAggregate rating
     ) {
         return new PublicRoomSummaryDto(
@@ -137,7 +128,6 @@ public class PublicRoomQueryService {
                 room.getBranch() == null ? null : room.getBranch().getName(),
                 category(room),
                 customSubcategory(room),
-                services.stream().map(RoomServiceItemEntity::getName).toList(),
                 location(room),
                 average(rating),
                 count(rating)
@@ -146,7 +136,6 @@ public class PublicRoomQueryService {
 
     private PublicRoomProfileDto toProfile(
             RoomEntity room,
-            List<RoomServiceItemEntity> services,
             List<PublicRoomOwnerDto> owners,
             RoomRatingAggregate rating
     ) {
@@ -170,7 +159,6 @@ public class PublicRoomQueryService {
                 location(room),
                 contactPhone(room, owners),
                 owners,
-                services.stream().map(this::toService).toList(),
                 average(rating),
                 count(rating)
         );
@@ -181,16 +169,6 @@ public class PublicRoomQueryService {
         String displayName = (user.getFirstName() + " " + user.getLastName()).trim();
         String phone = assignment.isShowPhonePublicly() ? user.getNormalizedPhone() : null;
         return new PublicRoomOwnerDto(displayName, phone);
-    }
-
-    private PublicRoomServiceDto toService(RoomServiceItemEntity service) {
-        return new PublicRoomServiceDto(
-                service.getId(),
-                service.getName(),
-                service.getDescription(),
-                service.getPrice(),
-                service.getCurrency()
-        );
     }
 
     private PublicRoomLocationDto location(RoomEntity room) {
@@ -245,14 +223,6 @@ public class PublicRoomQueryService {
     private PublicCategoryDto toCategory(BusinessCategoryEntity category) {
         if (category == null) return null;
         return new PublicCategoryDto(category.getId(), category.getCode(), category.getNameAz());
-    }
-
-    private Map<Long, List<RoomServiceItemEntity>> services(List<Long> roomIds) {
-        if (roomIds.isEmpty()) return Map.of();
-        Map<Long, List<RoomServiceItemEntity>> grouped = new LinkedHashMap<>();
-        serviceRepository.findByRoomIdInAndActiveTrueOrderByRoomIdAscCreatedAtAsc(roomIds)
-                .forEach(service -> grouped.computeIfAbsent(service.getRoom().getId(), key -> new ArrayList<>()).add(service));
-        return grouped;
     }
 
     private Map<Long, RoomRatingAggregate> ratings(List<Long> roomIds) {

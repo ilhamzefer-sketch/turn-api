@@ -50,13 +50,13 @@ class PlannedBookingIntegrationTests {
 
         PlannedBookingDto booking = customerBookingService.create(
                 customer.getId(),
-                new BookingCreateRequestDto(fixture.roomId(), initial.get(0).startAt(), null, "Pəncərə tərəfi")
+                new BookingCreateRequestDto(fixture.roomId(), initial.get(0).startAt(), "Pəncərə tərəfi")
         );
         ResponseStatusException duplicate = assertThrows(
                 ResponseStatusException.class,
                 () -> customerBookingService.create(
                         customer.getId(),
-                        new BookingCreateRequestDto(fixture.roomId(), initial.get(1).startAt(), null, null)
+                        new BookingCreateRequestDto(fixture.roomId(), initial.get(1).startAt(), null)
                 )
         );
         List<AvailableSlotDto> occupied = availabilityService.getPublicSlots(fixture.roomId(), fixture.date());
@@ -87,7 +87,6 @@ class PlannedBookingIntegrationTests {
                         "Qonaq Müştəri",
                         "0507400004",
                         slots.get(0).startAt(),
-                        null,
                         LiveQueueEntrySource.OWNER_PHONE,
                         "Telefonla yazıldı"
                 )
@@ -160,7 +159,7 @@ class PlannedBookingIntegrationTests {
         LocalDateTime startAt = availabilityService.getPublicSlots(fixture.roomId(), fixture.date()).get(0).startAt();
         PlannedBookingDto booking = customerBookingService.create(
                 customer.getId(),
-                new BookingCreateRequestDto(fixture.roomId(), startAt, null, null)
+                new BookingCreateRequestDto(fixture.roomId(), startAt, null)
         );
 
         ResponseStatusException cutoff = assertThrows(
@@ -180,7 +179,7 @@ class PlannedBookingIntegrationTests {
 
     private boolean tryCreate(long userId, long roomId, LocalDateTime startAt) {
         try {
-            customerBookingService.create(userId, new BookingCreateRequestDto(roomId, startAt, null, null));
+            customerBookingService.create(userId, new BookingCreateRequestDto(roomId, startAt, null));
             return true;
         } catch (RuntimeException exception) {
             return false;

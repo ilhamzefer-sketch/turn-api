@@ -67,17 +67,6 @@ class RoomSchedulingApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.appointmentBufferMinutes").value(5));
 
-        mockMvc.perform(post("/api/rooms/{roomId}/services", roomId)
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"name":"Məsləhət","price":20.00,"active":true}
-                                """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.currency").value("AZN"));
-
         mockMvc.perform(post("/api/rooms/{roomId}/publish", roomId)
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())

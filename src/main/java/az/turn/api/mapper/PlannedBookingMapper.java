@@ -15,14 +15,11 @@ public class PlannedBookingMapper {
     private PlannedBookingDto toDto(PlannedBookingEntity booking, boolean includeInternalNote) {
         UserEntity user = booking.getUser();
         GuestContactEntity guest = booking.getGuestContact();
-        RoomServiceItemEntity service = booking.getRoomService();
         return new PlannedBookingDto(
                 booking.getId(),
                 booking.getBookingReference(),
                 booking.getRoom().getId(),
                 booking.getRoom().getName(),
-                service == null ? null : service.getId(),
-                service == null ? null : service.getName(),
                 booking.getStatus(),
                 user == null ? guest.getDisplayName() : user.getFirstName() + " " + user.getLastName(),
                 user == null ? guest.getNormalizedPhone() : user.getNormalizedPhone(),

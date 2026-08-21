@@ -21,7 +21,6 @@ public record PublicRoomProfileDto(
         PublicRoomLocationDto location,
         String contactPhone,
         List<PublicRoomOwnerDto> owners,
-        List<PublicRoomServiceDto> services,
         double averageRating,
         long ratingCount
 ) {

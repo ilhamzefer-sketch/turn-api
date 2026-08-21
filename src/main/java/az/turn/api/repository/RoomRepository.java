@@ -46,9 +46,7 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
                   or lower(coalesce(branch.city, '')) like :search
                   or lower(coalesce(branch.district, '')) like :search
                   or lower(coalesce(workspace.name, '')) like :search
-                  or lower(coalesce(room.personalPublicAddress, '')) like :search
-                  or exists (select service.id from RoomServiceItemEntity service
-                      where service.room = room and service.active = true and lower(service.name) like :search))
+                  or lower(coalesce(room.personalPublicAddress, '')) like :search)
             """,
             countQuery = """
             select count(distinct room.id) from RoomEntity room
@@ -72,9 +70,7 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
                   or lower(coalesce(branch.city, '')) like :search
                   or lower(coalesce(branch.district, '')) like :search
                   or lower(coalesce(workspace.name, '')) like :search
-                  or lower(coalesce(room.personalPublicAddress, '')) like :search
-                  or exists (select service.id from RoomServiceItemEntity service
-                      where service.room = room and service.active = true and lower(service.name) like :search))
+                  or lower(coalesce(room.personalPublicAddress, '')) like :search)
             """)
     Page<RoomEntity> searchPublic(
             @Param("search") String search,

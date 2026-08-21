@@ -11,20 +11,17 @@ import java.time.LocalDateTime;
 public class PlannedBookingCommandSupport {
     private final RoomRepository roomRepository;
     private final PlannedBookingRepository bookingRepository;
-    private final RoomServiceItemRepository serviceRepository;
     private final SecureTokenService tokenService;
     private final Clock clock;
 
     public PlannedBookingCommandSupport(
             RoomRepository roomRepository,
             PlannedBookingRepository bookingRepository,
-            RoomServiceItemRepository serviceRepository,
             SecureTokenService tokenService,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
         this.bookingRepository = bookingRepository;
-        this.serviceRepository = serviceRepository;
         this.tokenService = tokenService;
         this.clock = clock;
     }
@@ -59,26 +56,14 @@ public class PlannedBookingCommandSupport {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rezervasiya tapılmadı."));
     }
 
-    public RoomServiceItemEntity resolveService(RoomEntity room, Long serviceId) {
-        if (serviceId == null) return null;
-        RoomServiceItemEntity service = serviceRepository.findByIdAndRoomId(serviceId, room.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Otaq xidməti tapılmadı."));
-        if (!service.isActive()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Seçilmiş xidmət aktiv deyil.");
-        }
-        return service;
-    }
-
     public PlannedBookingEntity baseBooking(
             RoomEntity room,
             BookingTimeRange range,
-            RoomServiceItemEntity service,
             LiveQueueEntrySource source,
             UserEntity creator
     ) {
         PlannedBookingEntity booking = new PlannedBookingEntity();
         booking.setRoom(room);
-        booking.setRoomService(service);
         booking.setBookingReference("B-" + tokenService.generate().substring(0, 12).toUpperCase());
         booking.setStatus(PlannedBookingStatus.ACTIVE);
         booking.setSource(source);

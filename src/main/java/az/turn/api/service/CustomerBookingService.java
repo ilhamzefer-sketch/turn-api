@@ -58,11 +58,9 @@ public class CustomerBookingService {
             throw conflict("Bu otaqda artıq aktiv rezervasiyanız var.");
         }
         BookingTimeRange range = availabilityService.requireAvailable(room, request.startAt(), true, null);
-        RoomServiceItemEntity service = support.resolveService(room, request.serviceId());
         PlannedBookingEntity booking = support.baseBooking(
                 room,
                 range,
-                service,
                 LiveQueueEntrySource.WEB,
                 user
         );
