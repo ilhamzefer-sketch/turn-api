@@ -109,6 +109,37 @@ class UserAuthenticationIntegrationTests {
     }
 
     @Test
+    void supportsLegacyLoginRefreshAndLogoutRequestAliases() throws Exception {
+        TestCsrfToken csrf = csrf();
+        register(csrf, "0501223355", "Alias", "Login", "Alias-login-2026")
+                .andExpect(status().isOk());
+
+        MvcResult login = mockMvc.perform(post("/api/auth/loginRequest")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode()
+                                .put("phone", "0501223355")
+                                .put("password", "Alias-login-2026")
+                                .toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andReturn();
+
+        Cookie refreshCookie = refreshCookie(login);
+        mockMvc.perform(post("/api/auth/refreshRequest")
+                        .cookie(csrf.cookie(), refreshCookie)
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString());
+
+        mockMvc.perform(post("/api/auth/logoutRequest")
+                        .cookie(csrf.cookie(), refreshCookie)
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void revokesEverySessionExceptTheCurrentSession() throws Exception {
         TestCsrfToken csrf = csrf();
         register(csrf, "0501667788", "Sessiya", "İstifadəçi", "Session-safe-2026")

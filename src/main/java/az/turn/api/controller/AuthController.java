@@ -34,7 +34,7 @@ public class AuthController {
         return apiSessionService.authenticateUser(userAccountService.register(request), httpRequest, response);
     }
 
-    @PostMapping("/api/auth/login")
+    @PostMapping({"/api/auth/login", "/api/auth/loginRequest"})
     public UserResponseDto loginUser(
             @Valid @RequestBody UserLoginRequestDto request,
             HttpServletRequest httpRequest,
@@ -73,12 +73,12 @@ public class AuthController {
         return new CsrfTokenResponse((String) request.getAttribute("csrfToken"));
     }
 
-    @PostMapping("/api/auth/refresh")
+    @PostMapping({"/api/auth/refresh", "/api/auth/refreshRequest"})
     public AccessTokenResponse refresh(HttpServletRequest request, HttpServletResponse response) {
         return apiSessionService.refresh(request, response);
     }
 
-    @PostMapping("/api/auth/logout")
+    @PostMapping({"/api/auth/logout", "/api/auth/logoutRequest"})
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         apiSessionService.logout(request, response);
     }
