@@ -21,7 +21,7 @@ Bu fayl serverde yoxlanilan real veziyyeti, tapilan melumatlari ve hele deqiqles
 - OS/kernel: Ubuntu Linux, kernel `6.8.0-137-generic`
 - Port `22`: aciqdir
 - Port `80`: aciqdir
-- Port `443`: firewall-da aciqdir, amma Caddy container host-da yalniz `80:80` publish edir
+- Port `443`: firewall-da aciqdir ve Caddy container host-da `443:443` publish edir
 - Port `30081`: firewall-da aciqdir
 
 ## Caddy ve Docker veziyyeti
@@ -39,6 +39,7 @@ Bu fayl serverde yoxlanilan real veziyyeti, tapilan melumatlari ve hele deqiqles
   - image: `caddy:2.10-alpine`
   - status: `running`
   - host port mapping: `0.0.0.0:80->80/tcp`
+  - host port mapping: `0.0.0.0:443->443/tcp`
 - Caddyfile container-e bele mount olunub:
   - host: `/opt/turn/turn-api/ops/Caddyfile`
   - container: `/etc/caddy/Caddyfile`
@@ -57,7 +58,7 @@ Bu fayl serverde yoxlanilan real veziyyeti, tapilan melumatlari ve hele deqiqles
 Hazirki `/opt/turn/turn-api/ops/Caddyfile` mentiqi:
 
 ```caddyfile
-{$TURN_DOMAIN} {
+http://169.58.172.211, novbetime.az, www.novbetime.az {
   encode zstd gzip
 
   handle /api/* {
@@ -185,6 +186,12 @@ Serverde Kubernetes/Docker firewall chain-leri de var.
 - `http://169.58.172.211/login` cavab verdi: `200`
 - `http://169.58.172.211/register` cavab verdi: `200`
 - `http://169.58.172.211/api/auth/csrf` cavab verdi: `200`
+- `https://novbetime.az/` cavab verdi: `200`
+- `https://www.novbetime.az/` cavab verdi: `200`
+- `http://novbetime.az/` HTTPS-e redirect edir: `308`
+- `https://novbetime.az/login` cavab verdi: `200`
+- `https://novbetime.az/register` cavab verdi: `200`
+- `https://novbetime.az/api/auth/csrf` cavab verdi: `200`
 - CSRF endpoint JSON qaytarir.
 - Bu o demekdir ki, IP -> Caddy -> `30081` yeni UI ve `/api` -> API baglantisi hazirda isleyir.
 
@@ -193,6 +200,10 @@ Serverde Kubernetes/Docker firewall chain-leri de var.
 - `/opt/turn/turn-api/ops/Caddyfile` icinde esas frontend route deyisdirildi:
   - evvel: `reverse_proxy ui:8080`
   - indi: `reverse_proxy 169.58.172.211:30081`
+- `/opt/turn/turn-api/ops/Caddyfile` icinde domain host-lari aktiv edildi:
+  - `novbetime.az`
+  - `www.novbetime.az`
+- `/opt/turn/turn-api/ops/docker-compose.stage.vps.yml` icinde Caddy ucun `443:443` publish edildi.
 - Caddy config validate edildi.
 - Caddy container restart edildi:
   - `ops-caddy-1`
@@ -204,20 +215,24 @@ Serverde yaradilan backup fayllari:
 
 - `/opt/turn/turn-api/ops/Caddyfile.backup-current-20260821-121631`
 - `/opt/turn/turn-api/ops/Caddyfile.backup-before-30081-20260821-121631`
+- `/opt/turn/turn-api/ops/stack.env.backup-domain-20260821-125513`
+- `/opt/turn/turn-api/ops/Caddyfile.backup-domain-20260821-125513`
+- `/opt/turn/turn-api/ops/Caddyfile.backup-literal-domain-20260821-125617`
+- `/opt/turn/turn-api/ops/docker-compose.stage.vps.yml.backup-https-20260821-130325`
+- `/opt/turn/turn-api/ops/Caddyfile.backup-https-20260821-130325`
 
 ## Hele deqiqlestirilmeli qalanlar
 
 - Private key-in tehlukesiz fayl yolu qeyd olunmayib.
 - Private key passphrase olub-olmadigi qeyd olunmayib.
-- Domain istifade olunacaqmi, yoxsa yalniz `http://169.58.172.211` qalacaqmi, qerar deqiq deyil.
-- HTTPS/SSL indi teleb olunur, yoxsa sonraki merhelede, qerar deqiq deyil.
+- Domain aktivdir: `novbetime.az` ve `www.novbetime.az`.
+- HTTPS/SSL aktivdir: `https://novbetime.az` ve `https://www.novbetime.az`.
 - Kohne frontend-in port `80`-den cixarilmasi tetbiq edildi: port `80` indi Caddy vasitesile `30081` yeni UI-a yonlenir.
 
 ## Sonraki ehtiyat addimlar
 
-1. Domain elave olunacaqsa, `/opt/turn/turn-api/ops/stack.env` icinde `TURN_DOMAIN` ve `PUBLIC_BASE_URL` deyerlerini yoxlamaq/deyismek.
-2. HTTPS/SSL lazim olsa, Caddy port `443` mapping ve TLS ayarlari ayrica edilmelidir.
-3. Deyisikliklerden sonra tekrar yoxlamaq:
+1. Cloudflare SSL/TLS mode production ucun `Full` ve ya `Full (strict)` saxlanmalidir.
+2. Deyisikliklerden sonra tekrar yoxlamaq:
    - `/`
    - `/login`
    - `/register`
@@ -232,4 +247,4 @@ Caddy Docker Compose daxilinde isleyir ve config yolu tapilib:
 
 `/opt/turn/turn-api/ops/Caddyfile`
 
-Hazirda IP uzerinden yeni frontend ve `/api/auth/csrf` isleyir. Qalan esas qerar domain/HTTPS-dir.
+Hazirda IP, `novbetime.az`, `www.novbetime.az`, HTTPS ve `/api/auth/csrf` isleyir.
