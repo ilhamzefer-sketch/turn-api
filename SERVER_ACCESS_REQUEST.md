@@ -192,6 +192,8 @@ Serverde Kubernetes/Docker firewall chain-leri de var.
 - `https://novbetime.az/login` cavab verdi: `200`
 - `https://novbetime.az/register` cavab verdi: `200`
 - `https://novbetime.az/api/auth/csrf` cavab verdi: `200`
+- `https://novbetime.az/api/auth/csrf` `Secure; SameSite=Lax` CSRF cookie qaytarir.
+- API container health: `healthy`
 - CSRF endpoint JSON qaytarir.
 - Bu o demekdir ki, IP -> Caddy -> `30081` yeni UI ve `/api` -> API baglantisi hazirda isleyir.
 
@@ -204,6 +206,13 @@ Serverde Kubernetes/Docker firewall chain-leri de var.
   - `novbetime.az`
   - `www.novbetime.az`
 - `/opt/turn/turn-api/ops/docker-compose.stage.vps.yml` icinde Caddy ucun `443:443` publish edildi.
+- `/opt/turn/turn-api/ops/turn.stage.env` backend domain/HTTPS ucun yenilendi:
+  - `APP_SECURE_COOKIES=true`
+  - `APP_ALLOWED_ORIGINS=http://169.58.172.211,https://novbetime.az,https://www.novbetime.az,http://novbetime.az,http://www.novbetime.az`
+  - `APP_TRUST_PROXY_HEADERS=true`
+  - `APP_PAYMENT_CALLBACK_BASE_URL=https://novbetime.az`
+- API container yeni env ile recreate edildi:
+  - `ops-api-1`
 - Caddy config validate edildi.
 - Caddy container restart edildi:
   - `ops-caddy-1`
@@ -220,6 +229,7 @@ Serverde yaradilan backup fayllari:
 - `/opt/turn/turn-api/ops/Caddyfile.backup-literal-domain-20260821-125617`
 - `/opt/turn/turn-api/ops/docker-compose.stage.vps.yml.backup-https-20260821-130325`
 - `/opt/turn/turn-api/ops/Caddyfile.backup-https-20260821-130325`
+- `/opt/turn/turn-api/ops/turn.stage.env.backup-domain-20260821-1142xx`
 
 ## Hele deqiqlestirilmeli qalanlar
 
@@ -247,4 +257,4 @@ Caddy Docker Compose daxilinde isleyir ve config yolu tapilib:
 
 `/opt/turn/turn-api/ops/Caddyfile`
 
-Hazirda IP, `novbetime.az`, `www.novbetime.az`, HTTPS ve `/api/auth/csrf` isleyir.
+Hazirda IP, `novbetime.az`, `www.novbetime.az`, HTTPS, backend CORS/cookie ayarlari ve `/api/auth/csrf` isleyir.
