@@ -1,5 +1,6 @@
 package az.turn.api;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ public class RoomAssignmentService {
     private final RoomRepository roomRepository;
     private final ProviderAccessService accessService;
     private final ProviderWorkspaceMapper mapper;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public RoomAssignmentService(
@@ -26,6 +28,7 @@ public class RoomAssignmentService {
             RoomRepository roomRepository,
             ProviderAccessService accessService,
             ProviderWorkspaceMapper mapper,
+            ApplicationEventPublisher eventPublisher,
             Clock clock
     ) {
         this.assignmentRepository = assignmentRepository;
@@ -34,6 +37,7 @@ public class RoomAssignmentService {
         this.roomRepository = roomRepository;
         this.accessService = accessService;
         this.mapper = mapper;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -73,7 +77,13 @@ public class RoomAssignmentService {
         assignment.setInvitedAt(now);
         assignment.setRespondedAt(null);
         assignment.setRevokedAt(null);
-        return mapper.toDto(assignmentRepository.save(assignment));
+        RoomAssignmentEntity saved = assignmentRepository.save(assignment);
+        eventPublisher.publishEvent(new RoomInvitationCreatedEvent(
+                saved.getId(),
+                invitedUser.getNormalizedPhone(),
+                room.getName()
+        ));
+        return mapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)

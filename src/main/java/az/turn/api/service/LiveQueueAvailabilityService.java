@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -31,7 +32,7 @@ public class LiveQueueAvailabilityService {
                 .anyMatch(interval -> contains(interval, roomNow.toLocalTime()));
     }
 
-    public LocalDateTime nextOpeningAt(RoomEntity room) {
+    public OffsetDateTime nextOpeningAt(RoomEntity room) {
         ZoneId roomZone = ZoneId.of(room.getTimezone());
         ZonedDateTime roomNow = ZonedDateTime.ofInstant(clock.instant(), roomZone);
         for (int dayOffset = 0; dayOffset <= OPENING_SEARCH_DAYS; dayOffset++) {
@@ -39,7 +40,7 @@ public class LiveQueueAvailabilityService {
             for (AvailabilityInterval interval : roomAvailabilityService.intervals(room, date)) {
                 LocalDateTime candidate = LocalDateTime.of(date, interval.start());
                 if (dayOffset > 0 || candidate.isAfter(roomNow.toLocalDateTime())) {
-                    return LocalDateTime.ofInstant(candidate.atZone(roomZone).toInstant(), clock.getZone());
+                    return candidate.atZone(roomZone).toOffsetDateTime();
                 }
             }
         }

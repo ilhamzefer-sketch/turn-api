@@ -21,17 +21,20 @@ public class WorkspaceController {
     private final WorkspaceQueryService workspaceQueryService;
     private final BusinessMembershipService membershipService;
     private final RoomAssignmentService assignmentService;
+    private final InvitationAcceptanceService invitationAcceptanceService;
     private final RequestAuthenticationService authenticationService;
 
     public WorkspaceController(
             WorkspaceQueryService workspaceQueryService,
             BusinessMembershipService membershipService,
             RoomAssignmentService assignmentService,
+            InvitationAcceptanceService invitationAcceptanceService,
             RequestAuthenticationService authenticationService
     ) {
         this.workspaceQueryService = workspaceQueryService;
         this.membershipService = membershipService;
         this.assignmentService = assignmentService;
+        this.invitationAcceptanceService = invitationAcceptanceService;
         this.authenticationService = authenticationService;
     }
 
@@ -66,7 +69,7 @@ public class WorkspaceController {
             @PathVariable @Positive long assignmentId,
             Authentication auth
     ) {
-        return assignmentService.accept(assignmentId, userId(auth));
+        return invitationAcceptanceService.acceptRoom(assignmentId, userId(auth));
     }
 
     @PostMapping("/room-invitations/{assignmentId}/reject")

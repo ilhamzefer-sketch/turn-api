@@ -3,6 +3,7 @@ package az.turn.api;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Component
@@ -17,7 +18,7 @@ public class LiveQueueMapper {
             LiveQueueSessionEntity session,
             List<LiveQueueEntryEntity> entries,
             boolean accepting,
-            LocalDateTime nextOpeningAt
+            OffsetDateTime nextOpeningAt
     ) {
         return new LiveQueueSessionDto(
                 session.getId(),
@@ -44,7 +45,7 @@ public class LiveQueueMapper {
             LiveQueueSessionEntity session,
             List<LiveQueueEntryEntity> entries,
             boolean accepting,
-            LocalDateTime nextOpeningAt
+            OffsetDateTime nextOpeningAt
     ) {
         long waitingCount = count(entries, LiveQueueEntryStatus.WAITING);
         return new LiveQueuePublicDto(

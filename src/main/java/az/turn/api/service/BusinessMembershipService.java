@@ -1,6 +1,7 @@
 package az.turn.api;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ public class BusinessMembershipService {
     private final ProviderInputService inputService;
     private final PhoneNumberService phoneNumberService;
     private final ProviderWorkspaceMapper mapper;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final int businessDailyLimit;
     private final int administratorDailyLimit;
@@ -33,6 +35,7 @@ public class BusinessMembershipService {
             ProviderInputService inputService,
             PhoneNumberService phoneNumberService,
             ProviderWorkspaceMapper mapper,
+            ApplicationEventPublisher eventPublisher,
             Clock clock,
             @Value("${app.limits.pending-accounts.business-daily:500}") int businessDailyLimit,
             @Value("${app.limits.pending-accounts.administrator-daily:100}") int administratorDailyLimit,
@@ -45,6 +48,7 @@ public class BusinessMembershipService {
         this.inputService = inputService;
         this.phoneNumberService = phoneNumberService;
         this.mapper = mapper;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.businessDailyLimit = businessDailyLimit;
         this.administratorDailyLimit = administratorDailyLimit;
@@ -91,7 +95,13 @@ public class BusinessMembershipService {
         membership.setAcceptedAt(null);
         membership.setRejectedAt(null);
         membership.setRemovedAt(null);
-        return mapper.toDto(membershipRepository.save(membership));
+        BusinessMembershipEntity saved = membershipRepository.save(membership);
+        eventPublisher.publishEvent(new BusinessInvitationCreatedEvent(
+                saved.getId(),
+                invitedUser.getNormalizedPhone(),
+                business.getName()
+        ));
+        return mapper.toDto(saved);
     }
 
     @Transactional(readOnly = true)

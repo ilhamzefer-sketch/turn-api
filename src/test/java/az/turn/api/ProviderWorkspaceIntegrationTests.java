@@ -28,6 +28,8 @@ class ProviderWorkspaceIntegrationTests {
     @Autowired
     private RoomAssignmentService assignmentService;
     @Autowired
+    private InvitationAcceptanceService invitationAcceptanceService;
+    @Autowired
     private IndividualWorkspaceService individualWorkspaceService;
     @Autowired
     private WorkspaceQueryService workspaceQueryService;
@@ -207,6 +209,78 @@ class ProviderWorkspaceIntegrationTests {
                 )
         );
         assertThat(invalidCustom.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(categoryRepository.findAll())
+                .extracting(BusinessCategoryEntity::getCode)
+                .contains(
+                        "FINANCE_BANKING",
+                        "LEGAL_NOTARY",
+                        "FITNESS_WELLNESS",
+                        "VETERINARY_PET",
+                        "AUTOMOTIVE",
+                        "REAL_ESTATE",
+                        "EVENTS_PHOTOGRAPHY",
+                        "CUSTOMER_SERVICE",
+                        "HOSPITALITY_FOOD"
+                );
+    }
+
+    @Test
+    void acceptingRoomInvitationAlsoAcceptsPendingBusinessMembership() {
+        UserEntity owner = saveActiveUser("+994507000009", "Biznes", "Sahibi");
+        UserEntity employee = saveActiveUser("+994507000010", "Otaq", "Sahibi");
+        BusinessResponseDto business = businessService.create(owner.getId(), businessRequest("Studiya", "0507000009"));
+        BranchResponseDto branch = branchService.create(business.id(), owner.getId(), branchRequest("Əsas filial", null));
+        RoomResponseDto room = roomService.createBusinessRoom(
+                branch.id(),
+                owner.getId(),
+                roomRequest("Foto otağı", ReservationMode.PLANNED_BOOKING)
+        );
+        membershipService.invite(
+                business.id(),
+                owner.getId(),
+                new BusinessMemberInviteRequestDto(employee.getNormalizedPhone(), null, null, BusinessRole.EMPLOYEE)
+        );
+        RoomAssignmentDto invitation = assignmentService.invite(
+                room.id(),
+                owner.getId(),
+                new RoomAssignmentInviteRequestDto(employee.getId())
+        );
+
+        RoomAssignmentDto accepted = invitationAcceptanceService.acceptRoom(invitation.id(), employee.getId());
+
+        assertThat(accepted.status()).isEqualTo(RoomAssignmentStatus.ACTIVE);
+        assertThat(workspaceQueryService.getContexts(employee.getId()))
+                .extracting(WorkspaceContextDto::type)
+                .containsExactly(WorkspaceContextType.CUSTOMER, WorkspaceContextType.ROOM);
+        assertThat(workspaceQueryService.getInvitations(employee.getId()).businessInvitations()).isEmpty();
+        assertThat(workspaceQueryService.getInvitations(employee.getId()).roomInvitations()).isEmpty();
+    }
+
+    @Test
+    void archivedIndividualRoomCanBeReplacedWithoutReactivatingHistory() {
+        UserEntity user = saveActiveUser("+994507000011", "Fərdi", "Sahib");
+        IndividualWorkspaceResponseDto workspace = individualWorkspaceService.create(
+                user.getId(),
+                new IndividualWorkspaceCreateRequestDto("Şəxsi təqvim", "Asia/Baku")
+        );
+        RoomResponseDto archived = roomService.createIndividualRoom(
+                workspace.id(),
+                user.getId(),
+                roomRequest("Köhnə otaq", ReservationMode.LIVE_QUEUE)
+        );
+        roomService.archive(archived.id(), user.getId());
+
+        RoomResponseDto replacement = roomService.createIndividualRoom(
+                workspace.id(),
+                user.getId(),
+                roomRequest("Yeni otaq", ReservationMode.PLANNED_BOOKING)
+        );
+
+        assertThat(replacement.id()).isNotEqualTo(archived.id());
+        assertThat(replacement.status()).isEqualTo(RoomStatus.DRAFT);
+        assertThat(roomService.listIndividualRooms(workspace.id(), user.getId()))
+                .extracting(RoomResponseDto::id)
+                .containsExactly(replacement.id());
     }
 
     private UserEntity saveActiveUser(String phone, String firstName, String lastName) {

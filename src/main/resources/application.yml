@@ -59,6 +59,13 @@ app:
     reset-enabled: ${APP_LIVE_QUEUE_RESET_ENABLED:true}
     reset-delay-ms: ${APP_LIVE_QUEUE_RESET_DELAY_MS:30000}
     reset-initial-delay-ms: ${APP_LIVE_QUEUE_RESET_INITIAL_DELAY_MS:15000}
+  sms:
+    provider: ${APP_SMS_PROVIDER:disabled}
+    endpoint: ${APP_SMS_ENDPOINT:}
+    bearer-token: ${APP_SMS_BEARER_TOKEN:}
+    sender-name: ${APP_SMS_SENDER_NAME:NovbeTime}
+    connect-timeout-seconds: ${APP_SMS_CONNECT_TIMEOUT_SECONDS:5}
+    request-timeout-seconds: ${APP_SMS_REQUEST_TIMEOUT_SECONDS:10}
   limits:
     pending-accounts:
       business-daily: ${APP_PENDING_ACCOUNTS_BUSINESS_DAILY:500}

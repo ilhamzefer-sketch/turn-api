@@ -29,6 +29,10 @@ class RoomSchedulingIntegrationTests {
     private RoomScheduleService scheduleService;
     @Autowired
     private RoomConfigurationService configurationService;
+    @Autowired
+    private RoomAvailabilityService availabilityService;
+    @Autowired
+    private RoomRepository roomRepository;
 
     @Test
     void configuresAndPublishesPlannedRoomWithScheduleExceptions() {
@@ -174,6 +178,40 @@ class RoomSchedulingIntegrationTests {
         );
 
         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void replacingWeekdaysWithWeekendRulesTakesEffectImmediately() {
+        UserEntity owner = saveUser("+994507200007");
+        RoomResponseDto created = createRoom(owner, ReservationMode.LIVE_QUEUE);
+        scheduleService.replaceWeeklyRules(
+                created.id(),
+                owner.getId(),
+                weeklyRequest(
+                        rule(DayOfWeek.MONDAY, 9, 18),
+                        rule(DayOfWeek.TUESDAY, 9, 18),
+                        rule(DayOfWeek.WEDNESDAY, 9, 18),
+                        rule(DayOfWeek.THURSDAY, 9, 18),
+                        rule(DayOfWeek.FRIDAY, 9, 18)
+                )
+        );
+
+        List<WeeklyAvailabilityRuleDto> weekend = scheduleService.replaceWeeklyRules(
+                created.id(),
+                owner.getId(),
+                weeklyRequest(
+                        rule(DayOfWeek.SATURDAY, 10, 16),
+                        rule(DayOfWeek.SUNDAY, 10, 16)
+                )
+        );
+        RoomEntity room = roomRepository.findById(created.id()).orElseThrow();
+
+        assertThat(weekend)
+                .extracting(WeeklyAvailabilityRuleDto::dayOfWeek)
+                .containsExactly(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
+        assertThat(availabilityService.intervals(room, LocalDate.of(2026, 8, 29))).hasSize(1);
+        assertThat(availabilityService.intervals(room, LocalDate.of(2026, 8, 30))).hasSize(1);
+        assertThat(availabilityService.intervals(room, LocalDate.of(2026, 8, 31))).isEmpty();
     }
 
     private UserEntity saveUser(String phone) {

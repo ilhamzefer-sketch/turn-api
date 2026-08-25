@@ -24,6 +24,18 @@ class ProviderWorkspaceApiIntegrationTests {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private BusinessService businessService;
+    @Autowired
+    private BusinessMembershipService membershipService;
+    @Autowired
+    private BranchService branchService;
+    @Autowired
+    private RoomService roomService;
+    @Autowired
+    private RoomAssignmentService assignmentService;
 
     @Test
     void createsBusinessBranchAndDraftRoomThroughSecuredApi() throws Exception {
@@ -98,6 +110,61 @@ class ProviderWorkspaceApiIntegrationTests {
         mockMvc.perform(get("/api/businesses/{businessId}", businessId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + strangerToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void acceptsRoomAndPendingBusinessInvitationsThroughOneEndpoint() throws Exception {
+        TestCsrfToken csrf = csrf();
+        register(csrf, "0507111104", "Biznes", "Sahibi");
+        String employeeToken = register(csrf, "0507111105", "Otaq", "Sahibi");
+        UserEntity owner = userRepository.findByNormalizedPhone("+994507111104").orElseThrow();
+        UserEntity employee = userRepository.findByNormalizedPhone("+994507111105").orElseThrow();
+        BusinessResponseDto business = businessService.create(
+                owner.getId(),
+                new BusinessUpsertRequestDto("Dəvət biznesi", null, null, null, null, "0507111104", "Asia/Baku", null, null)
+        );
+        BranchResponseDto branch = branchService.create(
+                business.id(),
+                owner.getId(),
+                new BranchUpsertRequestDto(
+                        "Mərkəz", "Nizami 1", "Bakı", "Nəsimi", null, null, null, null, "Asia/Baku"
+                )
+        );
+        RoomResponseDto room = roomService.createBusinessRoom(
+                branch.id(),
+                owner.getId(),
+                new RoomUpsertRequestDto(
+                        "Dəvət otağı", null, null, null, "Asia/Baku", ReservationMode.LIVE_QUEUE,
+                        30, RoomVisibility.UNLISTED, null, null, null
+                )
+        );
+        membershipService.invite(
+                business.id(),
+                owner.getId(),
+                new BusinessMemberInviteRequestDto(employee.getNormalizedPhone(), null, null, BusinessRole.EMPLOYEE)
+        );
+        RoomAssignmentDto invitation = assignmentService.invite(
+                room.id(),
+                owner.getId(),
+                new RoomAssignmentInviteRequestDto(employee.getId())
+        );
+
+        mockMvc.perform(post("/api/users/me/room-invitations/{invitationId}/accept", invitation.id())
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        mockMvc.perform(get("/api/users/me/invitations")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.businessInvitations").isEmpty())
+                .andExpect(jsonPath("$.roomInvitations").isEmpty());
+        mockMvc.perform(get("/api/users/me/workspaces")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].type").value("ROOM"));
     }
 
     private String register(

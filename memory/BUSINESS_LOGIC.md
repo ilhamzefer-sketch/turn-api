@@ -89,6 +89,8 @@ Bu axın artıq əsas məhsul axını deyil və `app.legacy-api.enabled=false` o
 9. `USER` öz aktiv refresh sessiyalarını görə, konkret sessiyanı, digər sessiyaları və ya bütün sessiyaları ləğv edə bilər.
 10. Köhnə email əsaslı endpoint-lər frontend migrasiyası tamamlanana qədər compatibility üçün saxlanılır.
 
+Sessiya müddətləri rol üzrə ayrıca idarə olunur: adi istifadəçi üçün 30 dəqiqə fəaliyyətsizlik və 12 saat mütləq müddət, səlahiyyətli biznes istifadəçisi üçün 15 dəqiqə və 8 saat, platform administratoru üçün 10 dəqiqə və 4 saat. Bütün dəyərlər environment konfiqurasiyası ilə dəyişdirilə bilər.
+
 Yeni şifrələr 8-128 simvol qəbul edir, geniş istifadə olunan zəif şifrələr rədd olunur və SHA-256 pre-hash üzərindən BCrypt ilə saxlanılır.
 
 ## 3.2. Provider abunəliyi və ödənişi
@@ -134,7 +136,7 @@ Köhnə ödənişli `REGISTRATION` statusları keçid dövründə aşağıdakı 
 7. Yeni otaq `DRAFT` statusunda yaranır, `LIVE_QUEUE` və ya `PLANNED_BOOKING` rejimlərindən yalnız birini seçir.
 8. Otaq `PUBLIC`, `UNLISTED` və ya `PRIVATE` görünürlüyə malikdir.
 9. Biznes otağına bir neçə `ROOM_OWNER` təyin edilə bilər və eyni istifadəçi bir neçə otağa sahib ola bilər.
-10. Otaq təyinatı biznes üzvlüyündən ayrıca qəbul edilir. Pending biznes üzvlüyü qəbul edilmədən otaq dəvəti aktivləşmir.
+10. Otaq dəvəti qəbul ediləndə həmin biznes üzrə gözləyən üzvlük varsa eyni tranzaksiyada avtomatik qəbul olunur və otaq təyinatı aktivləşir.
 11. Hər otaq sahibi öz telefonunun həmin otağın public səhifəsində göstərilib-göstərilməməsini özü seçir.
 12. Workspace switcher müştəri, individual workspace, idarə edilən biznes və qəbul edilmiş otaq kontekstlərini qaytarır.
 13. Filial aktiv otaqları olduğu müddətdə arxivləşdirilə bilməz. Otaq silinməsi fiziki delete deyil, `ARCHIVED` statusudur.
@@ -346,7 +348,7 @@ Yeni `USER` tarixçəsi həm hesabla birbaşa yaradılmış queue entry-ləri, h
 
 ## 12.2. Hədəf modeldə qalan işlər
 
-1. Email/SMS/push növbə və booking bildirişləri hələ yoxdur.
+1. Biznes və otaq dəvətləri provider-neutral HTTP SMS gateway ilə göndərilə bilər. Email, push, növbə və booking bildirişləri hələ yoxdur.
 2. Business-wide calendar görünüşü və room-owner dəyişiklik bildirişləri gələcək mərhələdədir.
 3. Service revenue, average receipt və profit kimi maliyyə analitikası customer-service payment modeli qurulandan sonra əlavə ediləcək.
 4. Avtomatik telefon təsdiqi və SMS əsaslı password recovery yoxdur; identity və telefon dəyişmə support tərəfindən manual idarə olunur.

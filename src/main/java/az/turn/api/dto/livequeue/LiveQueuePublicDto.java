@@ -1,6 +1,7 @@
 package az.turn.api;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public record LiveQueuePublicDto(
@@ -9,7 +10,7 @@ public record LiveQueuePublicDto(
         Long sessionId,
         LiveQueueSessionStatus status,
         boolean acceptingNewEntries,
-        LocalDateTime nextOpeningAt,
+        OffsetDateTime nextOpeningAt,
         LocalDateTime nextResetAt,
         String currentPublicReference,
         long waitingCount,
