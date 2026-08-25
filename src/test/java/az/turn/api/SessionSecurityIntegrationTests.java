@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,7 +84,7 @@ class SessionSecurityIntegrationTests {
         MvcResult registration = register(csrf, "0507001003");
         String accessToken = accessToken(registration);
         RefreshTokenEntity session = session("+994507001003");
-        LocalDateTime absoluteDeadline = LocalDateTime.now().plusMinutes(10);
+        LocalDateTime absoluteDeadline = LocalDateTime.now().plusMinutes(10).truncatedTo(ChronoUnit.MICROS);
         session.setIdleExpiresAt(LocalDateTime.now().plusSeconds(5));
         session.setExpiresAt(session.getIdleExpiresAt());
         session.setAbsoluteExpiresAt(absoluteDeadline);
