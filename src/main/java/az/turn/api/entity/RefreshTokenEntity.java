@@ -45,6 +45,25 @@ public class RefreshTokenEntity {
     @Column
     private LocalDateTime lastUsedAt;
 
+    @Column(nullable = false)
+    private LocalDateTime lastActivityAt;
+
+    @Column(nullable = false)
+    private LocalDateTime idleExpiresAt;
+
+    @Column(nullable = false)
+    private LocalDateTime absoluteExpiresAt;
+
+    @Column
+    private LocalDateTime revokedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50)
+    private SessionRevocationReason revokeReason;
+
+    @Column(length = 100)
+    private String principalVersion;
+
     @Column(length = 500)
     private String userAgent;
 
@@ -121,6 +140,54 @@ public class RefreshTokenEntity {
 
     public void setLastUsedAt(LocalDateTime lastUsedAt) {
         this.lastUsedAt = lastUsedAt;
+    }
+
+    public LocalDateTime getLastActivityAt() {
+        return lastActivityAt;
+    }
+
+    public void setLastActivityAt(LocalDateTime lastActivityAt) {
+        this.lastActivityAt = lastActivityAt;
+    }
+
+    public LocalDateTime getIdleExpiresAt() {
+        return idleExpiresAt;
+    }
+
+    public void setIdleExpiresAt(LocalDateTime idleExpiresAt) {
+        this.idleExpiresAt = idleExpiresAt;
+    }
+
+    public LocalDateTime getAbsoluteExpiresAt() {
+        return absoluteExpiresAt;
+    }
+
+    public void setAbsoluteExpiresAt(LocalDateTime absoluteExpiresAt) {
+        this.absoluteExpiresAt = absoluteExpiresAt;
+    }
+
+    public LocalDateTime getRevokedAt() {
+        return revokedAt;
+    }
+
+    public void setRevokedAt(LocalDateTime revokedAt) {
+        this.revokedAt = revokedAt;
+    }
+
+    public SessionRevocationReason getRevokeReason() {
+        return revokeReason;
+    }
+
+    public void setRevokeReason(SessionRevocationReason revokeReason) {
+        this.revokeReason = revokeReason;
+    }
+
+    public String getPrincipalVersion() {
+        return principalVersion;
+    }
+
+    public void setPrincipalVersion(String principalVersion) {
+        this.principalVersion = principalVersion;
     }
 
     public String getUserAgent() {

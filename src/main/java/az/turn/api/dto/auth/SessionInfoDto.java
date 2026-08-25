@@ -2,13 +2,9 @@ package az.turn.api;
 
 import java.time.OffsetDateTime;
 
-public record UserSessionDto(
+public record SessionInfoDto(
         long id,
-        boolean current,
-        String userAgent,
-        String ipAddress,
-        OffsetDateTime createdAt,
-        OffsetDateTime lastUsedAt,
+        OffsetDateTime serverTime,
         OffsetDateTime lastActivityAt,
         OffsetDateTime idleExpiresAt,
         OffsetDateTime absoluteExpiresAt

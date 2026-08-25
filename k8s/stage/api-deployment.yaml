@@ -83,13 +83,23 @@ spec:
                   name: turn-stage-secrets
                   key: APP_JWT_SECRET
             - name: APP_ACCESS_TOKEN_MINUTES
-              value: "15"
-            - name: APP_REFRESH_TOKEN_DAYS
-              value: "14"
-            - name: APP_REFRESH_REUSE_GRACE_SECONDS
               value: "10"
+            - name: APP_PRIVILEGED_ACCESS_TOKEN_MINUTES
+              value: "5"
+            - name: APP_SESSION_USER_IDLE_MINUTES
+              value: "30"
+            - name: APP_SESSION_PRIVILEGED_IDLE_MINUTES
+              value: "15"
+            - name: APP_SESSION_ADMIN_IDLE_MINUTES
+              value: "10"
+            - name: APP_SESSION_USER_ABSOLUTE_HOURS
+              value: "12"
+            - name: APP_SESSION_PRIVILEGED_ABSOLUTE_HOURS
+              value: "8"
+            - name: APP_SESSION_ADMIN_ABSOLUTE_HOURS
+              value: "4"
             - name: APP_SECURE_COOKIES
-              value: "false"
+              value: "true"
             - name: APP_ALLOWED_ORIGINS
               valueFrom:
                 secretKeyRef:

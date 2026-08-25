@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
 
 @RestController
 public class AuthController {
@@ -14,15 +15,18 @@ public class AuthController {
     private final AccountService accountService;
     private final UserAccountService userAccountService;
     private final ApiSessionService apiSessionService;
+    private final RequestAuthenticationService requestAuthenticationService;
 
     public AuthController(
             AccountService accountService,
             UserAccountService userAccountService,
-            ApiSessionService apiSessionService
+            ApiSessionService apiSessionService,
+            RequestAuthenticationService requestAuthenticationService
     ) {
         this.accountService = accountService;
         this.userAccountService = userAccountService;
         this.apiSessionService = apiSessionService;
+        this.requestAuthenticationService = requestAuthenticationService;
     }
 
     @PostMapping({"/api/auth/register", "/api/auth/registerRequest"})
@@ -69,7 +73,8 @@ public class AuthController {
     }
 
     @GetMapping("/api/auth/csrf")
-    public CsrfTokenResponse csrf(HttpServletRequest request) {
+    public CsrfTokenResponse csrf(HttpServletRequest request, HttpServletResponse response) {
+        apiSessionService.preventCaching(response);
         return new CsrfTokenResponse((String) request.getAttribute("csrfToken"));
     }
 
@@ -81,5 +86,17 @@ public class AuthController {
     @PostMapping({"/api/auth/logout", "/api/auth/logoutRequest"})
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         apiSessionService.logout(request, response);
+    }
+
+    @GetMapping("/api/auth/session")
+    public SessionInfoDto session(Authentication authentication, HttpServletResponse response) {
+        AuthenticatedUser principal = requestAuthenticationService.requireAuthenticated(authentication);
+        return apiSessionService.getSessionInfo(principal, response);
+    }
+
+    @PostMapping("/api/auth/activity")
+    public SessionInfoDto activity(Authentication authentication, HttpServletResponse response) {
+        AuthenticatedUser principal = requestAuthenticationService.requireAuthenticated(authentication);
+        return apiSessionService.recordActivity(principal, response);
     }
 }

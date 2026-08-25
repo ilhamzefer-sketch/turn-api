@@ -1,6 +1,7 @@
 package az.turn.api;
 
 public record AccessTokenResponse(
-        String accessToken
+        String accessToken,
+        SessionInfoDto session
 ) {
 }

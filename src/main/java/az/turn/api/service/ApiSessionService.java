@@ -9,6 +9,10 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.LocalDateTime;
+
 @Service
 public class ApiSessionService {
     private static final String PAYMENT_SESSION_COOKIE = "payment_session_token";
@@ -16,21 +20,27 @@ public class ApiSessionService {
     private final AuthService authService;
     private final UserMapper userMapper;
     private final SessionMetadataService sessionMetadataService;
+    private final SessionValidationService sessionValidationService;
+    private final JwtService jwtService;
     private final boolean secureCookies;
-    private final long refreshTokenDays;
+    private final Clock clock;
 
     public ApiSessionService(
             AuthService authService,
             UserMapper userMapper,
             SessionMetadataService sessionMetadataService,
+            SessionValidationService sessionValidationService,
+            JwtService jwtService,
             @Value("${app.security.secure-cookies:false}") boolean secureCookies,
-            @Value("${app.security.refresh-token-days:14}") long refreshTokenDays
+            Clock clock
     ) {
         this.authService = authService;
         this.userMapper = userMapper;
         this.sessionMetadataService = sessionMetadataService;
+        this.sessionValidationService = sessionValidationService;
+        this.jwtService = jwtService;
         this.secureCookies = secureCookies;
-        this.refreshTokenDays = refreshTokenDays;
+        this.clock = clock;
     }
 
     public UserResponseDto authenticateUser(
@@ -38,17 +48,19 @@ public class ApiSessionService {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
+        preventCaching(response);
         AuthTokens tokens = authService.issueTokens(
                 new AuthenticatedUser(AuthUserType.USER, user.getId(), user.getNormalizedPhone()),
                 sessionMetadataService.from(request)
         );
-        writeRefreshCookie(response, tokens.refreshToken());
+        writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
         return userMapper.toDto(user, tokens.accessToken());
     }
 
     public RegistrationResponse authenticateRegistration(RegistrationResponse registration, HttpServletResponse response) {
+        preventCaching(response);
         AuthTokens tokens = authService.issueTokens(new AuthenticatedUser(AuthUserType.REGISTRATION, registration.id(), registration.email()));
-        writeRefreshCookie(response, tokens.refreshToken());
+        writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
         return new RegistrationResponse(
                 registration.id(),
                 registration.firstName(),
@@ -64,8 +76,9 @@ public class ApiSessionService {
     }
 
     public CustomerResponse authenticateCustomer(CustomerResponse customer, HttpServletResponse response) {
+        preventCaching(response);
         AuthTokens tokens = authService.issueTokens(new AuthenticatedUser(AuthUserType.CUSTOMER, customer.id(), customer.email()));
-        writeRefreshCookie(response, tokens.refreshToken());
+        writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
         return new CustomerResponse(
                 customer.id(),
                 customer.firstName(),
@@ -77,8 +90,9 @@ public class ApiSessionService {
     }
 
     public QueueManagerLoginResponse authenticateQueueManager(QueueManagerLoginResponse queueManager, HttpServletResponse response) {
+        preventCaching(response);
         AuthTokens tokens = authService.issueTokens(new AuthenticatedUser(AuthUserType.QUEUE_MANAGER, queueManager.queueManagerId(), queueManager.username()));
-        writeRefreshCookie(response, tokens.refreshToken());
+        writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
         return new QueueManagerLoginResponse(
                 queueManager.queueManagerId(),
                 queueManager.username(),
@@ -88,21 +102,45 @@ public class ApiSessionService {
     }
 
     public AdminLoginResponse authenticateAdmin(AdminLoginResponse admin, HttpServletResponse response) {
+        preventCaching(response);
         AuthTokens tokens = authService.issueTokens(new AuthenticatedUser(AuthUserType.ADMIN, null, admin.username()));
-        writeRefreshCookie(response, tokens.refreshToken());
+        writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
         return new AdminLoginResponse(admin.username(), admin.role(), admin.message(), tokens.accessToken());
     }
 
     public AccessTokenResponse refresh(HttpServletRequest request, HttpServletResponse response) {
+        preventCaching(response);
         String refreshToken = CsrfCookieFilter.findCookieValue(request, "refresh_token");
-        AuthTokens tokens = authService.refresh(refreshToken, sessionMetadataService.from(request));
-        writeRefreshCookie(response, tokens.refreshToken());
-        return new AccessTokenResponse(tokens.accessToken());
+        try {
+            AuthTokens tokens = authService.refresh(refreshToken, sessionMetadataService.from(request));
+            writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
+            AuthenticatedUser principal = jwtPrincipal(tokens.accessToken());
+            return new AccessTokenResponse(tokens.accessToken(), sessionValidationService.getSessionInfo(principal));
+        } catch (SessionAuthenticationException exception) {
+            clearRefreshCookie(response);
+            throw exception;
+        }
     }
 
     public void logout(HttpServletRequest request, HttpServletResponse response) {
+        preventCaching(response);
         authService.revoke(CsrfCookieFilter.findCookieValue(request, "refresh_token"));
         clearRefreshCookie(response);
+        response.setHeader("Clear-Site-Data", "\"cache\"");
+    }
+
+    public SessionInfoDto getSessionInfo(AuthenticatedUser principal, HttpServletResponse response) {
+        preventCaching(response);
+        return sessionValidationService.getSessionInfo(principal);
+    }
+
+    public SessionInfoDto recordActivity(AuthenticatedUser principal, HttpServletResponse response) {
+        preventCaching(response);
+        return sessionValidationService.recordActivity(principal);
+    }
+
+    public void preventCaching(HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
     }
 
     public void writePaymentSessionCookie(HttpServletResponse response, String sessionToken) {
@@ -137,14 +175,19 @@ public class ApiSessionService {
         return token;
     }
 
-    private void writeRefreshCookie(HttpServletResponse response, String refreshToken) {
+    private void writeRefreshCookie(
+            HttpServletResponse response,
+            String refreshToken,
+            LocalDateTime refreshExpiresAt
+    ) {
         clearCookieAtPath(response, "/");
+        long maxAgeSeconds = Math.max(0, Duration.between(LocalDateTime.now(clock), refreshExpiresAt).toSeconds());
         ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken)
                 .httpOnly(true)
                 .secure(secureCookies)
                 .path("/api/auth")
                 .sameSite("Lax")
-                .maxAge(refreshTokenDays * 24 * 60 * 60)
+                .maxAge(maxAgeSeconds)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
@@ -163,5 +206,9 @@ public class ApiSessionService {
                 .maxAge(0)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private AuthenticatedUser jwtPrincipal(String accessToken) {
+        return jwtService.parseAccessToken(accessToken);
     }
 }

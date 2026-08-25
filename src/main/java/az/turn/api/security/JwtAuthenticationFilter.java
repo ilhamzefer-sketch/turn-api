@@ -1,5 +1,6 @@
 package az.turn.api;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    public static final String AUTH_ERROR_CODE_ATTRIBUTE = "authErrorCode";
 
     private final JwtService jwtService;
     private final SessionValidationService sessionValidationService;
@@ -35,7 +37,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             try {
                 AuthenticatedUser user = jwtService.parseAccessToken(token);
-                if (!sessionValidationService.isActive(user)) {
+                SessionState state = sessionValidationService.validateAccess(user);
+                if (state != SessionState.ACTIVE) {
+                    request.setAttribute(AUTH_ERROR_CODE_ATTRIBUTE, state.name());
                     SecurityContextHolder.clearContext();
                     filterChain.doFilter(request, response);
                     return;
@@ -46,7 +50,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         List.of(new SimpleGrantedAuthority("ROLE_" + user.userType().name()))
                 );
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (JwtException | IllegalArgumentException ignored) {
+            } catch (ExpiredJwtException exception) {
+                request.setAttribute(AUTH_ERROR_CODE_ATTRIBUTE, SessionState.ACCESS_TOKEN_EXPIRED.name());
+                SecurityContextHolder.clearContext();
+            } catch (JwtException | IllegalArgumentException exception) {
+                request.setAttribute(AUTH_ERROR_CODE_ATTRIBUTE, SessionState.ACCESS_TOKEN_INVALID.name());
                 SecurityContextHolder.clearContext();
             }
         }

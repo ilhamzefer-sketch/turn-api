@@ -23,6 +23,16 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
     public static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     public static final String CSRF_HEADER_NAME = "X-CSRF-TOKEN";
     private static final Set<String> SAFE_METHODS = Set.of(HttpMethod.GET.name(), HttpMethod.HEAD.name(), HttpMethod.OPTIONS.name());
+    private static final Set<String> ROTATION_PATHS = Set.of(
+            "/api/auth/register",
+            "/api/auth/login",
+            "/api/login",
+            "/api/customers/register",
+            "/api/customers/login",
+            "/api/queue-managers/login",
+            "/api/admin/login",
+            "/api/auth/logout"
+    );
     private final SecureRandom secureRandom = new SecureRandom();
     private final boolean secureCookies;
 
@@ -33,6 +43,9 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        if (request.getRequestURI().startsWith("/api/auth/") || ROTATION_PATHS.contains(request.getRequestURI())) {
+            response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        }
         String token = ensureCookie(request, response);
         request.setAttribute("csrfToken", token);
 
@@ -49,6 +62,9 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+        if (response.getStatus() < 400 && ROTATION_PATHS.contains(request.getRequestURI())) {
+            writeToken(response, generateToken());
+        }
     }
 
     private String ensureCookie(HttpServletRequest request, HttpServletResponse response) {
@@ -57,13 +73,22 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
             return existing;
         }
 
+        String token = generateToken();
+        writeToken(response, token);
+        return token;
+    }
+
+    private String generateToken() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private void writeToken(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from(CSRF_COOKIE_NAME, token)
                 .httpOnly(false).secure(secureCookies).path("/").sameSite("Lax").build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        return token;
+        response.setHeader(CSRF_HEADER_NAME, token);
     }
 
     public static String findCookieValue(HttpServletRequest request, String name) {

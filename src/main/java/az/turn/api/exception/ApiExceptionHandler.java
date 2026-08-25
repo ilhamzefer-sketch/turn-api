@@ -21,11 +21,19 @@ import java.util.Comparator;
 public class ApiExceptionHandler {
     private static final Logger logger = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+    @ExceptionHandler(SessionAuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleSessionAuthentication(
+            SessionAuthenticationException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.UNAUTHORIZED, exception.getState().name(), exception.getMessage(), request);
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiErrorResponse> handleResponseStatusException(ResponseStatusException exception, HttpServletRequest request) {
         HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
         String message = exception.getReason() == null || exception.getReason().isBlank() ? "Xəta baş verdi." : exception.getReason();
-        return error(status, message, request);
+        return error(status, "REQUEST_REJECTED", message, request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -34,12 +42,12 @@ public class ApiExceptionHandler {
                 .sorted(Comparator.comparing(error -> error.getField()))
                 .map(error -> error.getDefaultMessage() == null ? "Daxil edilən məlumat düzgün deyil." : error.getDefaultMessage())
                 .findFirst().orElse("Daxil edilən məlumat düzgün deyil.");
-        return error(HttpStatus.BAD_REQUEST, message, request);
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message, request);
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MissingRequestHeaderException.class})
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest(Exception exception, HttpServletRequest request) {
-        return error(HttpStatus.BAD_REQUEST, "Sorğu məlumatları natamam və ya düzgün formatda deyil.", request);
+        return error(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Sorğu məlumatları natamam və ya düzgün formatda deyil.", request);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -48,7 +56,7 @@ public class ApiExceptionHandler {
                 .map(violation -> violation.getMessage())
                 .sorted()
                 .findFirst().orElse("Sorğu parametrləri düzgün deyil.");
-        return error(HttpStatus.BAD_REQUEST, message, request);
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message, request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -56,18 +64,23 @@ public class ApiExceptionHandler {
             DataIntegrityViolationException exception,
             HttpServletRequest request
     ) {
-        return error(HttpStatus.CONFLICT, "Məlumat mövcud qeyd və ya biznes qaydası ilə ziddiyyət təşkil edir.", request);
+        return error(HttpStatus.CONFLICT, "DATA_CONFLICT", "Məlumat mövcud qeyd və ya biznes qaydası ilə ziddiyyət təşkil edir.", request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception, HttpServletRequest request) {
         logger.error("Unhandled API error: method={}, path={}", request.getMethod(), request.getRequestURI(), exception);
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, "Daxili server xətası baş verdi.", request);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Daxili server xətası baş verdi.", request);
     }
 
-    private ResponseEntity<ApiErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {
+    private ResponseEntity<ApiErrorResponse> error(
+            HttpStatus status,
+            String code,
+            String message,
+            HttpServletRequest request
+    ) {
         return ResponseEntity.status(status).body(new ApiErrorResponse(
-                OffsetDateTime.now(), status.value(), status.getReasonPhrase(), message, request.getRequestURI()
+                OffsetDateTime.now(), status.value(), status.getReasonPhrase(), code, message, request.getRequestURI()
         ));
     }
 }

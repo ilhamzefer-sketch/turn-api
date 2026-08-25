@@ -21,6 +21,13 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
     @Query("select token from RefreshTokenEntity token where token.id = :id")
     Optional<RefreshTokenEntity> findByIdForUpdate(Long id);
 
+    List<RefreshTokenEntity> findByUserTypeAndUserIdAndRevokedFalseAndIdleExpiresAtAfterAndAbsoluteExpiresAtAfterOrderByCreatedAtDesc(
+            AuthUserType userType,
+            Long userId,
+            LocalDateTime idleNow,
+            LocalDateTime now
+    );
+
     List<RefreshTokenEntity> findByUserTypeAndUserIdAndRevokedFalseAndExpiresAtAfterOrderByCreatedAtDesc(
             AuthUserType userType,
             Long userId,
@@ -44,13 +51,31 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
     );
 
     @Modifying
-    @Query("update RefreshTokenEntity token set token.revoked = true "
+    @Query("update RefreshTokenEntity token set token.revoked = true, token.revokedAt = :revokedAt, token.revokeReason = :reason "
             + "where token.userType = :userType and token.userId = :userId and token.revoked = false")
-    int revokeAllForUser(AuthUserType userType, Long userId);
+    int revokeAllForUser(
+            AuthUserType userType,
+            Long userId,
+            LocalDateTime revokedAt,
+            SessionRevocationReason reason
+    );
 
     @Modifying
-    @Query("update RefreshTokenEntity token set token.revoked = true "
+    @Query("update RefreshTokenEntity token set token.revoked = true, token.revokedAt = :revokedAt, token.revokeReason = :reason "
             + "where token.userType = :userType and token.userId = :userId "
             + "and token.id <> :currentSessionId and token.revoked = false")
-    int revokeOtherSessions(AuthUserType userType, Long userId, Long currentSessionId);
+    int revokeOtherSessions(
+            AuthUserType userType,
+            Long userId,
+            Long currentSessionId,
+            LocalDateTime revokedAt,
+            SessionRevocationReason reason
+    );
+
+    long deleteByRevokedTrueAndRevokedAtBefore(LocalDateTime cutoff);
+
+    @Modifying
+    @Query("update RefreshTokenEntity token set token.revoked = true, token.revokedAt = :now, token.revokeReason = :reason "
+            + "where token.revoked = false and (token.idleExpiresAt <= :now or token.absoluteExpiresAt <= :now)")
+    int revokeExpired(LocalDateTime now, SessionRevocationReason reason);
 }

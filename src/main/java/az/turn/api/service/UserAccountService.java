@@ -119,7 +119,12 @@ public class UserAccountService {
             user.setFirstName(request.firstName().trim());
             user.setLastName(request.lastName().trim());
         } else {
-            refreshTokenRepository.revokeAllForUser(AuthUserType.USER, user.getId());
+            refreshTokenRepository.revokeAllForUser(
+                    AuthUserType.USER,
+                    user.getId(),
+                    LocalDateTime.now(clock),
+                    SessionRevocationReason.CREDENTIALS_CHANGED
+            );
         }
         user.setPasswordHash(passwordHash);
         user.setStatus(UserStatus.ACTIVE);

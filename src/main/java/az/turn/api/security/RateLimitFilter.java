@@ -70,7 +70,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.setCharacterEncoding("UTF-8");
             response.setHeader("Retry-After", String.valueOf(Math.max(1, decision.resetEpochSeconds() - now)));
             objectMapper.writeValue(response.getWriter(), new ApiErrorResponse(OffsetDateTime.now(), 429,
-                    "Too Many Requests", "Çox sayda sorğu göndərildi. Bir qədər sonra yenidən cəhd edin.", request.getRequestURI()));
+                    "Too Many Requests", "RATE_LIMITED",
+                    "Çox sayda sorğu göndərildi. Bir qədər sonra yenidən cəhd edin.", request.getRequestURI()));
             return;
         }
 

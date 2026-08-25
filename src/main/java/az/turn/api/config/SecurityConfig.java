@@ -69,7 +69,9 @@ public class SecurityConfig {
                             response.setStatus(401);
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
-                            response.getWriter().write("{\"message\":\"Daxil olun.\"}");
+                            Object code = request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_CODE_ATTRIBUTE);
+                            String errorCode = code == null ? "AUTHENTICATION_REQUIRED" : code.toString();
+                            response.getWriter().write("{\"code\":\"" + errorCode + "\",\"message\":\"Daxil olun.\"}");
                         })
                         .accessDeniedHandler((request, response, exception) -> {
                             response.setStatus(403);
@@ -118,7 +120,10 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(allowedOrigins.stream().map(String::trim).filter(value -> !value.isBlank()).toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-CSRF-TOKEN", "X-Payment-Session-Token"));
-        configuration.setExposedHeaders(List.of("X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"));
+        configuration.setExposedHeaders(List.of(
+                "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After",
+                CsrfCookieFilter.CSRF_HEADER_NAME
+        ));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

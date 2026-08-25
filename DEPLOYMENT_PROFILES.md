@@ -18,6 +18,10 @@ docker compose -f compose.local.yml up -d
 - `DB_CONNECTION_IP`, `DB_CONNECTION_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSL_MODE`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_SSL_ENABLED`
 - `APP_JWT_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`
+- `APP_JWT_ISSUER=novbetime-api`, `APP_JWT_AUDIENCE=novbetime-web`
+- `APP_ACCESS_TOKEN_MINUTES=10`, `APP_PRIVILEGED_ACCESS_TOKEN_MINUTES=5`
+- `APP_SESSION_USER_IDLE_MINUTES=30`, `APP_SESSION_PRIVILEGED_IDLE_MINUTES=15`, `APP_SESSION_ADMIN_IDLE_MINUTES=10`
+- `APP_SESSION_USER_ABSOLUTE_HOURS=12`, `APP_SESSION_PRIVILEGED_ABSOLUTE_HOURS=8`, `APP_SESSION_ADMIN_ABSOLUTE_HOURS=4`
 - `APP_ALLOWED_ORIGINS`, `APP_PAYMENT_CALLBACK_BASE_URL`
 - `APP_PAYMENT_MODE=test`, `APP_PAYMENT_PROVIDER=mock`
 - `BIRBANK_API_BASE_URL=https://txpgtst.kapitalbank.az/api`
@@ -39,6 +43,8 @@ docker compose -f compose.local.yml up -d
 - `ADMIN_PASSWORD_HASH=<BCrypt hash>`
 - `APP_RATE_LIMIT_STORE=redis`
 - `REDIS_SSL_ENABLED=true`
+
+Sessiya limitləri server tərəfindən tətbiq olunur. Refresh rotasiyası inactivity və absolute deadline-ları uzatmır. Background polling istifadəçi fəaliyyəti sayılmır; yalnız frontend-in real interaction heartbeat-i idle deadline-ı absolute deadline həddinə qədər yeniləyir.
 
 JWT secret yaratmaq:
 
