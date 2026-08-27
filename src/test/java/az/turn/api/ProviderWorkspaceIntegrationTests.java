@@ -56,7 +56,7 @@ class ProviderWorkspaceIntegrationTests {
         BusinessMembershipDto membership = membershipService.invite(
                 business.id(),
                 owner.getId(),
-                new BusinessMemberInviteRequestDto(employee.getNormalizedPhone(), null, null, BusinessRole.EMPLOYEE)
+                new BusinessMemberInviteRequestDto("0507000002", null, null, BusinessRole.EMPLOYEE)
         );
         RoomAssignmentDto assignment = assignmentService.invite(
                 room.id(),
@@ -238,7 +238,7 @@ class ProviderWorkspaceIntegrationTests {
         membershipService.invite(
                 business.id(),
                 owner.getId(),
-                new BusinessMemberInviteRequestDto(employee.getNormalizedPhone(), null, null, BusinessRole.EMPLOYEE)
+                new BusinessMemberInviteRequestDto("0507000010", null, null, BusinessRole.EMPLOYEE)
         );
         RoomAssignmentDto invitation = assignmentService.invite(
                 room.id(),

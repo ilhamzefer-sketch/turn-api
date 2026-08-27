@@ -8,36 +8,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class PhoneNumberService {
 
     public String normalizeAzerbaijaniPhone(String rawPhone) {
-        if (rawPhone == null || rawPhone.isBlank()) {
+        if (rawPhone == null || !rawPhone.matches("0[1-9]\\d{8}")) {
             throw invalidPhone();
         }
-
-        String compact = rawPhone.trim().replaceAll("[\\s()\\-]", "");
-        if (compact.startsWith("00")) {
-            compact = "+" + compact.substring(2);
-        }
-
-        String digits = compact.startsWith("+") ? compact.substring(1) : compact;
-        if (!digits.matches("\\d+")) {
-            throw invalidPhone();
-        }
-
-        String nationalNumber;
-        if (digits.startsWith("994")) {
-            nationalNumber = digits.substring(3);
-        } else if (digits.startsWith("0")) {
-            nationalNumber = digits.substring(1);
-        } else {
-            nationalNumber = digits;
-        }
-
-        if (!nationalNumber.matches("[1-9]\\d{8}")) {
-            throw invalidPhone();
-        }
-        return "+994" + nationalNumber;
+        return "+994" + rawPhone.substring(1);
     }
 
     private ResponseStatusException invalidPhone() {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Telefon nömrəsi düzgün Azərbaycan formatında deyil.");
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Telefon nömrəsini 0504059961 formatında yazın.");
     }
 }

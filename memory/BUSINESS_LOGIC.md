@@ -9,7 +9,7 @@ E-Növbə fiziki növbəni rəqəmsallaşdırır. Növbə yaradan tərəf xidmə
 ### Vahid istifadəçi (`USER`)
 
 - Yeni əsas hesab modelidir və Azərbaycan telefon nömrəsi ilə tanınır.
-- `0501234567`, `501234567` və `+994501234567` eyni `+994501234567` identifikatoruna normallaşdırılır.
+- İstifadəçi telefon nömrəsini yalnız `0501234567` formasında, `0` ilə başlayan dəqiq 10 rəqəm kimi daxil edir; `+994`, boşluq, tire və fərqli uzunluq qəbul edilmir. Daxildə nömrə `+994501234567` identifikatoruna normallaşdırılır.
 - Eyni normallaşdırılmış telefon yalnız bir `USER` hesabına aid ola bilər.
 - Hesab pulsuz yaradılır və gələcəkdə eyni profil müştəri, individual specialist, business sahibi/admini və room owner kontekstlərində istifadə ediləcək.
 - Köhnə `REGISTRATION`, `CUSTOMER` və `QUEUE_MANAGER` modeli yalnız geri dönüş ehtiyacı üçün kodda saxlanılır; legacy API production default olaraq bağlıdır.
@@ -79,7 +79,7 @@ Bu axın artıq əsas məhsul axını deyil və `app.legacy-api.enabled=false` o
 ## 3.1. Yeni vahid hesab qeydiyyatı və girişi
 
 1. `POST /api/auth/register` ad, soyad, telefon və şifrə qəbul edir.
-2. Telefon yalnız Azərbaycan `+994` nömrəsi kimi normallaşdırılır və unikal saxlanır.
+2. Telefon inputu yalnız `0XXXXXXXXX` formasında qəbul edilir, daxildə Azərbaycan `+994` nömrəsi kimi normallaşdırılır və unikal saxlanır.
 3. Telefon mövcud deyilsə pulsuz `ACTIVE` hesab yaranır.
 4. Telefon `PENDING` hesabına aiddirsə eyni hesab aktivləşdirilir; yeni hesab yaradılmır və dəvətdə yazılmış ilkin adlar audit məlumatı kimi qorunur.
 5. Telefon `PASSWORD_RESET_REQUIRED` hesabına aiddirsə eyni hesaba yeni şifrə qoyulur və əvvəlki bütün sessiyalar ləğv edilir.

@@ -84,9 +84,9 @@ class StepSixIntegrationTests {
         UserEntity user = userRepository.save(activeUser("+994501116602"));
         OwnershipDisputeDto dispute = supportRequestService.createDispute(
                 new OwnershipDisputeCreateRequestDto(
-                        user.getNormalizedPhone(),
+                        "0501116602",
                         "Account Owner",
-                        "+994501116603",
+                        "0501116603",
                         "This phone account belongs to the claimant."
                 )
         );

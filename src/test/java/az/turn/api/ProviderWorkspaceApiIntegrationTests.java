@@ -141,7 +141,7 @@ class ProviderWorkspaceApiIntegrationTests {
         membershipService.invite(
                 business.id(),
                 owner.getId(),
-                new BusinessMemberInviteRequestDto(employee.getNormalizedPhone(), null, null, BusinessRole.EMPLOYEE)
+                new BusinessMemberInviteRequestDto("0507111105", null, null, BusinessRole.EMPLOYEE)
         );
         RoomAssignmentDto invitation = assignmentService.invite(
                 room.id(),

@@ -73,9 +73,7 @@ class UserAuthenticationIntegrationTests {
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"phone":"+994501112233","password":"Safe-password-2026"}
-                                """))
+                        .content("{\"phone\":\"0501112233\",\"password\":\"Safe-password-2026\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phone").value("+994501112233"));
     }
@@ -83,9 +81,8 @@ class UserAuthenticationIntegrationTests {
     @Test
     void rejectsSecondRegistrationForActivePhone() throws Exception {
         TestCsrfToken csrf = csrf();
-        register(csrf, "0501556677", "Aktiv", "İstifadəçi", "First-safe-2026")
-                .andExpect(status().isOk());
-        register(csrf, "+994501556677", "Başqa", "İstifadəçi", "Second-safe-2026")
+        register(csrf, "0501556677", "Aktiv", "İstifadəçi", "First-safe-2026").andExpect(status().isOk());
+        register(csrf, "0501556677", "Başqa", "İstifadəçi", "Second-safe-2026")
                 .andExpect(status().isConflict());
     }
 
@@ -144,7 +141,7 @@ class UserAuthenticationIntegrationTests {
         TestCsrfToken csrf = csrf();
         register(csrf, "0501667788", "Sessiya", "İstifadəçi", "Session-safe-2026")
                 .andExpect(status().isOk());
-        MvcResult login = login(csrf, "+994501667788", "Session-safe-2026")
+        MvcResult login = login(csrf, "0501667788", "Session-safe-2026")
                 .andExpect(status().isOk())
                 .andReturn();
         String accessToken = objectMapper.readTree(login.getResponse().getContentAsString()).get("accessToken").asText();
