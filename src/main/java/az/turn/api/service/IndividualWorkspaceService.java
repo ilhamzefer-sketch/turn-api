@@ -32,7 +32,7 @@ public class IndividualWorkspaceService {
         }
         IndividualWorkspaceEntity workspace = new IndividualWorkspaceEntity();
         workspace.setOwnerUser(user);
-        workspace.setName(inputService.required(request.name(), "Workspace adı mütləqdir."));
+        workspace.setName(inputService.required(request.name(), "İş sahəsinin adı mütləqdir."));
         workspace.setTimezone(inputService.timezone(request.timezone(), "Asia/Baku"));
         workspace.setStatus(ProviderStatus.ACTIVE);
         return mapper.toDto(workspaceRepository.save(workspace));

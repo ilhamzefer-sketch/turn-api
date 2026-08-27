@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 
 public record RoomUpsertRequestDto(
         @NotBlank(message = "Otaq adı mütləqdir.")
-        @Size(max = 160, message = "Otaq adı maksimum 160 simvol ola bilər.")
+        @Size(min = 2, max = 160, message = "Otaq adı 2-160 simvol olmalıdır.")
         String name,
         @Size(max = 80, message = "Otaq nömrəsi və ya kodu maksimum 80 simvol ola bilər.")
         String roomNumberOrCode,

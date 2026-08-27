@@ -53,6 +53,12 @@ class ProviderWorkspaceIntegrationTests {
                 owner.getId(),
                 roomRequest("Leylanın otağı", ReservationMode.PLANNED_BOOKING)
         );
+        assertThat(assignmentService.list(room.id(), owner.getId()))
+                .singleElement()
+                .satisfies(assignment -> {
+                    assertThat(assignment.userId()).isEqualTo(owner.getId());
+                    assertThat(assignment.status()).isEqualTo(RoomAssignmentStatus.ACTIVE);
+                });
         BusinessMembershipDto membership = membershipService.invite(
                 business.id(),
                 owner.getId(),

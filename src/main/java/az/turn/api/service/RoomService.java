@@ -60,7 +60,9 @@ public class RoomService {
         apply(room, request, branch.getTimezone(), false);
         applyConfigurationDefaults(room);
         room.setStatus(RoomStatus.DRAFT);
-        return mapper.toDto(roomRepository.save(room));
+        RoomEntity saved = roomRepository.save(room);
+        assignmentRepository.save(activeOwnerAssignment(saved, creator));
+        return mapper.toDto(saved);
     }
 
     @Transactional
