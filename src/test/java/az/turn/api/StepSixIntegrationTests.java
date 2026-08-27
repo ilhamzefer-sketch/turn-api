@@ -175,7 +175,7 @@ class StepSixIntegrationTests {
         room.setCreatedByUser(owner);
         room.setName("Step Six Room");
         room.setTimezone("Asia/Baku");
-        room.setReservationMode(ReservationMode.LIVE_QUEUE);
+        room.setReservationMode(ReservationMode.PLANNED_BOOKING);
         room.setDefaultSlotDurationMinutes(15);
         room.setStatus(RoomStatus.DRAFT);
         room.setVisibility(RoomVisibility.UNLISTED);

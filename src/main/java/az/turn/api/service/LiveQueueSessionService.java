@@ -24,6 +24,7 @@ public class LiveQueueSessionService {
     private final LiveQueueAvailabilityService availabilityService;
     private final LiveQueueSessionFactory sessionFactory;
     private final LiveQueueSessionProvisioningService provisioningService;
+    private final RoomConfigurationValidator configurationValidator;
     private final LiveQueueMapper mapper;
     private final SubscriptionGateService subscriptionGateService;
     private final Clock clock;
@@ -36,6 +37,7 @@ public class LiveQueueSessionService {
             LiveQueueAvailabilityService availabilityService,
             LiveQueueSessionFactory sessionFactory,
             LiveQueueSessionProvisioningService provisioningService,
+            RoomConfigurationValidator configurationValidator,
             LiveQueueMapper mapper,
             SubscriptionGateService subscriptionGateService,
             Clock clock
@@ -47,6 +49,7 @@ public class LiveQueueSessionService {
         this.availabilityService = availabilityService;
         this.sessionFactory = sessionFactory;
         this.provisioningService = provisioningService;
+        this.configurationValidator = configurationValidator;
         this.mapper = mapper;
         this.subscriptionGateService = subscriptionGateService;
         this.clock = clock;
@@ -96,10 +99,11 @@ public class LiveQueueSessionService {
 
     @Transactional
     public LiveQueueSessionDto getOperator(long roomId, long userId) {
-        accessService.requireRoomViewer(roomId, userId);
-        LiveQueueSessionEntity session = provisioningService.ensureAutomaticSession(roomId);
+        RoomEntity room = accessService.requireRoomViewer(roomId, userId);
+        LiveQueueSessionEntity session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1).orElse(null);
         if (session == null) {
-            session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1).orElse(null);
+            configurationValidator.validateOperationalReadiness(room);
+            session = provisioningService.ensureAutomaticSession(roomId);
         }
         if (session == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Açıq canlı növbə sessiyası yoxdur.");

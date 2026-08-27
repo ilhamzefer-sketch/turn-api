@@ -11,6 +11,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -208,6 +209,10 @@ class PublicDiscoveryApiIntegrationTests {
         room.setMinimumAdvanceMinutes(30);
         room.setCancellationCutoffMinutes(0);
         room.setLiveQueueAcceptingNewEntries(true);
+        if (mode == ReservationMode.LIVE_QUEUE) {
+            room.setLiveQueueResetPolicy(LiveQueueResetPolicy.DAILY_AT_TIME);
+            room.setLiveQueueResetLocalTime(LocalTime.of(6, 0));
+        }
         room.setStatus(RoomStatus.PUBLISHED);
         room.setVisibility(visibility);
         return room;

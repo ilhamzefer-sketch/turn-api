@@ -63,6 +63,13 @@ public class RoomConfigurationValidator {
         }
     }
 
+    public void validateOperationalReadiness(RoomEntity room) {
+        if (room.getStatus() != RoomStatus.PUBLISHED) {
+            throw conflict("Otağı istifadə etmək üçün məcburi mərhələləri tamamlayın və otağı yayımlayın.");
+        }
+        validatePublishable(room);
+    }
+
     private void validateOwnerScope(RoomEntity room) {
         if (room.getBranch() != null) {
             if (room.getBranch().getStatus() != ProviderStatus.ACTIVE

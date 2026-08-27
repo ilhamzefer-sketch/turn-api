@@ -117,27 +117,23 @@ class LiveQueueApiIntegrationTests {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void rejectsOperatorAccessUntilRequiredRoomSetupIsPublished() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String accessToken = register(csrf, "0507330003");
+        long roomId = createDraftLiveRoom(csrf, accessToken);
+
+        mockMvc.perform(get("/api/rooms/{roomId}/live-queue", roomId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "Otağı istifadə etmək üçün məcburi mərhələləri tamamlayın və otağı yayımlayın."
+                ));
+    }
+
     private long createPublishedRoom(TestCsrfToken csrf, String accessToken) throws Exception {
         String currentDay = ZonedDateTime.now(ZoneId.of("Asia/Baku")).getDayOfWeek().name();
-        MvcResult workspaceResult = mockMvc.perform(post("/api/individual-workspaces")
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Canlı workspace\",\"timezone\":\"Asia/Baku\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-        long workspaceId = objectMapper.readTree(workspaceResult.getResponse().getContentAsString()).get("id").asLong();
-        MvcResult roomResult = mockMvc.perform(post("/api/individual-workspaces/{workspaceId}/rooms", workspaceId)
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Canlı qəbul\",\"reservationMode\":\"LIVE_QUEUE\","
-                                + "\"defaultSlotDurationMinutes\":15,\"visibility\":\"UNLISTED\"}"))
-                .andExpect(status().isCreated())
-                .andReturn();
-        long roomId = objectMapper.readTree(roomResult.getResponse().getContentAsString()).get("id").asLong();
+        long roomId = createDraftLiveRoom(csrf, accessToken);
         mockMvc.perform(put("/api/rooms/{roomId}/availability-rules", roomId)
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
@@ -164,6 +160,28 @@ class LiveQueueApiIntegrationTests {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk());
         return roomId;
+    }
+
+    private long createDraftLiveRoom(TestCsrfToken csrf, String accessToken) throws Exception {
+        MvcResult workspaceResult = mockMvc.perform(post("/api/individual-workspaces")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Canlı workspace\",\"timezone\":\"Asia/Baku\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long workspaceId = objectMapper.readTree(workspaceResult.getResponse().getContentAsString()).get("id").asLong();
+        MvcResult roomResult = mockMvc.perform(post("/api/individual-workspaces/{workspaceId}/rooms", workspaceId)
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Canlı qəbul\",\"reservationMode\":\"LIVE_QUEUE\","
+                                + "\"defaultSlotDurationMinutes\":15,\"visibility\":\"UNLISTED\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(roomResult.getResponse().getContentAsString()).get("id").asLong();
     }
 
     private String register(TestCsrfToken csrf, String phone) throws Exception {
