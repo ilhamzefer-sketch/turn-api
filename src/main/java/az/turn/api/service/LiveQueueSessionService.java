@@ -23,6 +23,7 @@ public class LiveQueueSessionService {
     private final ProviderAccessService accessService;
     private final LiveQueueAvailabilityService availabilityService;
     private final LiveQueueSessionFactory sessionFactory;
+    private final LiveQueueSessionProvisioningService provisioningService;
     private final LiveQueueMapper mapper;
     private final SubscriptionGateService subscriptionGateService;
     private final Clock clock;
@@ -34,6 +35,7 @@ public class LiveQueueSessionService {
             ProviderAccessService accessService,
             LiveQueueAvailabilityService availabilityService,
             LiveQueueSessionFactory sessionFactory,
+            LiveQueueSessionProvisioningService provisioningService,
             LiveQueueMapper mapper,
             SubscriptionGateService subscriptionGateService,
             Clock clock
@@ -44,6 +46,7 @@ public class LiveQueueSessionService {
         this.accessService = accessService;
         this.availabilityService = availabilityService;
         this.sessionFactory = sessionFactory;
+        this.provisioningService = provisioningService;
         this.mapper = mapper;
         this.subscriptionGateService = subscriptionGateService;
         this.clock = clock;
@@ -51,15 +54,10 @@ public class LiveQueueSessionService {
 
     @Transactional
     public LiveQueueSessionDto open(long roomId, long userId) {
-        RoomEntity room = requireOperableRoom(roomId, userId);
-        LiveQueueSessionEntity session = sessionRepository.findOpenByRoomIdForUpdate(roomId).orElse(null);
-        if (session == null) {
-            session = sessionRepository.save(sessionFactory.create(room, LiveQueueAcceptanceOverride.FORCE_OPEN));
-        } else {
-            session.setAcceptanceOverride(LiveQueueAcceptanceOverride.FORCE_OPEN);
-            session = sessionRepository.save(session);
-        }
-        return operatorDto(session);
+        requireOperableRoom(roomId, userId);
+        LiveQueueSessionEntity session = requireOpenSessionForUpdate(roomId);
+        session.setAcceptanceOverride(LiveQueueAcceptanceOverride.FORCE_OPEN);
+        return operatorDto(sessionRepository.save(session));
     }
 
     @Transactional
@@ -96,18 +94,23 @@ public class LiveQueueSessionService {
         resetLocked(session);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LiveQueueSessionDto getOperator(long roomId, long userId) {
         accessService.requireRoomViewer(roomId, userId);
-        LiveQueueSessionEntity session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Açıq canlı növbə sessiyası yoxdur."));
+        LiveQueueSessionEntity session = provisioningService.ensureAutomaticSession(roomId);
+        if (session == null) {
+            session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1).orElse(null);
+        }
+        if (session == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Açıq canlı növbə sessiyası yoxdur.");
+        }
         return operatorDto(session);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LiveQueuePublicDto getPublic(long roomId) {
         RoomEntity room = requirePublicRoom(roomId);
-        LiveQueueSessionEntity session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1).orElse(null);
+        LiveQueueSessionEntity session = provisioningService.ensureAutomaticSession(roomId);
         List<LiveQueueEntryEntity> entries = session == null
                 ? List.of()
                 : entryRepository.findBySessionIdOrderByQueuePositionAsc(session.getId());
@@ -121,6 +124,7 @@ public class LiveQueueSessionService {
     }
 
     LiveQueueSessionEntity requireOpenSessionForUpdate(long roomId) {
+        provisioningService.ensureAutomaticSession(roomId);
         return sessionRepository.findOpenByRoomIdForUpdate(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Canlı növbə əvvəlcə açılmalıdır."));
     }
@@ -186,10 +190,7 @@ public class LiveQueueSessionService {
         current.setStatus(LiveQueueSessionStatus.CLOSED);
         current.setOpenSlot(null);
         current.setClosedAt(now);
-        LiveQueueAcceptanceOverride nextOverride = current.getAcceptanceOverride() == LiveQueueAcceptanceOverride.FORCE_CLOSED
-                ? LiveQueueAcceptanceOverride.FORCE_CLOSED
-                : LiveQueueAcceptanceOverride.AUTO;
         sessionRepository.saveAndFlush(current);
-        return sessionRepository.save(sessionFactory.create(current.getRoom(), nextOverride));
+        return sessionRepository.save(sessionFactory.create(current.getRoom(), LiveQueueAcceptanceOverride.AUTO));
     }
 }

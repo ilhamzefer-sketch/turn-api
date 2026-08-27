@@ -12,19 +12,22 @@ public class RoomConfigurationService {
     private final RoomConfigurationValidator validator;
     private final ProviderWorkspaceMapper mapper;
     private final SubscriptionGateService subscriptionGateService;
+    private final LiveQueueSessionProvisioningService liveQueueSessionProvisioningService;
 
     public RoomConfigurationService(
             RoomRepository roomRepository,
             ProviderAccessService accessService,
             RoomConfigurationValidator validator,
             ProviderWorkspaceMapper mapper,
-            SubscriptionGateService subscriptionGateService
+            SubscriptionGateService subscriptionGateService,
+            LiveQueueSessionProvisioningService liveQueueSessionProvisioningService
     ) {
         this.roomRepository = roomRepository;
         this.accessService = accessService;
         this.validator = validator;
         this.mapper = mapper;
         this.subscriptionGateService = subscriptionGateService;
+        this.liveQueueSessionProvisioningService = liveQueueSessionProvisioningService;
     }
 
     @Transactional
@@ -62,7 +65,11 @@ public class RoomConfigurationService {
         validator.validatePublishable(room);
         subscriptionGateService.requirePublish(room);
         room.setStatus(RoomStatus.PUBLISHED);
-        return mapper.toDto(roomRepository.save(room));
+        RoomEntity saved = roomRepository.save(room);
+        if (saved.getReservationMode() == ReservationMode.LIVE_QUEUE) {
+            liveQueueSessionProvisioningService.resumeAutomaticSession(saved.getId());
+        }
+        return mapper.toDto(saved);
     }
 
     @Transactional

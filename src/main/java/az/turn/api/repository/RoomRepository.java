@@ -102,4 +102,14 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select room from RoomEntity room where room.id = :roomId")
     Optional<RoomEntity> findByIdForUpdate(Long roomId);
+
+    @Query("select room.id from RoomEntity room "
+            + "where room.status = :status and room.reservationMode = :mode "
+            + "and not exists (select session.id from LiveQueueSessionEntity session "
+            + "where session.room = room and session.openSlot = 1) order by room.id")
+    List<Long> findIdsRequiringLiveQueueSession(
+            RoomStatus status,
+            ReservationMode mode,
+            Pageable pageable
+    );
 }

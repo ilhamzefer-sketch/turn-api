@@ -56,6 +56,9 @@ app:
   privacy:
     guest-anonymization-cron: ${APP_GUEST_ANONYMIZATION_CRON:0 30 3 * * *}
   live-queue:
+    provisioning-enabled: ${APP_LIVE_QUEUE_PROVISIONING_ENABLED:true}
+    provisioning-delay-ms: ${APP_LIVE_QUEUE_PROVISIONING_DELAY_MS:30000}
+    provisioning-initial-delay-ms: ${APP_LIVE_QUEUE_PROVISIONING_INITIAL_DELAY_MS:1000}
     reset-enabled: ${APP_LIVE_QUEUE_RESET_ENABLED:true}
     reset-delay-ms: ${APP_LIVE_QUEUE_RESET_DELAY_MS:30000}
     reset-initial-delay-ms: ${APP_LIVE_QUEUE_RESET_INITIAL_DELAY_MS:15000}

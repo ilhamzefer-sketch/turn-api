@@ -12,6 +12,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,11 +35,10 @@ class LiveQueueApiIntegrationTests {
         TestCsrfToken csrf = csrf();
         String accessToken = register(csrf, "0507330001");
         long roomId = createPublishedRoom(csrf, accessToken);
-        mockMvc.perform(post("/api/rooms/{roomId}/live-queue/open", roomId)
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+        mockMvc.perform(get("/api/rooms/{roomId}/live-queue", roomId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.acceptanceOverride").value("AUTO"))
                 .andExpect(jsonPath("$.acceptingNewEntries").value(true));
 
         MvcResult qrResult = mockMvc.perform(post("/api/rooms/{roomId}/qr-codes", roomId)
@@ -106,7 +108,6 @@ class LiveQueueApiIntegrationTests {
 
         String accessToken = register(csrf, "0507330002");
         long roomId = createPublishedRoom(csrf, accessToken);
-        open(csrf, accessToken, roomId);
         mockMvc.perform(post("/api/rooms/{roomId}/live-queue/entries", roomId)
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
@@ -117,6 +118,7 @@ class LiveQueueApiIntegrationTests {
     }
 
     private long createPublishedRoom(TestCsrfToken csrf, String accessToken) throws Exception {
+        String currentDay = ZonedDateTime.now(ZoneId.of("Asia/Baku")).getDayOfWeek().name();
         MvcResult workspaceResult = mockMvc.perform(post("/api/individual-workspaces")
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
@@ -141,8 +143,9 @@ class LiveQueueApiIntegrationTests {
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"rules\":[{\"dayOfWeek\":\"MONDAY\","
-                                + "\"startTime\":\"00:00\",\"endTime\":\"23:59\",\"active\":true}]}"))
+                        .content("{\"rules\":[{\"dayOfWeek\":\"" + currentDay + "\","
+                                + "\"startTime\":\"00:00\",\"endTime\":\"23:59\","
+                                + "\"active\":true}]}"))
                 .andExpect(status().isOk());
         mockMvc.perform(put("/api/rooms/{roomId}/configuration", roomId)
                         .cookie(csrf.cookie())
@@ -161,14 +164,6 @@ class LiveQueueApiIntegrationTests {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk());
         return roomId;
-    }
-
-    private void open(TestCsrfToken csrf, String accessToken, long roomId) throws Exception {
-        mockMvc.perform(post("/api/rooms/{roomId}/live-queue/open", roomId)
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isOk());
     }
 
     private String register(TestCsrfToken csrf, String phone) throws Exception {

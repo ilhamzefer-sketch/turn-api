@@ -161,10 +161,10 @@ Pending hesab yaradılması üçün başlanğıc limitlər biznesə gündə `500
 
 ## 5.3. Otaq əsaslı canlı növbə
 
-1. Yayımlanmış `LIVE_QUEUE` otağı üçün eyni anda yalnız bir açıq `LiveQueueSession` ola bilər.
+1. Yayımlanmış `LIVE_QUEUE` otağı üçün eyni anda yalnız bir açıq `LiveQueueSession` ola bilər və sessiya otaq yayımlananda avtomatik `AUTO` rejimində yaradılır.
 2. Sessiya gündəlik yerli saatda və ya konfiqurasiya edilmiş intervaldan sonra reset olunur. Reset köhnə sessiyanı `CLOSED`, bütün aktiv iştirakçıları `RESET` edir və yeni boş sessiya yaradır.
 3. Yeni iştirakçı yalnız sessiya açıq, otaq qəbul vəziyyətində və iştirakçı limiti dolmamış olduqda qoşula bilər.
-4. `AUTO` qəbul rejimi otağın həftəlik cədvəli və tarix istisnalarına baxır. Otaq sahibi qəbul vəziyyətini `FORCE_OPEN` və ya `FORCE_CLOSED` ilə manual override edə, sonra yenidən avtomatik rejimə qaytara bilər.
+4. `AUTO` qəbul rejimi otağın timezone-u, həftəlik cədvəli və tarix istisnalarına baxaraq uyğun saatda qəbulu avtomatik açıb-bağlayır. İlkin manual aktivləşdirmə tələb olunmur. Otaq sahibi qəbul vəziyyətini `FORCE_OPEN` və ya `FORCE_CLOSED` ilə müvəqqəti override edə, sonra yenidən avtomatik rejimə qaytara bilər.
 5. Guest istifadəçi public link və ya QR ilə yalnız ad və Azərbaycan telefon nömrəsi daxil edir. Şifrə və hesab məcburi deyil.
 6. Eyni normallaşdırılmış telefon eyni sessiyada ikinci aktiv giriş yarada bilməz; təkrar sorğu mövcud girişin public reference-ını qaytarır.
 7. Otaq sahibi telefon, walk-in və digər offline mənbə ilə manual guest əlavə edə bilər. Ad, telefon və daxili qeyd yalnız səlahiyyətli operator cavabında görünür.
