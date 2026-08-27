@@ -5,7 +5,6 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -22,12 +21,10 @@ public record RoomUpsertRequestDto(
         String notes,
         @Size(max = 60, message = "Saat qurşağı maksimum 60 simvol ola bilər.")
         String timezone,
-        @NotNull(message = "Rezervasiya rejimi mütləqdir.")
         ReservationMode reservationMode,
         @Min(value = 1, message = "Standart müddət ən azı 1 dəqiqə olmalıdır.")
         @Max(value = 1440, message = "Standart müddət maksimum 1440 dəqiqə ola bilər.")
-        int defaultSlotDurationMinutes,
-        @NotNull(message = "Görünürlük mütləqdir.")
+        Integer defaultSlotDurationMinutes,
         RoomVisibility visibility,
         @Size(max = 500, message = "Şəxsi ünvan maksimum 500 simvol ola bilər.")
         String personalPublicAddress,

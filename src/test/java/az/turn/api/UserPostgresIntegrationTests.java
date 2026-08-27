@@ -50,7 +50,7 @@ class UserPostgresIntegrationTests {
 
     @Test
     void appliesAllMigrationsAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("28");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
@@ -187,6 +187,58 @@ class UserPostgresIntegrationTests {
             )) {
                 result.next();
                 assertThat(result.getLong(1)).isEqualTo(1);
+            }
+        }
+    }
+
+    @Test
+    void upgradesExistingLiveRoomsToDailyMidnightReset() throws Exception {
+        Flyway legacyFlyway = Flyway.configure()
+                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .schemas("live_reset_upgrade_test")
+                .defaultSchema("live_reset_upgrade_test")
+                .target(MigrationVersion.fromVersion("27"))
+                .load();
+        legacyFlyway.migrate();
+
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("set search_path to live_reset_upgrade_test");
+            statement.executeUpdate("insert into users "
+                    + "(first_name, last_name, normalized_phone, password_hash, status) "
+                    + "values ('Live', 'Owner', '+994505559999', 'hash', 'ACTIVE')");
+            statement.executeUpdate("insert into individual_workspaces "
+                    + "(owner_user_id, name, timezone, status) "
+                    + "values (1, 'Live workspace', 'Asia/Baku', 'ACTIVE')");
+            statement.executeUpdate("insert into rooms "
+                    + "(individual_workspace_id, created_by_user_id, name, timezone, reservation_mode, "
+                    + "default_slot_duration_minutes, status, visibility) "
+                    + "values (1, 1, 'Live room', 'Asia/Baku', 'LIVE_QUEUE', 30, 'DRAFT', 'UNLISTED')");
+        }
+
+        Flyway.configure()
+                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .schemas("live_reset_upgrade_test")
+                .defaultSchema("live_reset_upgrade_test")
+                .load()
+                .migrate();
+
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("set search_path to live_reset_upgrade_test");
+            try (ResultSet result = statement.executeQuery(
+                    "select live_queue_reset_policy, live_queue_reset_local_time "
+                            + "from rooms where id = 1"
+            )) {
+                result.next();
+                assertThat(result.getString(1)).isEqualTo("DAILY_AT_TIME");
+                assertThat(result.getTime(2).toLocalTime()).isEqualTo(LocalTime.MIDNIGHT);
             }
         }
     }

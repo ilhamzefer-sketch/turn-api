@@ -13,6 +13,7 @@ public class RoomConfigurationService {
     private final ProviderWorkspaceMapper mapper;
     private final SubscriptionGateService subscriptionGateService;
     private final LiveQueueSessionProvisioningService liveQueueSessionProvisioningService;
+    private final RoomDefaults roomDefaults;
 
     public RoomConfigurationService(
             RoomRepository roomRepository,
@@ -20,7 +21,8 @@ public class RoomConfigurationService {
             RoomConfigurationValidator validator,
             ProviderWorkspaceMapper mapper,
             SubscriptionGateService subscriptionGateService,
-            LiveQueueSessionProvisioningService liveQueueSessionProvisioningService
+            LiveQueueSessionProvisioningService liveQueueSessionProvisioningService,
+            RoomDefaults roomDefaults
     ) {
         this.roomRepository = roomRepository;
         this.accessService = accessService;
@@ -28,6 +30,7 @@ public class RoomConfigurationService {
         this.mapper = mapper;
         this.subscriptionGateService = subscriptionGateService;
         this.liveQueueSessionProvisioningService = liveQueueSessionProvisioningService;
+        this.roomDefaults = roomDefaults;
     }
 
     @Transactional
@@ -47,6 +50,7 @@ public class RoomConfigurationService {
         room.setLiveQueueResetIntervalMinutes(request.liveQueueResetIntervalMinutes());
         room.setLiveQueueMaxParticipants(request.liveQueueMaxParticipants());
         room.setLiveQueueAcceptingNewEntries(request.liveQueueAcceptingNewEntries());
+        roomDefaults.normalizeModeConfiguration(room);
         validator.validateResetConfiguration(room);
         if (room.getReservationMode() == ReservationMode.PLANNED_BOOKING
                 && (request.liveQueueResetPolicy() != null || request.liveQueueMaxParticipants() != null)) {

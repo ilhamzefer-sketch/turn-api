@@ -143,17 +143,6 @@ class LiveQueueApiIntegrationTests {
                                 + "\"startTime\":\"00:00\",\"endTime\":\"23:59\","
                                 + "\"active\":true}]}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(put("/api/rooms/{roomId}/configuration", roomId)
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"defaultSlotDurationMinutes\":15,\"appointmentBufferMinutes\":0,"
-                                + "\"bookingWindowDays\":30,\"minimumAdvanceMinutes\":30,"
-                                + "\"cancellationCutoffMinutes\":0,\"liveQueueResetPolicy\":\"EVERY_INTERVAL\","
-                                + "\"liveQueueResetIntervalMinutes\":1440,\"liveQueueMaxParticipants\":100,"
-                                + "\"liveQueueAcceptingNewEntries\":true}"))
-                .andExpect(status().isOk());
         mockMvc.perform(post("/api/rooms/{roomId}/publish", roomId)
                         .cookie(csrf.cookie())
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
@@ -177,9 +166,14 @@ class LiveQueueApiIntegrationTests {
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Canlı qəbul\",\"reservationMode\":\"LIVE_QUEUE\","
-                                + "\"defaultSlotDurationMinutes\":15,\"visibility\":\"UNLISTED\"}"))
+                        .content("{\"name\":\"Canlı qəbul\"}"))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reservationMode").value("LIVE_QUEUE"))
+                .andExpect(jsonPath("$.defaultSlotDurationMinutes").value(30))
+                .andExpect(jsonPath("$.visibility").value("UNLISTED"))
+                .andExpect(jsonPath("$.liveQueueResetPolicy").value("DAILY_AT_TIME"))
+                .andExpect(jsonPath("$.liveQueueResetLocalTime").value("00:00:00"))
+                .andExpect(jsonPath("$.liveQueueAcceptingNewEntries").value(true))
                 .andReturn();
         return objectMapper.readTree(roomResult.getResponse().getContentAsString()).get("id").asLong();
     }

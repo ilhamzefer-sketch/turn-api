@@ -33,6 +33,8 @@ class RoomSchedulingIntegrationTests {
     private RoomAvailabilityService availabilityService;
     @Autowired
     private RoomRepository roomRepository;
+    @Autowired
+    private LiveQueueSessionRepository liveQueueSessionRepository;
 
     @Test
     void configuresAndPublishesPlannedRoomWithScheduleExceptions() {
@@ -103,7 +105,7 @@ class RoomSchedulingIntegrationTests {
     }
 
     @Test
-    void liveRoomRequiresResetPolicyBeforePublishing() {
+    void liveRoomUsesSafeDefaultsAndCreatesSessionWhenPublished() {
         UserEntity owner = saveUser("+994507200003");
         RoomResponseDto room = createRoom(owner, ReservationMode.LIVE_QUEUE);
         scheduleService.replaceWeeklyRules(
@@ -111,12 +113,7 @@ class RoomSchedulingIntegrationTests {
                 owner.getId(),
                 weeklyRequest(rule(DayOfWeek.MONDAY, 9, 18))
         );
-
-        ResponseStatusException missingReset = assertThrows(
-                ResponseStatusException.class,
-                () -> configurationService.publish(room.id(), owner.getId())
-        );
-        configurationService.update(
+        RoomResponseDto configured = configurationService.update(
                 room.id(),
                 owner.getId(),
                 new RoomConfigurationUpdateRequestDto(
@@ -125,16 +122,21 @@ class RoomSchedulingIntegrationTests {
                         30,
                         30,
                         0,
-                        LiveQueueResetPolicy.DAILY_AT_TIME,
-                        LocalTime.of(0, 0),
                         null,
-                        100,
+                        null,
+                        null,
+                        null,
                         true
                 )
         );
+        RoomResponseDto published = configurationService.publish(room.id(), owner.getId());
 
-        assertThat(missingReset.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(configurationService.publish(room.id(), owner.getId()).status()).isEqualTo(RoomStatus.PUBLISHED);
+        assertThat(room.liveQueueResetPolicy()).isEqualTo(LiveQueueResetPolicy.DAILY_AT_TIME);
+        assertThat(room.liveQueueResetLocalTime()).isEqualTo(LocalTime.MIDNIGHT);
+        assertThat(configured.liveQueueResetPolicy()).isEqualTo(LiveQueueResetPolicy.DAILY_AT_TIME);
+        assertThat(configured.liveQueueResetLocalTime()).isEqualTo(LocalTime.MIDNIGHT);
+        assertThat(published.status()).isEqualTo(RoomStatus.PUBLISHED);
+        assertThat(liveQueueSessionRepository.findByRoomIdAndOpenSlot(room.id(), 1)).isPresent();
     }
 
     @Test

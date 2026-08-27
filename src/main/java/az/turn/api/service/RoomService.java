@@ -20,6 +20,7 @@ public class RoomService {
     private final RoomConfigurationValidator configurationValidator;
     private final LiveQueueSessionRepository liveQueueSessionRepository;
     private final PlannedBookingRepository plannedBookingRepository;
+    private final RoomDefaults roomDefaults;
     private final Clock clock;
 
     public RoomService(
@@ -32,6 +33,7 @@ public class RoomService {
             RoomConfigurationValidator configurationValidator,
             LiveQueueSessionRepository liveQueueSessionRepository,
             PlannedBookingRepository plannedBookingRepository,
+            RoomDefaults roomDefaults,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
@@ -43,6 +45,7 @@ public class RoomService {
         this.configurationValidator = configurationValidator;
         this.liveQueueSessionRepository = liveQueueSessionRepository;
         this.plannedBookingRepository = plannedBookingRepository;
+        this.roomDefaults = roomDefaults;
         this.clock = clock;
     }
 
@@ -58,7 +61,7 @@ public class RoomService {
         room.setBranch(branch);
         room.setCreatedByUser(creator);
         apply(room, request, branch.getTimezone(), false);
-        applyConfigurationDefaults(room);
+        roomDefaults.applyCreationConfiguration(room);
         room.setStatus(RoomStatus.DRAFT);
         RoomEntity saved = roomRepository.save(room);
         assignmentRepository.save(activeOwnerAssignment(saved, creator));
@@ -80,7 +83,7 @@ public class RoomService {
         room.setIndividualWorkspace(workspace);
         room.setCreatedByUser(creator);
         apply(room, request, workspace.getTimezone(), true);
-        applyConfigurationDefaults(room);
+        roomDefaults.applyCreationConfiguration(room);
         room.setStatus(RoomStatus.DRAFT);
         RoomEntity saved = roomRepository.save(room);
         assignmentRepository.save(activeOwnerAssignment(saved, creator));
@@ -114,14 +117,15 @@ public class RoomService {
     @Transactional
     public RoomResponseDto update(long roomId, long userId, RoomUpsertRequestDto request) {
         RoomEntity room = accessService.requireEditableRoom(roomId, userId);
-        if (room.getReservationMode() != request.reservationMode()
+        ReservationMode requestedMode = roomDefaults.reservationMode(request.reservationMode());
+        if (room.getReservationMode() != requestedMode
                 && liveQueueSessionRepository.findByRoomIdAndOpenSlot(roomId, 1).isPresent()) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Açıq canlı növbə sessiyası bağlanmadan otaq rejimi dəyişdirilə bilməz."
             );
         }
-        if (room.getReservationMode() != request.reservationMode()
+        if (room.getReservationMode() != requestedMode
                 && plannedBookingRepository.existsByRoomIdAndStatusAndStartAtAfter(
                         roomId,
                         PlannedBookingStatus.ACTIVE,
@@ -165,26 +169,13 @@ public class RoomService {
         room.setDescription(inputService.optional(request.description()));
         room.setNotes(inputService.optional(request.notes()));
         room.setTimezone(inputService.timezone(request.timezone(), fallbackTimezone));
-        room.setReservationMode(request.reservationMode());
-        if (request.reservationMode() == ReservationMode.PLANNED_BOOKING) {
-            room.setLiveQueueResetPolicy(null);
-            room.setLiveQueueResetLocalTime(null);
-            room.setLiveQueueResetIntervalMinutes(null);
-            room.setLiveQueueMaxParticipants(null);
-        }
-        room.setDefaultSlotDurationMinutes(request.defaultSlotDurationMinutes());
-        room.setVisibility(request.visibility());
+        room.setReservationMode(roomDefaults.reservationMode(request.reservationMode()));
+        room.setDefaultSlotDurationMinutes(roomDefaults.slotDurationMinutes(request.defaultSlotDurationMinutes()));
+        room.setVisibility(roomDefaults.visibility(request.visibility()));
         room.setPersonalPublicAddress(individual ? inputService.optional(request.personalPublicAddress()) : null);
         room.setPersonalLatitude(individual ? request.personalLatitude() : null);
         room.setPersonalLongitude(individual ? request.personalLongitude() : null);
-    }
-
-    private void applyConfigurationDefaults(RoomEntity room) {
-        room.setAppointmentBufferMinutes(0);
-        room.setBookingWindowDays(30);
-        room.setMinimumAdvanceMinutes(30);
-        room.setCancellationCutoffMinutes(0);
-        room.setLiveQueueAcceptingNewEntries(true);
+        roomDefaults.normalizeModeConfiguration(room);
     }
 
     private RoomAssignmentEntity activeOwnerAssignment(RoomEntity room, UserEntity owner) {
