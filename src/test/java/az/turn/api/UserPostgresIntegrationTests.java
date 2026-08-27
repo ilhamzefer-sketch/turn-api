@@ -50,7 +50,7 @@ class UserPostgresIntegrationTests {
 
     @Test
     void appliesAllMigrationsAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("26");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("27");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
