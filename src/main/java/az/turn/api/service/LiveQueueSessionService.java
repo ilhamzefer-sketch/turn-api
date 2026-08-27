@@ -100,13 +100,16 @@ public class LiveQueueSessionService {
     @Transactional
     public LiveQueueSessionDto getOperator(long roomId, long userId) {
         RoomEntity room = accessService.requireRoomViewer(roomId, userId);
+        configurationValidator.validateOperationalReadiness(room);
         LiveQueueSessionEntity session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1).orElse(null);
         if (session == null) {
-            configurationValidator.validateOperationalReadiness(room);
             session = provisioningService.ensureAutomaticSession(roomId);
         }
         if (session == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Açıq canlı növbə sessiyası yoxdur.");
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Canlı növbə sessiyası avtomatik yaradıla bilmədi. Yenidən yoxlayın."
+            );
         }
         return operatorDto(session);
     }
