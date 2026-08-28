@@ -5,7 +5,6 @@ namespace: turn-stage
 
 resources:
   - namespace.yaml
-  - stage-secret-metadata.yaml
   - postgres-pvc.yaml
   - postgres-deployment.yaml
   - postgres-service.yaml
