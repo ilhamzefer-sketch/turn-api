@@ -66,10 +66,11 @@ public class RoomConfigurationService {
     @Transactional
     public RoomResponseDto publish(long roomId, long userId) {
         RoomEntity room = accessService.requireEditableRoom(roomId, userId);
+        roomDefaults.ensureLiveQueueResetConfiguration(room);
         validator.validatePublishable(room);
         subscriptionGateService.requirePublish(room);
         room.setStatus(RoomStatus.PUBLISHED);
-        RoomEntity saved = roomRepository.save(room);
+        RoomEntity saved = roomRepository.saveAndFlush(room);
         if (saved.getReservationMode() == ReservationMode.LIVE_QUEUE) {
             liveQueueSessionProvisioningService.resumeAutomaticSession(saved.getId());
         }

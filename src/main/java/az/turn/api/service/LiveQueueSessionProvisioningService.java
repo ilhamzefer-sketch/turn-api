@@ -8,15 +8,18 @@ public class LiveQueueSessionProvisioningService {
     private final RoomRepository roomRepository;
     private final LiveQueueSessionRepository sessionRepository;
     private final LiveQueueSessionFactory sessionFactory;
+    private final RoomDefaults roomDefaults;
 
     public LiveQueueSessionProvisioningService(
             RoomRepository roomRepository,
             LiveQueueSessionRepository sessionRepository,
-            LiveQueueSessionFactory sessionFactory
+            LiveQueueSessionFactory sessionFactory,
+            RoomDefaults roomDefaults
     ) {
         this.roomRepository = roomRepository;
         this.sessionRepository = sessionRepository;
         this.sessionFactory = sessionFactory;
+        this.roomDefaults = roomDefaults;
     }
 
     @Transactional
@@ -31,7 +34,8 @@ public class LiveQueueSessionProvisioningService {
 
     private LiveQueueSessionEntity ensureAutomaticSession(long roomId, boolean resumeAutomaticAcceptance) {
         RoomEntity room = roomRepository.findByIdForUpdate(roomId).orElse(null);
-        if (!isEligible(room)) return null;
+        if (!isPublishedLiveQueue(room)) return null;
+        roomDefaults.ensureLiveQueueResetConfiguration(room);
         LiveQueueSessionEntity session = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1)
                 .orElseGet(() -> sessionRepository.save(
                         sessionFactory.create(room, LiveQueueAcceptanceOverride.AUTO)
@@ -44,10 +48,9 @@ public class LiveQueueSessionProvisioningService {
         return session;
     }
 
-    private boolean isEligible(RoomEntity room) {
+    private boolean isPublishedLiveQueue(RoomEntity room) {
         return room != null
                 && room.getStatus() == RoomStatus.PUBLISHED
-                && room.getReservationMode() == ReservationMode.LIVE_QUEUE
-                && room.getLiveQueueResetPolicy() != null;
+                && room.getReservationMode() == ReservationMode.LIVE_QUEUE;
     }
 }

@@ -50,4 +50,21 @@ public class RoomDefaults {
         }
         room.setLiveQueueResetLocalTime(null);
     }
+
+    public void ensureLiveQueueResetConfiguration(RoomEntity room) {
+        normalizeModeConfiguration(room);
+        if (room.getReservationMode() != ReservationMode.LIVE_QUEUE) return;
+        if (room.getLiveQueueResetPolicy() == LiveQueueResetPolicy.DAILY_AT_TIME
+                && room.getLiveQueueResetLocalTime() != null) {
+            return;
+        }
+        if (room.getLiveQueueResetPolicy() == LiveQueueResetPolicy.EVERY_INTERVAL
+                && room.getLiveQueueResetIntervalMinutes() != null
+                && room.getLiveQueueResetIntervalMinutes() > 0) {
+            return;
+        }
+        room.setLiveQueueResetPolicy(LiveQueueResetPolicy.DAILY_AT_TIME);
+        room.setLiveQueueResetLocalTime(DEFAULT_LIVE_QUEUE_RESET_TIME);
+        room.setLiveQueueResetIntervalMinutes(null);
+    }
 }

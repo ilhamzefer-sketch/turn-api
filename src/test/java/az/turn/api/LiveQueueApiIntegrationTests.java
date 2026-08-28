@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -29,6 +30,8 @@ class LiveQueueApiIntegrationTests {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private LiveQueueSessionRepository sessionRepository;
 
     @Test
     void runsSecuredOperatorAndPasswordlessQrFlowWithoutPublicPii() throws Exception {
@@ -129,6 +132,27 @@ class LiveQueueApiIntegrationTests {
                 .andExpect(jsonPath("$.message").value(
                         "Otağı istifadə etmək üçün məcburi mərhələləri tamamlayın və otağı yayımlayın."
                 ));
+    }
+
+    @Test
+    void recreatesADeletedAutomaticSessionWhenOperatorOpensTheRoom() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String accessToken = register(csrf, "0507330004");
+        long roomId = createPublishedRoom(csrf, accessToken);
+        LiveQueueSessionEntity original = sessionRepository.findByRoomIdAndOpenSlot(roomId, 1).orElseThrow();
+        long originalSessionId = original.getId();
+        sessionRepository.delete(original);
+        sessionRepository.flush();
+
+        MvcResult result = mockMvc.perform(get("/api/rooms/{roomId}/live-queue", roomId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.acceptanceOverride").value("AUTO"))
+                .andReturn();
+
+        long recreatedSessionId = objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        assertThat(recreatedSessionId).isNotEqualTo(originalSessionId);
+        assertThat(sessionRepository.findByRoomIdAndOpenSlot(roomId, 1)).isPresent();
     }
 
     private long createPublishedRoom(TestCsrfToken csrf, String accessToken) throws Exception {
