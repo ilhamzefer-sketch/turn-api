@@ -29,6 +29,11 @@ public class SubscriptionPlanEntity {
     private long amount;
     @Column(nullable = false, length = 3)
     private String currency;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private ProviderScopeType scopeType;
+    @Column
+    private Long coinPrice;
     @Column(nullable = false)
     private int roomLimit;
     @Column(nullable = false)
@@ -50,6 +55,10 @@ public class SubscriptionPlanEntity {
     public void setAmount(long value) { this.amount = value; }
     public String getCurrency() { return currency; }
     public void setCurrency(String value) { this.currency = value; }
+    public ProviderScopeType getScopeType() { return scopeType; }
+    public void setScopeType(ProviderScopeType value) { this.scopeType = value; }
+    public Long getCoinPrice() { return coinPrice; }
+    public void setCoinPrice(Long value) { this.coinPrice = value; }
     public int getRoomLimit() { return roomLimit; }
     public void setRoomLimit(int value) { this.roomLimit = value; }
     public int getEmployeeLimit() { return employeeLimit; }

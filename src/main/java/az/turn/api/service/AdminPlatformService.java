@@ -17,6 +17,7 @@ public class AdminPlatformService {
     private final RoomRepository roomRepository;
     private final ProviderSubscriptionRepository subscriptionRepository;
     private final PaymentSessionRepository paymentSessionRepository;
+    private final SubscriptionCoinPaymentRepository coinPaymentRepository;
     private final AccountOwnershipDisputeRepository disputeRepository;
     private final PhoneChangeRequestRepository phoneChangeRepository;
     private final AccountDeletionRequestRepository deletionRepository;
@@ -27,6 +28,7 @@ public class AdminPlatformService {
             RoomRepository roomRepository,
             ProviderSubscriptionRepository subscriptionRepository,
             PaymentSessionRepository paymentSessionRepository,
+            SubscriptionCoinPaymentRepository coinPaymentRepository,
             AccountOwnershipDisputeRepository disputeRepository,
             PhoneChangeRequestRepository phoneChangeRepository,
             AccountDeletionRequestRepository deletionRepository
@@ -36,6 +38,7 @@ public class AdminPlatformService {
         this.roomRepository = roomRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.paymentSessionRepository = paymentSessionRepository;
+        this.coinPaymentRepository = coinPaymentRepository;
         this.disputeRepository = disputeRepository;
         this.phoneChangeRepository = phoneChangeRepository;
         this.deletionRepository = deletionRepository;
@@ -51,13 +54,18 @@ public class AdminPlatformService {
                 subscriptionRepository.countByStatus(SubscriptionStatus.ACTIVE),
                 subscriptionRepository.countByStatus(SubscriptionStatus.GRACE_PERIOD),
                 subscriptionRepository.countByStatus(SubscriptionStatus.SUSPENDED),
-                paymentSessionRepository.countByPaymentPurposeAndStatus(
-                        PaymentPurpose.PROVIDER_SUBSCRIPTION,
-                        PaymentStatus.COMPLETED
-                ),
+                completedSubscriptionPayments(),
                 disputeRepository.countByStatusIn(OPEN_STATUSES),
                 phoneChangeRepository.countByStatusIn(OPEN_STATUSES),
                 deletionRepository.countByStatusIn(OPEN_STATUSES)
         );
+    }
+
+    private long completedSubscriptionPayments() {
+        return coinPaymentRepository.countByStatus(PaymentStatus.COMPLETED)
+                + paymentSessionRepository.countByPaymentPurposeAndStatus(
+                        PaymentPurpose.PROVIDER_SUBSCRIPTION,
+                        PaymentStatus.COMPLETED
+                );
     }
 }

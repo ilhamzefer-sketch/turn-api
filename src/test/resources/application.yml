@@ -23,12 +23,17 @@ spring:
 
 app:
   env: test
+  wallet:
+    coins-per-azn: 10
+    minimum-top-up-coins: 1
+    maximum-top-up-coins: 1000000
+    whatsapp-url: https://wa.me/message/P63GI5XJ3PQLC1
   legacy-api:
     enabled: true
   subscription:
     enforcement-enabled: false
   admin:
     username: admin
-    password-hash: $2a$10$zwPCg/UvweKFgljqUXrMReEg5tIJvrsOuqoiPIT6tWjQSFjpniL.i
+    password-hash: $2y$10$3Ehrpe5CUmnRa79/msUu3O2mQ.qwbdj.e/zefTCP8wfrqhxwHM/LG
   security:
     jwt-secret: test-only-secret-test-only-secret-test-only-secret-123456

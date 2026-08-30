@@ -14,8 +14,8 @@ public interface PaymentSessionRepository extends JpaRepository<PaymentSessionEn
     @Query("select payment from PaymentSessionEntity payment where payment.id = :id")
     Optional<PaymentSessionEntity> findByIdForUpdate(long id);
 
-    List<PaymentSessionEntity> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
-            PaymentStatus status, LocalDateTime createdBefore, Pageable pageable
+    List<PaymentSessionEntity> findByPaymentPurposeAndStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+            PaymentPurpose purpose, PaymentStatus status, LocalDateTime createdBefore, Pageable pageable
     );
     long countByPaymentPurposeAndStatus(PaymentPurpose purpose, PaymentStatus status);
     List<PaymentSessionEntity> findByProviderSubscriptionIdOrderByCreatedAtDesc(Long subscriptionId);

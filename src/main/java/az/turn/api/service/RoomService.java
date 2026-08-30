@@ -21,6 +21,7 @@ public class RoomService {
     private final LiveQueueSessionRepository liveQueueSessionRepository;
     private final PlannedBookingRepository plannedBookingRepository;
     private final RoomDefaults roomDefaults;
+    private final SubscriptionGateService subscriptionGateService;
     private final Clock clock;
 
     public RoomService(
@@ -34,6 +35,7 @@ public class RoomService {
             LiveQueueSessionRepository liveQueueSessionRepository,
             PlannedBookingRepository plannedBookingRepository,
             RoomDefaults roomDefaults,
+            SubscriptionGateService subscriptionGateService,
             Clock clock
     ) {
         this.roomRepository = roomRepository;
@@ -46,6 +48,7 @@ public class RoomService {
         this.liveQueueSessionRepository = liveQueueSessionRepository;
         this.plannedBookingRepository = plannedBookingRepository;
         this.roomDefaults = roomDefaults;
+        this.subscriptionGateService = subscriptionGateService;
         this.clock = clock;
     }
 
@@ -56,6 +59,7 @@ public class RoomService {
             RoomUpsertRequestDto request
     ) {
         BranchEntity branch = accessService.requireManagedBranch(branchId, userId);
+        subscriptionGateService.requireBusinessRoomCreation(branch.getBusiness().getId());
         UserEntity creator = accessService.requireActiveUser(userId);
         RoomEntity room = new RoomEntity();
         room.setBranch(branch);

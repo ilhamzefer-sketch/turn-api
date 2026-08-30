@@ -14,6 +14,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
@@ -50,13 +51,62 @@ class UserPostgresIntegrationTests {
 
     @Test
     void appliesAllMigrationsAndEnforcesUniquePhone() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("28");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("32");
         userRepository.saveAndFlush(activeUser("+994505556677"));
 
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> userRepository.saveAndFlush(activeUser("+994505556677"))
         );
+    }
+
+    @Test
+    void upgradesExistingUsersWithAZeroCoinWalletAndLedgerConstraints() throws Exception {
+        Flyway legacyFlyway = Flyway.configure()
+                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .schemas("wallet_upgrade_test")
+                .defaultSchema("wallet_upgrade_test")
+                .target(MigrationVersion.fromVersion("28"))
+                .load();
+        legacyFlyway.migrate();
+
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("set search_path to wallet_upgrade_test");
+            statement.executeUpdate("insert into users "
+                    + "(first_name, last_name, normalized_phone, password_hash, status) "
+                    + "values ('Wallet', 'Owner', '+994505550029', 'hash', 'ACTIVE')");
+        }
+
+        Flyway.configure()
+                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .schemas("wallet_upgrade_test")
+                .defaultSchema("wallet_upgrade_test")
+                .load()
+                .migrate();
+
+        try (Connection connection = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(),
+                POSTGRES.getUsername(),
+                POSTGRES.getPassword()
+        ); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("set search_path to wallet_upgrade_test");
+            try (ResultSet result = statement.executeQuery(
+                    "select balance from wallet_accounts where user_id = 1"
+            )) {
+                result.next();
+                assertThat(result.getLong(1)).isZero();
+            }
+            assertThrows(SQLException.class, () -> statement.executeUpdate(
+                    "insert into wallet_transactions "
+                            + "(wallet_account_id, transaction_type, direction, amount, balance_before, balance_after, "
+                            + "actor_type, actor_reference, reference_key, created_at) "
+                            + "values (1, 'TOP_UP', 'DEBIT', 10, 10, 0, 'SYSTEM', 'test', 'invalid-direction', current_timestamp)"
+            ));
+        }
     }
 
     @Test

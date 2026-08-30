@@ -19,6 +19,7 @@ public class UserAccountService {
     private final PhoneNumberService phoneNumberService;
     private final UserPasswordService userPasswordService;
     private final UserLoginTransactionService userLoginTransactionService;
+    private final WalletAccountProvisioningService walletAccountProvisioningService;
     private final Clock clock;
 
     public UserAccountService(
@@ -29,6 +30,7 @@ public class UserAccountService {
             PhoneNumberService phoneNumberService,
             UserPasswordService userPasswordService,
             UserLoginTransactionService userLoginTransactionService,
+            WalletAccountProvisioningService walletAccountProvisioningService,
             Clock clock
     ) {
         this.userRepository = userRepository;
@@ -38,6 +40,7 @@ public class UserAccountService {
         this.phoneNumberService = phoneNumberService;
         this.userPasswordService = userPasswordService;
         this.userLoginTransactionService = userLoginTransactionService;
+        this.walletAccountProvisioningService = walletAccountProvisioningService;
         this.clock = clock;
     }
 
@@ -52,6 +55,7 @@ public class UserAccountService {
 
         try {
             UserEntity savedUser = userRepository.saveAndFlush(user);
+            walletAccountProvisioningService.provision(savedUser);
             guestQueueEntryRepository.linkUnclaimedEntries(savedUser, normalizedPhone);
             linkGuestContact(savedUser, normalizedPhone);
             return savedUser;

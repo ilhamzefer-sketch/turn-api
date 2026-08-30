@@ -7,6 +7,8 @@ public record SubscriptionPlanDto(
         BillingPeriod billingPeriod,
         long amount,
         String currency,
+        ProviderScopeType scopeType,
+        long coinPrice,
         int roomLimit,
         int employeeLimit
 ) {

@@ -48,6 +48,11 @@ server:
 
 app:
   env: ${APP_ENV:local}
+  wallet:
+    coins-per-azn: ${APP_WALLET_COINS_PER_AZN:10}
+    minimum-top-up-coins: ${APP_WALLET_MINIMUM_TOP_UP_COINS:1}
+    maximum-top-up-coins: ${APP_WALLET_MAXIMUM_TOP_UP_COINS:1000000}
+    whatsapp-url: ${APP_WALLET_WHATSAPP_URL:https://wa.me/message/P63GI5XJ3PQLC1}
   legacy-api:
     enabled: ${APP_LEGACY_API_ENABLED:false}
   subscription:
@@ -91,7 +96,7 @@ app:
       recipient-account: ${ABB_RECIPIENT_ACCOUNT:}
       recipient-tax-id: ${ABB_RECIPIENT_TAX_ID:}
       recipient-bank-code: ${ABB_RECIPIENT_BANK_CODE:805250}
-    reconciliation-enabled: ${APP_PAYMENT_RECONCILIATION_ENABLED:true}
+    reconciliation-enabled: ${APP_PAYMENT_RECONCILIATION_ENABLED:false}
     reconciliation-delay-ms: ${APP_PAYMENT_RECONCILIATION_DELAY_MS:60000}
     reconciliation-initial-delay-ms: ${APP_PAYMENT_RECONCILIATION_INITIAL_DELAY_MS:30000}
   security:
@@ -122,7 +127,7 @@ app:
       store: ${APP_RATE_LIMIT_STORE:memory}
   admin:
     username: ${ADMIN_USERNAME:admin}
-    password-hash: ${ADMIN_PASSWORD_HASH:$2a$10$zwPCg/UvweKFgljqUXrMReEg5tIJvrsOuqoiPIT6tWjQSFjpniL.i}
+    password-hash: ${ADMIN_PASSWORD_HASH:$2y$10$3Ehrpe5CUmnRa79/msUu3O2mQ.qwbdj.e/zefTCP8wfrqhxwHM/LG}
 
 management:
   server:

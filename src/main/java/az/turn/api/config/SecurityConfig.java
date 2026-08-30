@@ -106,6 +106,7 @@ public class SecurityConfig {
                                 "/api/public/qr/*",
                                 "/api/public/qr/*/live-queue",
                                 "/api/public/live-queue/entries/*").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

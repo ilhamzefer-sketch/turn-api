@@ -37,6 +37,8 @@ class ProviderWorkspaceIntegrationTests {
     private UserAccountService userAccountService;
     @Autowired
     private BusinessCategoryRepository categoryRepository;
+    @Autowired
+    private WalletAccountRepository walletAccountRepository;
 
     @Test
     void businessOwnerBuildsBranchAndRoomThenEmployeeAcceptsBothInvitations() {
@@ -103,6 +105,7 @@ class ProviderWorkspaceIntegrationTests {
                 new BusinessMemberInviteRequestDto("0507000004", "Dəvət", "Adı", BusinessRole.ADMIN)
         );
         UserEntity pending = userRepository.findByNormalizedPhone("+994507000004").orElseThrow();
+        assertThat(walletAccountRepository.findByUserId(pending.getId())).isPresent();
 
         UserEntity completed = userAccountService.register(new UserRegistrationRequestDto(
                 "Nigar",

@@ -4,7 +4,7 @@ Backend üçün eyni Docker image bütün mühitlərdə istifadə olunur. Secret
 
 ## Local
 
-`SPRING_PROFILES_ACTIVE=local` olduqda `.env.development` oxunur, Kapital test API-si və memory rate limit işləyir. PostgreSQL və Redis-i istəyə görə belə qaldırmaq olar:
+`SPRING_PROFILES_ACTIVE=local` olduqda `.env.development` oxunur. Coin abunəliyi lokal bazada işləyir, bank kartı və payment reconciliation bağlı qalır. PostgreSQL və Redis-i istəyə görə belə qaldırmaq olar:
 
 ```bash
 docker compose -f compose.local.yml up -d
@@ -22,22 +22,21 @@ docker compose -f compose.local.yml up -d
 - `APP_ACCESS_TOKEN_MINUTES=10`, `APP_PRIVILEGED_ACCESS_TOKEN_MINUTES=5`
 - `APP_SESSION_USER_IDLE_MINUTES=30`, `APP_SESSION_PRIVILEGED_IDLE_MINUTES=15`, `APP_SESSION_ADMIN_IDLE_MINUTES=10`
 - `APP_SESSION_USER_ABSOLUTE_HOURS=12`, `APP_SESSION_PRIVILEGED_ABSOLUTE_HOURS=8`, `APP_SESSION_ADMIN_ABSOLUTE_HOURS=4`
-- `APP_ALLOWED_ORIGINS`, `APP_PAYMENT_CALLBACK_BASE_URL`
-- `APP_PAYMENT_MODE=test`, `APP_PAYMENT_PROVIDER=mock`
-- `BIRBANK_API_BASE_URL=https://txpgtst.kapitalbank.az/api`
-- `BIRBANK_USERNAME`, `BIRBANK_PASSWORD`
+- `APP_ALLOWED_ORIGINS`
+- `APP_LEGACY_API_ENABLED=false`, `APP_PAYMENT_RECONCILIATION_ENABLED=false`
+- `APP_WALLET_COINS_PER_AZN=10`, `APP_WALLET_WHATSAPP_URL=https://wa.me/message/P63GI5XJ3PQLC1`
 
 ## Prod
 
-`prod` profilində tətbiq təhlükəli konfiqurasiya ilə başlamır. Hazırda ödənişlər müvəqqəti olaraq mock rejimindədir. HTTPS origin/callback, unikal JWT secret, dəyişdirilmiş BCrypt admin şifrəsi və TLS-li Redis məcburidir.
+`prod` profilində tətbiq təhlükəli konfiqurasiya ilə başlamır. Subscription ödənişləri yalnız coin balansından çıxılır; legacy bank API və payment reconciliation production-da qadağandır. HTTPS origin, unikal JWT secret, dəyişdirilmiş BCrypt admin şifrəsi və TLS-li Redis məcburidir.
 
 - `SPRING_PROFILES_ACTIVE=prod`
 - `APP_ENV=prod`
-- `APP_PAYMENT_MODE=test`
-- `APP_PAYMENT_PROVIDER=mock`
-- Payments are completed by the internal mock provider without contacting a bank.
+- `APP_LEGACY_API_ENABLED=false`
+- `APP_PAYMENT_RECONCILIATION_ENABLED=false`
+- `APP_WALLET_COINS_PER_AZN=10`
+- `APP_WALLET_WHATSAPP_URL=https://wa.me/message/P63GI5XJ3PQLC1`
 - `APP_ALLOWED_ORIGINS=https://app.example.az`
-- `APP_PAYMENT_CALLBACK_BASE_URL=https://app.example.az`
 - `APP_JWT_SECRET=<ən azı 32 simvolluq random secret>`
 - `ADMIN_USERNAME=<admin-dən fərqli ad>`
 - `ADMIN_PASSWORD_HASH=<BCrypt hash>`
@@ -69,3 +68,6 @@ Frontend image build zamanı yalnız public dəyişənlər qəbul edir. GitHub-d
 - Prometheus: `http://<management-host>:9090/actuator/prometheus`
 
 Management portunu yalnız daxili şəbəkədə açın. İctimai ingress-ə qoşmayın.
+
+Coin sistemi üçün mərhələli yayımlama, məlumat bütövlüyü, smoke test və geri dönüş qaydaları
+[`COIN_RELEASE_CHECKLIST.md`](COIN_RELEASE_CHECKLIST.md) sənədində verilib.

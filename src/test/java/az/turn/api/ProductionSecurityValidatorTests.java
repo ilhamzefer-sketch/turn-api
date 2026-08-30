@@ -13,9 +13,8 @@ class ProductionSecurityValidatorTests {
     void rejectsUnsafeProductionConfiguration() {
         ProductionSecurityValidator validator = new ProductionSecurityValidator(
                 "prod", "replace-with-a-random-secret-of-at-least-32-characters",
-                "http://app.example.com", "https://txpgtst.kapitalbank.az/api",
-                "replace-with-bank-username", "replace-with-bank-password",
-                List.of("http://app.example.com"), "admin", "not-bcrypt", "test", "sandbox", "memory", false, false
+                List.of("http://app.example.com"), "admin", "not-bcrypt",
+                true, true, "memory", false, false
         );
         assertThrows(IllegalStateException.class, validator::validate);
     }
@@ -24,24 +23,43 @@ class ProductionSecurityValidatorTests {
     void acceptsCompleteProductionConfiguration() {
         ProductionSecurityValidator validator = new ProductionSecurityValidator(
                 "prod", "Kq9vL8nR2sT7xW4zY6bC1dF3gH5jM0pQ8uV2aN7e",
-                "https://app.example.com", "https://payments.kapitalbank.az/api",
-                "merchant-user", "merchant-password",
                 List.of("https://app.example.com"), "turn-admin",
                 "$2a$12$123456789012345678901u12345678901234567890123456789012",
-                "live", "birbank", "redis", true, true
+                false, false, "redis", true, true
         );
         assertDoesNotThrow(validator::validate);
     }
 
     @Test
-    void acceptsSecureProductionConfigurationWithTemporaryMockPayments() {
+    void acceptsSecureProductionConfigurationWithBankPaymentsRetired() {
         ProductionSecurityValidator validator = new ProductionSecurityValidator(
                 "prod", "Kq9vL8nR2sT7xW4zY6bC1dF3gH5jM0pQ8uV2aN7e",
-                "https://app.example.com", "", "", "",
                 List.of("https://app.example.com"), "turn-admin",
                 "$2a$12$123456789012345678901u12345678901234567890123456789012",
-                "test", "mock", "redis", true, true
+                false, false, "redis", true, true
         );
         assertDoesNotThrow(validator::validate);
+    }
+
+    @Test
+    void rejectsLegacyBankApiInProduction() {
+        ProductionSecurityValidator validator = new ProductionSecurityValidator(
+                "prod", "Kq9vL8nR2sT7xW4zY6bC1dF3gH5jM0pQ8uV2aN7e",
+                List.of("https://app.example.com"), "turn-admin",
+                "$2a$12$123456789012345678901u12345678901234567890123456789012",
+                true, false, "redis", true, true
+        );
+        assertThrows(IllegalStateException.class, validator::validate);
+    }
+
+    @Test
+    void rejectsPaymentReconciliationInProduction() {
+        ProductionSecurityValidator validator = new ProductionSecurityValidator(
+                "prod", "Kq9vL8nR2sT7xW4zY6bC1dF3gH5jM0pQ8uV2aN7e",
+                List.of("https://app.example.com"), "turn-admin",
+                "$2a$12$123456789012345678901u12345678901234567890123456789012",
+                false, true, "redis", true, true
+        );
+        assertThrows(IllegalStateException.class, validator::validate);
     }
 }

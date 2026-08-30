@@ -1,19 +1,18 @@
 package az.turn.api;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -22,22 +21,24 @@ import java.util.List;
 @RequestMapping("/api/subscriptions")
 public class SubscriptionController {
     private final SubscriptionPaymentService subscriptionPaymentService;
+    private final SubscriptionCoinPaymentService coinPaymentService;
     private final RequestAuthenticationService authenticationService;
-    private final ApiSessionService apiSessionService;
 
     public SubscriptionController(
             SubscriptionPaymentService subscriptionPaymentService,
-            RequestAuthenticationService authenticationService,
-            ApiSessionService apiSessionService
+            SubscriptionCoinPaymentService coinPaymentService,
+            RequestAuthenticationService authenticationService
     ) {
         this.subscriptionPaymentService = subscriptionPaymentService;
+        this.coinPaymentService = coinPaymentService;
         this.authenticationService = authenticationService;
-        this.apiSessionService = apiSessionService;
     }
 
     @GetMapping("/plans")
-    public List<SubscriptionPlanDto> plans() {
-        return subscriptionPaymentService.plans();
+    public List<SubscriptionPlanDto> plans(
+            @RequestParam(required = false) ProviderScopeType scopeType
+    ) {
+        return subscriptionPaymentService.plans(scopeType);
     }
 
     @GetMapping("/current")
@@ -61,65 +62,51 @@ public class SubscriptionController {
     }
 
     @PostMapping("/checkout")
-    public SubscriptionPaymentSessionDto checkout(
-            @Valid @RequestBody SubscriptionCheckoutRequestDto request,
-            Authentication authentication,
-            HttpServletResponse response
+    public void checkout(Authentication authentication) {
+        authenticationService.requireUser(authentication, AuthUserType.USER);
+        throw retiredBankPayment();
+    }
+
+    @PostMapping("/purchase")
+    public SubscriptionCoinPurchaseDto purchase(
+            @Valid @RequestBody SubscriptionCoinPurchaseRequestDto request,
+            Authentication authentication
     ) {
         long userId = authenticationService.requireUser(authentication, AuthUserType.USER).userId();
-        SubscriptionPaymentSessionDto session = subscriptionPaymentService.checkout(userId, request);
-        apiSessionService.writePaymentSessionCookie(response, session.sessionToken());
-        return session;
+        return coinPaymentService.purchase(userId, request);
     }
 
     @GetMapping("/payments/{paymentSessionId}")
-    public SubscriptionPaymentSessionDto payment(
+    public void payment(
             @PathVariable @Positive long paymentSessionId,
-            @RequestHeader(value = "X-Payment-Session-Token", required = false) String headerToken,
-            Authentication authentication,
-            HttpServletRequest request
+            Authentication authentication
     ) {
-        long userId = authenticationService.requireUser(authentication, AuthUserType.USER).userId();
-        return subscriptionPaymentService.getSession(
-                paymentSessionId,
-                apiSessionService.resolvePaymentSessionToken(request, headerToken),
-                userId
-        );
+        authenticationService.requireUser(authentication, AuthUserType.USER);
+        throw retiredBankPayment();
     }
 
     @PostMapping("/payments/{paymentSessionId}/confirm")
-    public SubscriptionPaymentSessionDto confirm(
+    public void confirm(
             @PathVariable @Positive long paymentSessionId,
-            @RequestHeader(value = "X-Payment-Session-Token", required = false) String headerToken,
-            Authentication authentication,
-            HttpServletRequest request,
-            HttpServletResponse response
+            Authentication authentication
     ) {
-        long userId = authenticationService.requireUser(authentication, AuthUserType.USER).userId();
-        SubscriptionPaymentSessionDto result = subscriptionPaymentService.confirm(
-                paymentSessionId,
-                apiSessionService.resolvePaymentSessionToken(request, headerToken),
-                userId
-        );
-        if (result.status() != PaymentStatus.PENDING) apiSessionService.clearPaymentSessionCookie(response);
-        return result;
+        authenticationService.requireUser(authentication, AuthUserType.USER);
+        throw retiredBankPayment();
     }
 
     @PostMapping("/payments/{paymentSessionId}/cancel")
-    public SubscriptionPaymentSessionDto cancel(
+    public void cancel(
             @PathVariable @Positive long paymentSessionId,
-            @RequestHeader(value = "X-Payment-Session-Token", required = false) String headerToken,
-            Authentication authentication,
-            HttpServletRequest request,
-            HttpServletResponse response
+            Authentication authentication
     ) {
-        long userId = authenticationService.requireUser(authentication, AuthUserType.USER).userId();
-        SubscriptionPaymentSessionDto result = subscriptionPaymentService.cancel(
-                paymentSessionId,
-                apiSessionService.resolvePaymentSessionToken(request, headerToken),
-                userId
+        authenticationService.requireUser(authentication, AuthUserType.USER);
+        throw retiredBankPayment();
+    }
+
+    private ResponseStatusException retiredBankPayment() {
+        return new ResponseStatusException(
+                HttpStatus.GONE,
+                "Abunəlik üçün bank ödənişi dayandırılıb. Ödənişi coin balansı ilə edin."
         );
-        apiSessionService.clearPaymentSessionCookie(response);
-        return result;
     }
 }

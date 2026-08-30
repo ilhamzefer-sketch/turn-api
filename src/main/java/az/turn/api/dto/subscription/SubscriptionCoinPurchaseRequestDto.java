@@ -5,11 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-public record SubscriptionCheckoutRequestDto(
+public record SubscriptionCoinPurchaseRequestDto(
         @NotNull ProviderScopeType scopeType,
         @Positive long scopeId,
         @NotBlank @Size(max = 60) String planCode,
-        @Size(max = 160) String cardHolder,
-        @Size(max = 30) String cardNumber
+        @NotBlank @Size(max = 80) String idempotencyKey
 ) {
 }

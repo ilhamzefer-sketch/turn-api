@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
@@ -23,6 +24,14 @@ public interface RoomRepository extends JpaRepository<RoomEntity, Long> {
     long countByBranchBusinessIdAndStatusNot(Long businessId, RoomStatus status);
     long countByIndividualWorkspaceIdAndStatusNot(Long workspaceId, RoomStatus status);
     long countByStatusNot(RoomStatus status);
+
+    @Query("select room.branch.business.id as businessId, count(room.id) as roomCount "
+            + "from RoomEntity room where room.branch.business.id in :businessIds "
+            + "and room.status <> :archivedStatus group by room.branch.business.id")
+    List<BusinessRoomCountProjection> countActiveRoomsByBusinessIds(
+            Collection<Long> businessIds,
+            RoomStatus archivedStatus
+    );
 
     @Query(value = """
             select distinct room from RoomEntity room

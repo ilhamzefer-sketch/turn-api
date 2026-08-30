@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlanEntity, Long> {
-    List<SubscriptionPlanEntity> findByActiveTrueOrderByAmountAsc();
+    List<SubscriptionPlanEntity> findByActiveTrueOrderByCoinPriceAsc();
+    List<SubscriptionPlanEntity> findByActiveTrueAndScopeTypeOrderByCoinPriceAsc(ProviderScopeType scopeType);
     Optional<SubscriptionPlanEntity> findByCodeAndActiveTrue(String code);
 }

@@ -1,6 +1,5 @@
 package az.turn.api;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -8,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class AccountService {
@@ -16,23 +16,20 @@ public class AccountService {
     private final CustomerRepository customerRepository;
     private final QueueManagerRepository queueManagerRepository;
     private final PasswordEncoder passwordEncoder;
-    private final String adminUsername;
-    private final String adminPasswordHash;
+    private final AdminAccountService adminAccountService;
 
     public AccountService(
             RegistrationRepository registrationRepository,
             CustomerRepository customerRepository,
             QueueManagerRepository queueManagerRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${app.admin.username:admin}") String adminUsername,
-            @Value("${app.admin.password-hash}") String adminPasswordHash
+            AdminAccountService adminAccountService
     ) {
         this.registrationRepository = registrationRepository;
         this.customerRepository = customerRepository;
         this.queueManagerRepository = queueManagerRepository;
         this.passwordEncoder = passwordEncoder;
-        this.adminUsername = adminUsername;
-        this.adminPasswordHash = adminPasswordHash;
+        this.adminAccountService = adminAccountService;
     }
 
     @Transactional(readOnly = true)
@@ -110,14 +107,7 @@ public class AccountService {
 
     @Transactional(readOnly = true)
     public AdminLoginResponse loginAdmin(AdminLoginRequest request) {
-        String username = normalizeRequired(request.username(), "Admin istifadeci adi mutleqdir.");
-        String password = normalizeRequired(request.password(), "Admin sifresi mutleqdir.");
-
-        if (!adminUsername.equals(username) || !passwordEncoder.matches(password, adminPasswordHash)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin username ve ya password sehvdir.");
-        }
-
-        return new AdminLoginResponse(adminUsername, "ADMIN", "Admin panelinÉ™ uÄŸurla daxil oldunuz.", null);
+        return adminAccountService.login(request);
     }
 
     private RegistrationResponse toRegistrationResponse(RegistrationEntity entity) {
@@ -158,7 +148,7 @@ public class AccountService {
                 queue.getRegistration().getEmail(),
                 queue.getAddress(),
                 queue.getServiceName(),
-                queue.getCategories() == null ? java.util.List.of() : java.util.List.copyOf(queue.getCategories()),
+                queue.getCategories() == null ? List.of() : List.copyOf(queue.getCategories()),
                 queue.getQrToken(),
                 queue.getCurrentServingNumber(),
                 queue.getLastIssuedNumber(),

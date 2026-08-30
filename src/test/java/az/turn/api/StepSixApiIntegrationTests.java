@@ -27,8 +27,18 @@ class StepSixApiIntegrationTests {
 
     @Test
     void exposesSubscriptionPlansWithoutAuthentication() throws Exception {
-        mockMvc.perform(get("/api/subscriptions/plans"))
+        mockMvc.perform(get("/api/subscriptions/plans?scopeType=INDIVIDUAL_WORKSPACE"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("STANDARD_MONTHLY"));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].code").value("INDIVIDUAL_MONTHLY"))
+                .andExpect(jsonPath("$[0].coinPrice").value(30))
+                .andExpect(jsonPath("$[0].roomLimit").value(1));
+
+        mockMvc.perform(get("/api/subscriptions/plans?scopeType=BUSINESS"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].code").value("BUSINESS_MONTHLY"))
+                .andExpect(jsonPath("$[0].coinPrice").value(100))
+                .andExpect(jsonPath("$[0].roomLimit").value(5));
     }
 }

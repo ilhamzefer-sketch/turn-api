@@ -37,7 +37,13 @@ class StepSixIntegrationTests {
     private PlannedBookingRepository plannedBookingRepository;
 
     @Autowired
-    private SubscriptionPaymentService subscriptionPaymentService;
+    private SubscriptionCoinPaymentService subscriptionCoinPaymentService;
+
+    @Autowired
+    private WalletAccountProvisioningService walletAccountProvisioningService;
+
+    @Autowired
+    private WalletTransactionService walletTransactionService;
 
     @Autowired
     private SubscriptionGateService subscriptionGateService;
@@ -52,8 +58,10 @@ class StepSixIntegrationTests {
     private ServiceRatingService ratingService;
 
     @Test
-    void activatesWorkspaceSubscriptionAfterSuccessfulSandboxPayment() {
+    void activatesWorkspaceSubscriptionAfterSuccessfulCoinPayment() {
         UserEntity owner = userRepository.save(activeUser("+994501116601"));
+        walletAccountProvisioningService.provision(owner);
+        walletTransactionService.apply(owner.getId(), adminCredit(30, "step-six-subscription-credit"));
         IndividualWorkspaceEntity workspace = workspaceRepository.save(workspace(owner));
         RoomEntity room = roomRepository.save(room(owner, workspace));
 
@@ -61,21 +69,20 @@ class StepSixIntegrationTests {
                 .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
                         assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED));
 
-        SubscriptionPaymentSessionDto checkout = subscriptionPaymentService.checkout(
+        SubscriptionCoinPurchaseDto purchase = subscriptionCoinPaymentService.purchase(
                 owner.getId(),
-                new SubscriptionCheckoutRequestDto(
+                new SubscriptionCoinPurchaseRequestDto(
                         ProviderScopeType.INDIVIDUAL_WORKSPACE,
                         workspace.getId(),
-                        "STANDARD_MONTHLY",
-                        "Step Six Owner",
-                        "4169741330151778"
+                        "INDIVIDUAL_MONTHLY",
+                        "step-six-purchase"
                 )
         );
-        assertThat(checkout.status()).isEqualTo(PaymentStatus.COMPLETED);
-        assertThat(checkout.provider()).isEqualTo("sandbox");
-        assertThat(checkout.paymentReference()).startsWith("MOCK-");
-        assertThat(checkout.subscription().status()).isEqualTo(SubscriptionStatus.ACTIVE);
-        assertThat(checkout.subscription().expiresAt()).isAfter(checkout.subscription().startsAt());
+        assertThat(purchase.coinsSpent()).isEqualTo(30);
+        assertThat(purchase.balanceAfter()).isZero();
+        assertThat(purchase.paymentReference()).startsWith("COIN-SUB-");
+        assertThat(purchase.subscription().status()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(purchase.subscription().expiresAt()).isAfter(purchase.subscription().startsAt());
         assertThatCode(() -> subscriptionGateService.requireRoomOperations(room)).doesNotThrowAnyException();
     }
 
@@ -194,5 +201,17 @@ class StepSixIntegrationTests {
         booking.setBlockingEndAt(LocalDateTime.of(2026, 8, 17, 10, 15));
         booking.setCompletedAt(LocalDateTime.of(2026, 8, 17, 10, 15));
         return booking;
+    }
+
+    private WalletTransactionCommandDto adminCredit(long amount, String reference) {
+        return new WalletTransactionCommandDto(
+                WalletTransactionType.ADMIN_CREDIT,
+                amount,
+                WalletActorType.ADMIN,
+                null,
+                "step-six-admin",
+                reference,
+                "Step six subscription credit"
+        );
     }
 }

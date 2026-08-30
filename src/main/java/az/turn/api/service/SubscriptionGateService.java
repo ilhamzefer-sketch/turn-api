@@ -49,6 +49,27 @@ public class SubscriptionGateService {
         requireRoomOperations(room);
     }
 
+    @Transactional
+    public void requireBusinessRoomCreation(long businessId) {
+        if (!enforcementEnabled) return;
+        ProviderSubscriptionEntity subscription = subscriptionRepository
+                .findByScopeTypeAndScopeIdForUpdate(ProviderScopeType.BUSINESS, businessId)
+                .orElseThrow(() -> paymentRequired("Biznes otağı yaratmaq üçün aktiv abunəlik tələb olunur."));
+        refreshStatus(subscription);
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE
+                && subscription.getStatus() != SubscriptionStatus.GRACE_PERIOD) {
+            throw paymentRequired("Abunəlik aktiv deyil. Yeni otaq yaratmaq üçün abunəliyi yeniləyin.");
+        }
+        long roomCount = roomRepository.countByBranchBusinessIdAndStatusNot(businessId, RoomStatus.ARCHIVED);
+        if (roomCount >= subscription.getRoomLimit()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Biznes üçün " + subscription.getRoomLimit()
+                            + " otaq limitinə çatmısınız. Daha çox otaq üçün bizimlə əlaqə saxlayın."
+            );
+        }
+    }
+
     private ProviderSubscriptionEntity requireOperational(ProviderScopeType scopeType, long scopeId) {
         ProviderSubscriptionEntity subscription = subscriptionRepository.findByScopeTypeAndScopeId(scopeType, scopeId)
                 .orElseThrow(() -> paymentRequired("Aktiv abunəlik tələb olunur."));

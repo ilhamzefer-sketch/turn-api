@@ -1,6 +1,5 @@
 package az.turn.api;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -14,23 +13,20 @@ public class SessionPrincipalService {
     private final RegistrationRepository registrationRepository;
     private final CustomerRepository customerRepository;
     private final QueueManagerRepository queueManagerRepository;
-    private final String adminUsername;
-    private final String adminPasswordHash;
+    private final AdminAccountRepository adminAccountRepository;
 
     public SessionPrincipalService(
             UserRepository userRepository,
             RegistrationRepository registrationRepository,
             CustomerRepository customerRepository,
             QueueManagerRepository queueManagerRepository,
-            @Value("${app.admin.username:admin}") String adminUsername,
-            @Value("${app.admin.password-hash}") String adminPasswordHash
+            AdminAccountRepository adminAccountRepository
     ) {
         this.userRepository = userRepository;
         this.registrationRepository = registrationRepository;
         this.customerRepository = customerRepository;
         this.queueManagerRepository = queueManagerRepository;
-        this.adminUsername = adminUsername;
-        this.adminPasswordHash = adminPasswordHash;
+        this.adminAccountRepository = adminAccountRepository;
     }
 
     public PrincipalState resolve(AuthenticatedUser principal) {
@@ -80,11 +76,13 @@ public class SessionPrincipalService {
     }
 
     private PrincipalState resolveAdmin(String username) {
-        boolean active = username != null && MessageDigest.isEqual(
-                adminUsername.getBytes(StandardCharsets.UTF_8),
-                username.getBytes(StandardCharsets.UTF_8)
-        );
-        return new PrincipalState(active, version(AuthUserType.ADMIN, null, adminPasswordHash));
+        if (username == null) return inactive();
+        return adminAccountRepository.findByUsername(username)
+                .map(admin -> new PrincipalState(
+                        admin.isActive(),
+                        version(AuthUserType.ADMIN, admin.getId(), admin.getPasswordHash())
+                ))
+                .orElseGet(this::inactive);
     }
 
     private PrincipalState inactive() {

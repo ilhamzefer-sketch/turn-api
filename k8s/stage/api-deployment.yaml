@@ -144,70 +144,16 @@ spec:
                 secretKeyRef:
                   name: turn-stage-secrets
                   key: ADMIN_PASSWORD_HASH
-            - name: APP_PAYMENT_MODE
-              value: test
-            - name: APP_PAYMENT_PROVIDER
-              value: mock
-            - name: APP_PAYMENT_CALLBACK_BASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: APP_PAYMENT_CALLBACK_BASE_URL
-            - name: BIRBANK_API_BASE_URL
-              value: https://txpgtst.kapitalbank.az/api
-            - name: BIRBANK_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: BIRBANK_USERNAME
-            - name: BIRBANK_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: BIRBANK_PASSWORD
-            - name: ABB_API_BASE_URL
-              value: https://api-test-c2b.abb-bank.az
-            - name: ABB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_USERNAME
-            - name: ABB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_PASSWORD
-            - name: ABB_DEBIT_ACCOUNT
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_DEBIT_ACCOUNT
-            - name: ABB_RECIPIENT_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_RECIPIENT_NAME
-            - name: ABB_RECIPIENT_ACCOUNT
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_RECIPIENT_ACCOUNT
-            - name: ABB_RECIPIENT_TAX_ID
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_RECIPIENT_TAX_ID
-            - name: ABB_RECIPIENT_BANK_CODE
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: ABB_RECIPIENT_BANK_CODE
+            - name: APP_WALLET_COINS_PER_AZN
+              value: "10"
+            - name: APP_WALLET_MINIMUM_TOP_UP_COINS
+              value: "1"
+            - name: APP_WALLET_MAXIMUM_TOP_UP_COINS
+              value: "1000000"
+            - name: APP_WALLET_WHATSAPP_URL
+              value: https://wa.me/message/P63GI5XJ3PQLC1
             - name: APP_PAYMENT_RECONCILIATION_ENABLED
-              value: "true"
-            - name: APP_PAYMENT_RECONCILIATION_DELAY_MS
-              value: "60000"
-            - name: APP_PAYMENT_RECONCILIATION_INITIAL_DELAY_MS
-              value: "30000"
+              value: "false"
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

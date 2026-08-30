@@ -93,17 +93,29 @@ Sessiya müddətləri rol üzrə ayrıca idarə olunur: adi istifadəçi üçün
 
 Yeni şifrələr 8-128 simvol qəbul edir, geniş istifadə olunan zəif şifrələr rədd olunur və SHA-256 pre-hash üzərindən BCrypt ilə saxlanılır.
 
-## 3.2. Provider abunəliyi və ödənişi
+## 3.2. Provider abunəliyi və coin ödənişi
 
 1. Hər `IndividualWorkspace` və hər `Business` ayrıca abunəliyə, limitlərə, bitmə tarixinə və ödəniş tarixçəsinə malikdir.
-2. Aktiv paketlər aylıq və endirimli illik billing dövrü təklif edir. İlkin seed paketləri `STANDARD_MONTHLY` və `STANDARD_YEARLY`-dir.
-3. Şəxsi workspace sahibi, biznes `PRIMARY_OWNER` və `ADMIN` paketləri görə, checkout yarada, mock/Birbank ödənişini təsdiqləyə və qəbz tarixçəsini görə bilər.
-4. Tamamlanmış ödəniş abunəliyi `ACTIVE` edir və mövcud aktiv müddət varsa yeni dövr onun sonuna əlavə olunur.
+2. Aktiv paketlər aylıqdır: fərdi workspace üçün `INDIVIDUAL_MONTHLY`, biznes üçün `BUSINESS_MONTHLY`.
+3. Şəxsi workspace sahibi, biznes `PRIMARY_OWNER` və `ADMIN` paketləri görə, coin balansı ilə ödəniş edə və qəbz tarixçəsini görə bilər.
+4. Tamamlanmış coin ödənişi abunəliyi `ACTIVE` edir və mövcud aktiv müddət varsa yeni ay onun sonuna əlavə olunur.
 5. Abunəlik bitdikdən sonra yeddi günlük `GRACE_PERIOD`, sonra `SUSPENDED` statusu tətbiq olunur.
 6. Aktiv və ya grace-period abunəliyi olmadan otaq publish edilmir, canlı sessiya açılmır, canlı növbəyə yeni qoşulma və yeni planlı booking qəbul edilmir.
 7. Suspension mövcud booking-ləri, otaqları və tarixçəni silmir. Səlahiyyətli operator əvvəlcədən yaranmış booking-i complete, cancel və reschedule edə bilər.
 8. Paket otaq və əməkdaş sayını limitləyir; canlı iştirakçı və booking sayı limitlənmir. Limit aşımı məlumat silmir, yalnız yeni əməliyyatları dayandırır.
-9. Ödəniş sessiyası tokeni yalnız `HttpOnly` cookie ilə daşınır və bazada SHA-256 hash kimi saxlanılır.
+9. Tamamlanmış köhnə bank qəbzləri yalnız tarixçə üçün saxlanılır; yeni bank subscription sessiyası yaradıla və təsdiqlənə bilməz.
+
+## 3.3. Coin wallet təməli
+
+1. Hər vahid `USER` hesabının yalnız bir coin wallet-i var. Mövcud istifadəçilər üçün wallet miqrasiya zamanı, yeni aktiv və ya pending istifadəçilər üçün hesab yaranan tranzaksiyada yaradılır.
+2. Coin yalnız müsbət tam ədəd kimi saxlanılır və wallet balansı mənfi ola bilməz.
+3. Hər balans dəyişikliyi ayrıca append-only ledger sətri yaradır; sətirdə əməliyyat növü, istiqamət, məbləğ, əvvəlki və sonrakı balans, icraçı, unikal istinad, optional izah və tarix saxlanılır.
+4. Eyni wallet və istinadla eyni əməliyyat təkrar göndərilərsə əvvəlki nəticə qaytarılır və balans ikinci dəfə dəyişmir. Eyni istinad fərqli əməliyyat üçün istifadə edilə bilməz.
+5. Balans dəyişikliyi wallet sətrinə pessimistic lock tətbiq edən bir database tranzaksiyasında aparılır.
+6. `ADMIN_CREDIT` əməliyyatı icraçı admin istinadını və səbəbi məcburi saxlayır.
+7. Provider abunəliyi yalnız coin wallet-dən debit olunur; bank top-up axını hələ aktiv deyil.
+8. Coin qiyməti konfiqurasiya olunur və ilkin qayda `10 coin = 1 AZN`-dir. Balans artırma ekranı bu qaydanı backend-dən alır.
+9. Bank kartı seçimi ilkin mərhələdə deaktivdir. WhatsApp müraciəti `https://wa.me/message/P63GI5XJ3PQLC1` ünvanına yönləndirilir və avtomatik coin əlavə etmir.
 
 ## 4. Hesab statusları
 
@@ -312,28 +324,30 @@ Yeni `USER` tarixçəsi həm hesabla birbaşa yaradılmış queue entry-ləri, h
 - Köhnə şifrələr BCrypt, yeni `USER` şifrələri SHA-256 pre-hash üzərindən BCrypt kimi saxlanılır.
 - Access token qısaömürlü JWT-dir; refresh token `HttpOnly` cookie-də, DB-də hash kimi saxlanılır.
 - Dəyişiklik edən browser sorğuları CSRF token tələb edir.
-- Ödəniş təsdiqi server-to-server bank cavabı ilə aparılır.
+- Bank kartı ilə balans artırma aktiv deyil və cari production prosesində bank API çağırışı edilmir.
 - Rate limit auth, payment və public queue endpoint-lərinə tətbiq olunur; stage/prod mühitində Redis istifadə edilir.
 - PostgreSQL və Redis portları internetə açılmamalıdır.
 - Növbə sahibi, müştəri və queue manager ID-ləri request body-dən etibarlı sayılmır; JWT istifadəçisi ilə əvəz edilir.
 
 ## 12. Step 6: subscription, support və reporting
 
-1. Provider abunəliyi aylıq/illik paket, ayrıca scope, room/employee limiti, expiry, grace period, suspension və payment receipt tarixçəsi ilə hazırdır.
-2. Otaq əməliyyatları abunəlik gate-i ilə qorunur. Test mühitində əvvəlki mərhələlərin regression testləri üçün gate ayrıca söndürülə bilər; production default aktivdir.
-3. Hesab sahibliyi mübahisəsi public support müraciəti ilə yaradılır və admin `NO_ACTION`, `SUSPEND`, `RESET_PASSWORD` və ya `RESTORE_ACCESS` qərarı verə bilər.
-4. Admin password reset etdikdə bütün sessiyalar ləğv edilir, şifrə silinir və hesab müddətsiz `PASSWORD_RESET_REQUIRED` olur. İstifadəçi eyni telefonla adi register ekranında yeni şifrə qoyur.
-5. Telefon dəyişməsi və hesab silinməsi yalnız support müraciəti və admin qərarı ilə aparılır. Aktiv biznes primary owner-i ownership-i ötürmədən anonymize edilmir.
-6. Biznes primary ownership transferi hədəf aktiv admin tərəfindən qəbul ediləndə atomik tamamlanır; əvvəlki owner `ADMIN` qalır.
-7. Room owner qeydiyyatlı müştərini səbəb göstərərək yalnız öz otağında block edə bilər; business owner/admin həmin block-u revoke edə bilər. Block canlı və planlı yeni girişlərə tətbiq olunur.
-8. Platform admin hesab, business, room, aktiv subscription, pending payment və açıq support müraciəti saylarını ümumi overview-da görür. Admin qərarları dəyişməz platform audit event-i yaradır.
-9. Business owner/admin bütün biznes üzrə, room owner isə səlahiyyətli otaq üzrə tarix aralığına bağlı operational statistikaları görə bilər.
-10. Hesabat canlı növbə, planlı booking, completed/cancelled/skipped/removed/reset, guest/registered iştirakçı, təxmini gözləmə, busiest day/hour və təxmini capacity göstəricilərini saxlayır.
-11. Operational hesabat `.xlsx` kimi endirilə bilər. Maliyyə gəliri, profit və average receipt Step 6 hesabatına daxil deyil.
-12. Guest şəxsi məlumatları retention job ilə 24 aydan sonra anonymize edilir, əməliyyat statistikası isə saxlanılır.
-13. Köhnə email əsaslı auth/registration/payment/queue API-ləri production default olaraq `410 Gone` qaytarır və yalnız explicit compatibility flag ilə açıla bilər.
-14. Tamamlanmış canlı giriş və ya planlı booking yalnız ona bağlı qeydiyyatlı müştəri tərəfindən bir dəfə qiymətləndirilir. Eyni rating ilk yaradılmadan sonra yeddi gün ərzində edit edilə bilər.
-15. Public otaq cavabı yalnız average score və rating count göstərir; yazılı şərhlər yalnız səlahiyyətli room/business idarəçilərinə açıqdır.
+1. Provider abunəliyi yalnız aylıq coin paketi ilə aktivləşdirilir: fərdi iş sahəsi `30 coin` (`3 AZN` ekvivalenti), biznes isə `100 coin` (`10 AZN` ekvivalenti) ödəyir. Bank payment provider-ləri subscription checkout üçün istifadə edilmir.
+2. Coin çıxışı, dəyişməz subscription payment qeydi və abunəliyin aktivləşdirilməsi/uzadılması bir DB transaction-da tamamlanır. Eyni user və idempotency key təkrar göndəriləndə ikinci debit və ikinci uzatma yaranmır.
+3. Fərdi planın otaq limiti `1`, biznes planının standart otaq limiti `5`-dir. Altıncı aktiv biznes otağı yaradılmır və daha yüksək limit üçün support müraciəti göstərilir.
+4. Otaq əməliyyatları abunəlik gate-i ilə qorunur. Test mühitində əvvəlki mərhələlərin regression testləri üçün gate ayrıca söndürülə bilər; production default aktivdir.
+5. Hesab sahibliyi mübahisəsi public support müraciəti ilə yaradılır və admin `NO_ACTION`, `SUSPEND`, `RESET_PASSWORD` və ya `RESTORE_ACCESS` qərarı verə bilər.
+6. Admin password reset etdikdə bütün sessiyalar ləğv edilir, şifrə silinir və hesab müddətsiz `PASSWORD_RESET_REQUIRED` olur. İstifadəçi eyni telefonla adi register ekranında yeni şifrə qoyur.
+7. Telefon dəyişməsi və hesab silinməsi yalnız support müraciəti və admin qərarı ilə aparılır. Aktiv biznes primary owner-i ownership-i ötürmədən anonymize edilmir.
+8. Biznes primary ownership transferi hədəf aktiv admin tərəfindən qəbul ediləndə atomik tamamlanır; əvvəlki owner `ADMIN` qalır.
+9. Room owner qeydiyyatlı müştərini səbəb göstərərək yalnız öz otağında block edə bilər; business owner/admin həmin block-u revoke edə bilər. Block canlı və planlı yeni girişlərə tətbiq olunur.
+10. Platform admin hesab, business, room, aktiv subscription, tamamlanmış coin və tarixi subscription ödənişləri, həmçinin açıq support müraciəti saylarını ümumi overview-da görür. Admin qərarları dəyişməz platform audit event-i yaradır.
+11. Business owner/admin bütün biznes üzrə, room owner isə səlahiyyətli otaq üzrə tarix aralığına bağlı operational statistikaları görə bilər.
+12. Hesabat canlı növbə, planlı booking, completed/cancelled/skipped/removed/reset, guest/registered iştirakçı, təxmini gözləmə, busiest day/hour və təxmini capacity göstəricilərini saxlayır.
+13. Operational hesabat `.xlsx` kimi endirilə bilər. Maliyyə gəliri, profit və average receipt Step 6 hesabatına daxil deyil.
+14. Guest şəxsi məlumatları retention job ilə 24 aydan sonra anonymize edilir, əməliyyat statistikası isə saxlanılır.
+15. Köhnə email əsaslı auth/registration/payment/queue API-ləri `410 Gone` qaytarır; compatibility flag yalnız local və test mühitləri üçündür, production-da qadağandır.
+16. Tamamlanmış canlı giriş və ya planlı booking yalnız ona bağlı qeydiyyatlı müştəri tərəfindən bir dəfə qiymətləndirilir. Eyni rating ilk yaradılmadan sonra yeddi gün ərzində edit edilə bilər.
+17. Public otaq cavabı yalnız average score və rating count göstərir; yazılı şərhlər yalnız səlahiyyətli room/business idarəçilərinə açıqdır.
 
 ## 12.1. Public discovery və frontend contract
 
@@ -353,6 +367,23 @@ Yeni `USER` tarixçəsi həm hesabla birbaşa yaradılmış queue entry-ləri, h
 3. Service revenue, average receipt və profit kimi maliyyə analitikası customer-service payment modeli qurulandan sonra əlavə ediləcək.
 4. Avtomatik telefon təsdiqi və SMS əsaslı password recovery yoxdur; identity və telefon dəyişmə support tərəfindən manual idarə olunur.
 5. Köhnə legacy guest qeydlərində telefon yoxdursa həmin tarixçə avtomatik vahid hesaba bağlana bilməz.
+
+## 12.3. Platform admin idarəetməsi
+
+1. İlk platform admin hesabı konfiqurasiyadakı BCrypt credential ilə yalnız hesab mövcud olmadıqda yaradılır. Production mühitində default credential istifadəsinə icazə verilmir.
+2. Platform admin ayrıca admin hesabları yarada bilər. Şifrələr plain text saxlanılmır və admin siyahısı şifrə hash-i qaytarmır.
+3. Admin istifadəçiləri səhifələnmiş və axtarışlı siyahıda coin balansı ilə görür. Manual coin əlavəsi səbəb və idempotency key tələb edir; təkrar sorğu ikinci dəfə balans artırmır.
+4. Admin abunəlik qeydi olan biznesin otaq limitini yalnız artıra bilər. Limit mövcud otaq sayından az və `1000`-dən çox ola bilməz.
+5. Manual artırılmış otaq limiti növbəti aylıq coin ödənişində standart `5` otağa geri qaytarılmır.
+6. Admin hesabının yaradılması, coin əlavəsi və otaq limiti artımı platform audit jurnalına yazılır.
+7. Bütün admin idarəetmə endpoint-ləri həm security chain, həm də use-case girişində `ADMIN` səlahiyyəti tələb edir.
+
+## 12.4. Coin production keçidi
+
+1. `/api/subscriptions/checkout` və köhnə subscription payment read/confirm/cancel endpoint-ləri autentifikasiyadan sonra həmişə `410 Gone` qaytarır.
+2. Payment reconciliation yalnız local/test legacy registration sessiyalarını əhatə edə bilər; provider subscription sessiyası üçün bank provayderinə çıxmır və production default olaraq bağlıdır.
+3. Keçid miqrasiyası yarımçıq `PROVIDER_SUBSCRIPTION` bank sessiyalarını `CANCELLED` edir və xarici order şifrəsini silir. Tamamlanmış tarixi qəbzlər silinmir.
+4. Production rejimi legacy API və payment reconciliation aktivdirsə işə düşmür. Bank kartı ilə balans artırma ayrıca gələcək inteqrasiya kimi qalır.
 
 ## 13. Dəyişiklik zamanı qorunacaq qaydalar
 

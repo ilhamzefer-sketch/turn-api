@@ -12,6 +12,8 @@ public class SubscriptionMapper {
                 plan.getBillingPeriod(),
                 plan.getAmount(),
                 plan.getCurrency(),
+                plan.getScopeType(),
+                plan.getCoinPrice() == null ? 0 : plan.getCoinPrice(),
                 plan.getRoomLimit(),
                 plan.getEmployeeLimit()
         );

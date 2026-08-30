@@ -22,6 +22,7 @@ public class BusinessMembershipService {
     private final PhoneNumberService phoneNumberService;
     private final ProviderWorkspaceMapper mapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final WalletAccountProvisioningService walletAccountProvisioningService;
     private final Clock clock;
     private final int businessDailyLimit;
     private final int administratorDailyLimit;
@@ -36,6 +37,7 @@ public class BusinessMembershipService {
             PhoneNumberService phoneNumberService,
             ProviderWorkspaceMapper mapper,
             ApplicationEventPublisher eventPublisher,
+            WalletAccountProvisioningService walletAccountProvisioningService,
             Clock clock,
             @Value("${app.limits.pending-accounts.business-daily:500}") int businessDailyLimit,
             @Value("${app.limits.pending-accounts.administrator-daily:100}") int administratorDailyLimit,
@@ -49,6 +51,7 @@ public class BusinessMembershipService {
         this.phoneNumberService = phoneNumberService;
         this.mapper = mapper;
         this.eventPublisher = eventPublisher;
+        this.walletAccountProvisioningService = walletAccountProvisioningService;
         this.clock = clock;
         this.businessDailyLimit = businessDailyLimit;
         this.administratorDailyLimit = administratorDailyLimit;
@@ -185,7 +188,9 @@ public class BusinessMembershipService {
         user.setNormalizedPhone(phone);
         user.setStatus(UserStatus.PENDING);
         user.setCreatedByUser(actor);
-        return userRepository.saveAndFlush(user);
+        UserEntity saved = userRepository.saveAndFlush(user);
+        walletAccountProvisioningService.provision(saved);
+        return saved;
     }
 
     private void validatePendingAccountLimits(long businessId, long actorUserId) {
