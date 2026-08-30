@@ -11,21 +11,24 @@ public class AdminAccountBootstrap implements ApplicationRunner {
     private final AdminAccountService adminAccountService;
     private final String username;
     private final String passwordHash;
+    private final boolean mustChangeCredentials;
 
     public AdminAccountBootstrap(
             AdminAccountService adminAccountService,
-            @Value("${app.admin.username:admin}") String username,
-            @Value("${app.admin.password-hash}") String passwordHash
+            @Value("${app.admin.bootstrap-username:admin}") String username,
+            @Value("${app.admin.bootstrap-password-hash}") String passwordHash,
+            @Value("${app.admin.bootstrap-must-change:true}") boolean mustChangeCredentials
     ) {
         this.adminAccountService = adminAccountService;
         this.username = username;
         this.passwordHash = passwordHash;
+        this.mustChangeCredentials = mustChangeCredentials;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         try {
-            adminAccountService.bootstrap(username, passwordHash);
+            adminAccountService.bootstrap(username, passwordHash, mustChangeCredentials);
         } catch (DataIntegrityViolationException exception) {
             if (!adminAccountService.exists(username)) throw exception;
         }

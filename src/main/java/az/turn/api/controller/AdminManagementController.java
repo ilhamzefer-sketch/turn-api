@@ -59,6 +59,17 @@ public class AdminManagementController {
         return adminManagementService.creditCoins(admin.username(), userId, request);
     }
 
+    @PutMapping("/users/{userId}/password")
+    public ResponseEntity<Void> changeUserPassword(
+            @PathVariable @Positive long userId,
+            @Valid @RequestBody AdminUserPasswordUpdateRequestDto request,
+            Authentication authentication
+    ) {
+        AuthenticatedUser admin = requireAdmin(authentication);
+        adminManagementService.changeUserPassword(admin.username(), userId, request);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/businesses")
     public AdminBusinessPageDto businesses(
             @RequestParam(required = false) @Size(max = 100) String search,

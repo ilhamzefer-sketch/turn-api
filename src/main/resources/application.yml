@@ -128,6 +128,9 @@ app:
   admin:
     username: ${ADMIN_USERNAME:admin}
     password-hash: ${ADMIN_PASSWORD_HASH:$2y$10$3Ehrpe5CUmnRa79/msUu3O2mQ.qwbdj.e/zefTCP8wfrqhxwHM/LG}
+    bootstrap-username: admin
+    bootstrap-password-hash: $2y$10$Z5z8aWo9dvgFB/frrm30g.9LtgQmtppe0fgsH90rUWziqzEVJuequ
+    bootstrap-must-change: true
 
 management:
   server:

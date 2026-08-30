@@ -7,6 +7,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class RequestAuthenticationService {
+    private final AdminAccountRepository adminAccountRepository;
+
+    public RequestAuthenticationService(AdminAccountRepository adminAccountRepository) {
+        this.adminAccountRepository = adminAccountRepository;
+    }
 
     public AuthenticatedUser requireAuthenticated(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
@@ -18,6 +23,22 @@ public class RequestAuthenticationService {
     public AuthenticatedUser requireUser(Authentication authentication, AuthUserType userType) {
         AuthenticatedUser user = requireAuthenticated(authentication);
         if (user.userType() != userType) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu emeliyyat ucun icazeniz yoxdur.");
+        }
+        if (userType == AuthUserType.ADMIN && adminAccountRepository.findByUsername(user.username())
+                .map(AdminAccountEntity::isMustChangeCredentials)
+                .orElse(false)) {
+            throw new ResponseStatusException(
+                    HttpStatus.PRECONDITION_REQUIRED,
+                    "Davam etmək üçün ilkin admin istifadəçi adını və şifrəsini dəyişin."
+            );
+        }
+        return user;
+    }
+
+    public AuthenticatedUser requireAdminCredentialChange(Authentication authentication) {
+        AuthenticatedUser user = requireAuthenticated(authentication);
+        if (!user.isAdmin()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu emeliyyat ucun icazeniz yoxdur.");
         }
         return user;

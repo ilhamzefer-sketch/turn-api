@@ -62,6 +62,16 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity
 
     @Modifying
     @Query("update RefreshTokenEntity token set token.revoked = true, token.revokedAt = :revokedAt, token.revokeReason = :reason "
+            + "where token.userType = :userType and token.username = :username and token.revoked = false")
+    int revokeAllForUsername(
+            AuthUserType userType,
+            String username,
+            LocalDateTime revokedAt,
+            SessionRevocationReason reason
+    );
+
+    @Modifying
+    @Query("update RefreshTokenEntity token set token.revoked = true, token.revokedAt = :revokedAt, token.revokeReason = :reason "
             + "where token.userType = :userType and token.userId = :userId "
             + "and token.id <> :currentSessionId and token.revoked = false")
     int revokeOtherSessions(

@@ -74,4 +74,14 @@ public class UserSessionService {
                 SessionRevocationReason.MANUAL_REVOCATION
         );
     }
+
+    @Transactional
+    public void revokeAllSessionsForCredentialsChange(long userId) {
+        refreshTokenRepository.revokeAllForUser(
+                AuthUserType.USER,
+                userId,
+                LocalDateTime.now(clock),
+                SessionRevocationReason.CREDENTIALS_CHANGED
+        );
+    }
 }

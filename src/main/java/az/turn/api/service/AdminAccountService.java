@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
@@ -16,33 +18,46 @@ public class AdminAccountService {
     private final UserPasswordService userPasswordService;
     private final PasswordEncoder passwordEncoder;
     private final PlatformAuditService auditService;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final Clock clock;
 
     public AdminAccountService(
             AdminAccountRepository repository,
             AdminManagementMapper mapper,
             UserPasswordService userPasswordService,
             PasswordEncoder passwordEncoder,
-            PlatformAuditService auditService
+            PlatformAuditService auditService,
+            RefreshTokenRepository refreshTokenRepository,
+            Clock clock
     ) {
         this.repository = repository;
         this.mapper = mapper;
         this.userPasswordService = userPasswordService;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.clock = clock;
     }
 
     @Transactional
-    public void bootstrap(String username, String passwordHash) {
+    public void bootstrap(String username, String passwordHash, boolean mustChangeCredentials) {
         String normalizedUsername = normalizeUsername(username);
-        if (repository.existsByUsername(normalizedUsername)) return;
         if (passwordHash == null || !passwordHash.matches("^\\$2[aby]\\$.+")) {
             throw new IllegalStateException("Default admin şifrəsi BCrypt hash olmalıdır.");
+        }
+        AdminAccountEntity existing = repository.findByUsernameForUpdate(normalizedUsername).orElse(null);
+        if (existing != null) {
+            if (mustChangeCredentials && existing.isMustChangeCredentials()) {
+                existing.setPasswordHash(passwordHash);
+            }
+            return;
         }
         AdminAccountEntity admin = new AdminAccountEntity();
         admin.setUsername(normalizedUsername);
         admin.setDisplayName("Baş administrator");
         admin.setPasswordHash(passwordHash);
         admin.setActive(true);
+        admin.setMustChangeCredentials(mustChangeCredentials);
         repository.saveAndFlush(admin);
     }
 
@@ -63,6 +78,61 @@ public class AdminAccountService {
                 admin.getUsername(),
                 "ADMIN",
                 "Admin panelinə uğurla daxil oldunuz.",
+                admin.isMustChangeCredentials(),
+                null
+        );
+    }
+
+    @Transactional
+    public AdminLoginResponse changeRequiredCredentials(
+            String actorUsername,
+            AdminCredentialChangeRequestDto request
+    ) {
+        String currentUsername = normalizeUsername(actorUsername);
+        AdminAccountEntity admin = repository.findByUsernameForUpdate(currentUsername)
+                .orElseThrow(this::invalidCredentials);
+        if (!admin.isActive() || !matches(request.currentPassword(), admin.getPasswordHash())) {
+            throw invalidCredentials();
+        }
+        if (!admin.isMustChangeCredentials()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "İlkin giriş məlumatları artıq dəyişdirilib.");
+        }
+
+        String newUsername = normalizeUsername(request.newUsername());
+        if (newUsername.equals(currentUsername)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yeni istifadəçi adı ilkin istifadəçi adından fərqli olmalıdır.");
+        }
+        if (repository.existsByUsername(newUsername)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu admin istifadəçi adı artıq mövcuddur.");
+        }
+        if (matches(request.newPassword(), admin.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yeni şifrə ilkin şifrədən fərqli olmalıdır.");
+        }
+
+        admin.setUsername(newUsername);
+        admin.setPasswordHash(userPasswordService.encode(request.newPassword()));
+        admin.setMustChangeCredentials(false);
+        admin.setCredentialsChangedAt(LocalDateTime.now(clock));
+        repository.saveAndFlush(admin);
+        refreshTokenRepository.revokeAllForUsername(
+                AuthUserType.ADMIN,
+                currentUsername,
+                LocalDateTime.now(clock),
+                SessionRevocationReason.CREDENTIALS_CHANGED
+        );
+        auditService.record(
+                "ADMIN",
+                currentUsername,
+                "ADMIN_CREDENTIALS_CHANGED",
+                "ADMIN_ACCOUNT",
+                admin.getId(),
+                "username=" + currentUsername + "->" + newUsername
+        );
+        return new AdminLoginResponse(
+                newUsername,
+                "ADMIN",
+                "Admin giriş məlumatları yeniləndi.",
+                false,
                 null
         );
     }
@@ -83,6 +153,7 @@ public class AdminAccountService {
         admin.setDisplayName(required(request.displayName(), "Admin adı mütləqdir."));
         admin.setPasswordHash(userPasswordService.encode(request.password()));
         admin.setActive(true);
+        admin.setMustChangeCredentials(false);
         admin.setCreatedByUsername(actorUsername);
         AdminAccountEntity saved = repository.save(admin);
         auditService.record(

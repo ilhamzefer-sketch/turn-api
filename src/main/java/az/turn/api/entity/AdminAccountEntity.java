@@ -25,6 +25,10 @@ public class AdminAccountEntity {
     private String passwordHash;
     @Column(nullable = false)
     private boolean active;
+    @Column(nullable = false)
+    private boolean mustChangeCredentials;
+    @Column
+    private LocalDateTime credentialsChangedAt;
     @Column(length = 50)
     private String createdByUsername;
     @Column(nullable = false)
@@ -42,6 +46,10 @@ public class AdminAccountEntity {
     public void setPasswordHash(String value) { this.passwordHash = value; }
     public boolean isActive() { return active; }
     public void setActive(boolean value) { this.active = value; }
+    public boolean isMustChangeCredentials() { return mustChangeCredentials; }
+    public void setMustChangeCredentials(boolean value) { this.mustChangeCredentials = value; }
+    public LocalDateTime getCredentialsChangedAt() { return credentialsChangedAt; }
+    public void setCredentialsChangedAt(LocalDateTime value) { this.credentialsChangedAt = value; }
     public String getCreatedByUsername() { return createdByUsername; }
     public void setCreatedByUsername(String value) { this.createdByUsername = value; }
     public LocalDateTime getCreatedAt() { return createdAt; }

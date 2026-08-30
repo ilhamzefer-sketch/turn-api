@@ -44,6 +44,8 @@ class AdminManagementApiIntegrationTests {
     private ProviderSubscriptionRepository subscriptionRepository;
     @Autowired
     private SubscriptionActivationService activationService;
+    @Autowired
+    private UserPasswordService userPasswordService;
 
     @Test
     void defaultAdminListsUsersAndCreditsCoinsIdempotently() throws Exception {
@@ -125,6 +127,50 @@ class AdminManagementApiIntegrationTests {
     }
 
     @Test
+    void adminChangesUserPasswordWithoutExposingItAndRevokesExistingSessions() throws Exception {
+        TestCsrfToken registrationCsrf = csrf();
+        String oldAccessToken = register(registrationCsrf, "0501390104");
+        UserEntity user = userRepository.findByNormalizedPhone("+994501390104").orElseThrow();
+        String adminToken = loginAdmin(csrf(), "admin", "NovbeTime2026!Admin");
+        TestCsrfToken mutationCsrf = csrf();
+        String newPassword = "Changed-safe-2026";
+
+        MvcResult result = mockMvc.perform(put("/api/admin/users/{userId}/password", user.getId())
+                        .cookie(mutationCsrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, mutationCsrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode()
+                                .put("newPassword", newPassword)
+                                .put("reason", "İstifadəçinin təsdiqlənmiş müraciəti")
+                                .toString()))
+                .andExpect(status().isNoContent())
+                .andReturn();
+
+        assertThat(result.getResponse().getContentAsString()).isEmpty();
+        UserEntity updated = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(updated.getPasswordHash()).isNotEqualTo(newPassword).startsWith("{bcrypt-sha256}");
+        assertThat(userPasswordService.matches(newPassword, updated.getPasswordHash())).isTrue();
+        assertThat(updated.getPasswordChangedAt()).isNotNull();
+        assertThat(updated.getFailedLoginAttempts()).isZero();
+        assertThat(updated.getLockedUntil()).isNull();
+        assertThat(auditEventRepository.findAll())
+                .filteredOn(event -> "USER_PASSWORD_CHANGED".equals(event.getAction()))
+                .filteredOn(event -> user.getId().equals(event.getTargetId()))
+                .singleElement()
+                .satisfies(event -> {
+                    assertThat(event.getActorReference()).isEqualTo("admin");
+                    assertThat(event.getDetails()).contains("İstifadəçinin təsdiqlənmiş müraciəti");
+                    assertThat(event.getDetails()).doesNotContain(newPassword, updated.getPasswordHash());
+                });
+
+        mockMvc.perform(get("/api/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + oldAccessToken))
+                .andExpect(status().isUnauthorized());
+        loginUser(csrf(), "0501390104", newPassword);
+    }
+
+    @Test
     void adminIncreasesBusinessRoomLimitAndRenewalKeepsOverride() throws Exception {
         UserEntity owner = createOwner("+994501390103");
         BusinessEntity business = createBusiness(owner);
@@ -203,6 +249,20 @@ class AdminManagementApiIntegrationTests {
                                 .toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("accessToken").asText();
+    }
+
+    private String loginUser(TestCsrfToken csrf, String phone, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode()
+                                .put("phone", phone)
+                                .put("password", password)
+                                .toString()))
+                .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("accessToken").asText();
     }

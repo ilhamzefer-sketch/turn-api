@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -24,6 +26,9 @@ public class AdminManagementService {
     private final ProviderSubscriptionRepository subscriptionRepository;
     private final AdminManagementMapper mapper;
     private final PlatformAuditService auditService;
+    private final UserPasswordService userPasswordService;
+    private final UserSessionService userSessionService;
+    private final Clock clock;
 
     public AdminManagementService(
             UserRepository userRepository,
@@ -33,7 +38,10 @@ public class AdminManagementService {
             RoomRepository roomRepository,
             ProviderSubscriptionRepository subscriptionRepository,
             AdminManagementMapper mapper,
-            PlatformAuditService auditService
+            PlatformAuditService auditService,
+            UserPasswordService userPasswordService,
+            UserSessionService userSessionService,
+            Clock clock
     ) {
         this.userRepository = userRepository;
         this.walletAccountRepository = walletAccountRepository;
@@ -43,6 +51,9 @@ public class AdminManagementService {
         this.subscriptionRepository = subscriptionRepository;
         this.mapper = mapper;
         this.auditService = auditService;
+        this.userPasswordService = userPasswordService;
+        this.userSessionService = userSessionService;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -102,6 +113,40 @@ public class AdminManagementService {
                 "coins=" + request.amount() + ",reference=" + transaction.referenceKey()
         );
         return transaction;
+    }
+
+    @Transactional
+    public void changeUserPassword(
+            String actorUsername,
+            long userId,
+            AdminUserPasswordUpdateRequestDto request
+    ) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "İstifadəçi tapılmadı."));
+        if (user.getStatus() == UserStatus.ANONYMIZED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Anonimləşdirilmiş istifadəçinin şifrəsi dəyişdirilə bilməz.");
+        }
+        if (user.getStatus() == UserStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Qeydiyyatı tamamlanmamış istifadəçinin şifrəsi dəyişdirilə bilməz.");
+        }
+
+        user.setPasswordHash(userPasswordService.encode(request.newPassword()));
+        user.setPasswordChangedAt(LocalDateTime.now(clock));
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        if (user.getStatus() == UserStatus.PASSWORD_RESET_REQUIRED) {
+            user.setStatus(UserStatus.ACTIVE);
+        }
+        userRepository.save(user);
+        userSessionService.revokeAllSessionsForCredentialsChange(userId);
+        auditService.record(
+                "ADMIN",
+                actorUsername,
+                "USER_PASSWORD_CHANGED",
+                "USER",
+                userId,
+                "reason=" + request.reason().trim()
+        );
     }
 
     @Transactional

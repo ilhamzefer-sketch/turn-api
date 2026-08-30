@@ -105,7 +105,13 @@ public class ApiSessionService {
         preventCaching(response);
         AuthTokens tokens = authService.issueTokens(new AuthenticatedUser(AuthUserType.ADMIN, null, admin.username()));
         writeRefreshCookie(response, tokens.refreshToken(), tokens.refreshExpiresAt());
-        return new AdminLoginResponse(admin.username(), admin.role(), admin.message(), tokens.accessToken());
+        return new AdminLoginResponse(
+                admin.username(),
+                admin.role(),
+                admin.message(),
+                admin.mustChangeCredentials(),
+                tokens.accessToken()
+        );
     }
 
     public AccessTokenResponse refresh(HttpServletRequest request, HttpServletResponse response) {

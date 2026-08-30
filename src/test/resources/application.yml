@@ -35,5 +35,8 @@ app:
   admin:
     username: admin
     password-hash: $2y$10$3Ehrpe5CUmnRa79/msUu3O2mQ.qwbdj.e/zefTCP8wfrqhxwHM/LG
+    bootstrap-username: admin
+    bootstrap-password-hash: $2y$10$3Ehrpe5CUmnRa79/msUu3O2mQ.qwbdj.e/zefTCP8wfrqhxwHM/LG
+    bootstrap-must-change: false
   security:
     jwt-secret: test-only-secret-test-only-secret-test-only-secret-123456
