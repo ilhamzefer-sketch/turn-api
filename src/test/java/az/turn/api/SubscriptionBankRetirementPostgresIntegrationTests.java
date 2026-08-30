@@ -104,9 +104,10 @@ class SubscriptionBankRetirementPostgresIntegrationTests {
                     + "from businesses where name = 'Legacy business'");
             statement.executeUpdate("insert into rooms "
                     + "(branch_id, created_by_user_id, name, timezone, reservation_mode, "
-                    + "default_slot_duration_minutes, status, visibility) "
+                    + "default_slot_duration_minutes, status, visibility, "
+                    + "live_queue_reset_policy, live_queue_reset_local_time) "
                     + "select branch.id, owner.id, 'Legacy room ' || room_number, 'Asia/Baku', "
-                    + "'LIVE_QUEUE', 30, 'PUBLISHED', 'UNLISTED' "
+                    + "'LIVE_QUEUE', 30, 'PUBLISHED', 'UNLISTED', 'DAILY_AT_TIME', time '00:00:00' "
                     + "from branches branch "
                     + "join businesses business on business.id = branch.business_id "
                     + "join users owner on owner.id = business.primary_owner_user_id "
