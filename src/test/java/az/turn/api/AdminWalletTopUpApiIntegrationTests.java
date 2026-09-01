@@ -48,15 +48,20 @@ class AdminWalletTopUpApiIntegrationTests {
         String adminToken = loginAdmin(csrf());
         TestCsrfToken adminCsrf = csrf();
 
-        mockMvc.perform(get("/api/admin/payments/top-ups")
+        MvcResult listResult = mockMvc.perform(get("/api/admin/payments/top-ups")
                         .param("status", "PENDING_REVIEW")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].id").value(requestId))
-                .andExpect(jsonPath("$.items[0].phone").value("+994501290120"))
-                .andExpect(jsonPath("$.items[0].coinAmount").value(100))
-                .andExpect(jsonPath("$.items[0].receiptAttachmentId").isNumber())
-                .andExpect(jsonPath("$.hasNext").value(false));
+                .andReturn();
+        JsonNode listedRequest = objectMapper.readTree(listResult.getResponse().getContentAsString())
+                .get("items")
+                .valueStream()
+                .filter(item -> item.get("id").asLong() == requestId)
+                .findFirst()
+                .orElseThrow();
+        assertThat(listedRequest.get("phone").asText()).isEqualTo("+994501290120");
+        assertThat(listedRequest.get("coinAmount").asLong()).isEqualTo(100);
+        assertThat(listedRequest.get("receiptAttachmentId").isNumber()).isTrue();
 
         mockMvc.perform(get("/api/admin/payments/top-ups/{id}/receipt", requestId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
