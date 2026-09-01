@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -20,7 +21,15 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
             + "or lower(concat(user.firstName, ' ', user.lastName)) like :search "
             + "or user.normalizedPhone like :search "
             + "order by user.createdAt desc, user.id desc")
-    Page<UserEntity> searchForAdmin(String search, Pageable pageable);
+    Page<UserEntity> searchForAdmin(@Param("search") String search, Pageable pageable);
+
+    @Query("select user from UserEntity user where (:name is null "
+            + "or lower(user.firstName) like :name "
+            + "or lower(user.lastName) like :name "
+            + "or lower(concat(user.firstName, ' ', user.lastName)) like :name) "
+            + "and (:phone is null or user.normalizedPhone like :phone) "
+            + "order by user.createdAt desc, user.id desc")
+    Page<UserEntity> searchForAdminByNameAndPhone(@Param("name") String name, @Param("phone") String phone, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from UserEntity user where user.normalizedPhone = :normalizedPhone")

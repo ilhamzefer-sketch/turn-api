@@ -41,12 +41,15 @@ public class AdminManagementController {
     @GetMapping("/users")
     public AdminUserPageDto users(
             @RequestParam(required = false) @Size(max = 100) String search,
+            @RequestParam(required = false) @Size(max = 100) String name,
+            @RequestParam(required = false) @Size(max = 40) String phone,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
             Authentication authentication
     ) {
         requireAdmin(authentication);
-        return adminManagementService.users(search, page, size);
+        if (search != null && !search.isBlank()) return adminManagementService.users(search, page, size);
+        return adminManagementService.usersByNameAndPhone(name, phone, page, size);
     }
 
     @PostMapping("/users/{userId}/coins")

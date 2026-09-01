@@ -59,6 +59,20 @@ public class AdminManagementService {
     @Transactional(readOnly = true)
     public AdminUserPageDto users(String suppliedSearch, int page, int size) {
         Page<UserEntity> result = userRepository.searchForAdmin(normalizeSearch(suppliedSearch), PageRequest.of(page, size));
+        return mapUsers(result);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminUserPageDto usersByNameAndPhone(String suppliedName, String suppliedPhone, int page, int size) {
+        Page<UserEntity> result = userRepository.searchForAdminByNameAndPhone(
+                normalizeSearch(suppliedName),
+                normalizePhoneSearch(suppliedPhone),
+                PageRequest.of(page, size)
+        );
+        return mapUsers(result);
+    }
+
+    private AdminUserPageDto mapUsers(Page<UserEntity> result) {
         List<Long> userIds = result.getContent().stream().map(UserEntity::getId).toList();
         Map<Long, Long> balances = balances(userIds);
         List<AdminUserDto> items = result.getContent().stream()
@@ -209,6 +223,14 @@ public class AdminManagementService {
         if (value == null || value.isBlank()) return null;
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         if (normalized.matches("0[1-9]\\d{8}")) normalized = "+994" + normalized.substring(1);
+        return "%" + normalized + "%";
+    }
+
+    private String normalizePhoneSearch(String value) {
+        if (value == null || value.isBlank()) return null;
+        String normalized = value.trim().replaceAll("[^0-9+]", "");
+        if (normalized.matches("0[1-9]\\d{8}")) normalized = "+994" + normalized.substring(1);
+        if (normalized.isBlank()) return null;
         return "%" + normalized + "%";
     }
 }

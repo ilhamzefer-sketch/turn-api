@@ -95,6 +95,34 @@ class AdminManagementApiIntegrationTests {
     }
 
     @Test
+    void adminFiltersUsersByCombinedNameAndPhoneSeparately() throws Exception {
+        register(csrf(), "0501390106");
+        UserEntity user = userRepository.findByNormalizedPhone("+994501390106").orElseThrow();
+        user.setFirstName("Ceyhun");
+        user.setLastName("Ceyhunov");
+        userRepository.saveAndFlush(user);
+        String adminToken = loginAdmin(csrf(), "admin", "NovbeTime2026!Admin");
+
+        mockMvc.perform(get("/api/admin/users")
+                        .param("name", "Ceyhun Ceyhunov")
+                        .param("page", "0")
+                        .param("size", "20")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(user.getId()));
+
+        mockMvc.perform(get("/api/admin/users")
+                        .param("phone", "050 139 01 06")
+                        .param("page", "0")
+                        .param("size", "20")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(user.getId()));
+    }
+
+    @Test
     void adminCreatesAnotherAdminWhoCanLogIn() throws Exception {
         String adminToken = loginAdmin(csrf(), "admin", "NovbeTime2026!Admin");
         TestCsrfToken mutationCsrf = csrf();
