@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties(WalletProperties.class)
+@EnableConfigurationProperties({WalletProperties.class, UploadProperties.class})
 public class TurnApiApplication {
 
     public static void main(String[] args) {

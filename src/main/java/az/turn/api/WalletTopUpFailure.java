@@ -1,0 +1,10 @@
+package az.turn.api;
+
+public enum WalletTopUpFailure {
+    PACKAGE_NOT_FOUND,
+    ACTIVE_REQUEST_EXISTS,
+    REQUEST_NOT_FOUND,
+    RECEIPT_WINDOW_EXPIRED,
+    RECEIPT_ALREADY_SUBMITTED,
+    ATTACHMENT_NOT_FOUND
+}

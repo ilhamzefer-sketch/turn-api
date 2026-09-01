@@ -2,6 +2,9 @@ package az.turn.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,12 +12,14 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -224,6 +229,82 @@ class WalletApiIntegrationTests {
                                 .toString()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void createsFixedTopUpRequestAndBlocksAnotherActiveRequest() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String accessToken = register(csrf, "0501290110");
+        String body = objectMapper.createObjectNode().put("packageCode", "AZN_10").toString();
+
+        mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.packageCode").value("AZN_10"))
+                .andExpect(jsonPath("$.amountAzn").value(10))
+                .andExpect(jsonPath("$.coinAmount").value(100))
+                .andExpect(jsonPath("$.paymentUrl").value("https://cb.birbank.business/pay/75c998cbda8e4674bb11cbf961d91c27"))
+                .andExpect(jsonPath("$.status").value("AWAITING_RECEIPT"))
+                .andExpect(jsonPath("$.receiptUploadOpen").value(true));
+
+        mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_5").toString()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TOP_UP_ACTIVE_REQUEST_EXISTS"));
+
+        mockMvc.perform(get("/api/users/me/wallet/top-up-requests/active")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coinAmount").value(100));
+    }
+
+    @Test
+    void uploadsReceiptAndMovesRequestToPendingReview() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String accessToken = register(csrf, "0501290111");
+        MvcResult created = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_3").toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+        long requestId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asLong();
+
+        MockMultipartFile receipt = new MockMultipartFile(
+                "file", "kapital-receipt.png", MediaType.IMAGE_PNG_VALUE, pngBytes()
+        );
+        mockMvc.perform(multipart("/api/users/me/wallet/top-up-requests/{id}/receipt", requestId)
+                        .file(receipt)
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
+                .andExpect(jsonPath("$.receiptUploadedAt").exists())
+                .andExpect(jsonPath("$.receiptUploadOpen").value(false));
+
+        assertThat(walletTopUpRequestRepository.findById(requestId).orElseThrow().getReceiptAttachment()).isNotNull();
+    }
+
+    @Autowired
+    private WalletTopUpRequestRepository walletTopUpRequestRepository;
+
+    private byte[] pngBytes() throws Exception {
+        BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            ImageIO.write(image, "png", output);
+            return output.toByteArray();
+        }
     }
 
     private String register(TestCsrfToken csrf, String phone) throws Exception {

@@ -12,6 +12,9 @@ spring:
 
 app:
   env: prod
+  upload:
+    antivirus:
+      enabled: ${APP_UPLOAD_ANTIVIRUS_ENABLED:true}
   payment:
     mode: live
   security:

@@ -25,6 +25,8 @@ docker compose -f compose.local.yml up -d
 - `APP_ALLOWED_ORIGINS`
 - `APP_LEGACY_API_ENABLED=false`, `APP_PAYMENT_RECONCILIATION_ENABLED=false`
 - `APP_WALLET_COINS_PER_AZN=10`, `APP_WALLET_WHATSAPP_URL=https://wa.me/message/P63GI5XJ3PQLC1`
+- `APP_UPLOAD_STORAGE_ROOT=/var/lib/novbetime/uploads`
+- `APP_UPLOAD_ANTIVIRUS_ENABLED=true`, `APP_UPLOAD_CLAMAV_HOST=clamav`, `APP_UPLOAD_CLAMAV_PORT=3310`
 
 ## Prod
 
@@ -42,6 +44,11 @@ docker compose -f compose.local.yml up -d
 - `ADMIN_PASSWORD_HASH=<BCrypt hash>`
 - `APP_RATE_LIMIT_STORE=redis`
 - `REDIS_SSL_ENABLED=true`
+- `APP_UPLOAD_STORAGE_ROOT=<private persistent storage yolu>`
+- `APP_UPLOAD_ANTIVIRUS_ENABLED=true`
+- `APP_UPLOAD_CLAMAV_HOST=<daxili ClamAV hostu>`, `APP_UPLOAD_CLAMAV_PORT=3310`
+
+Yüklənən şəkillər maksimum 5 MB olmalıdır və yalnız JPEG/PNG qəbul edilir. Storage ictimai web root-dan kənarda qalmalıdır. ClamAV TCP portu internetə açılmamalıdır; tətbiq skan xidməti əlçatan olmadıqda faylı qəbul etmir.
 
 Sessiya limitləri server tərəfindən tətbiq olunur. Refresh rotasiyası inactivity və absolute deadline-ları uzatmır. Background polling istifadəçi fəaliyyəti sayılmır; yalnız frontend-in real interaction heartbeat-i idle deadline-ı absolute deadline həddinə qədər yeniləyir.
 

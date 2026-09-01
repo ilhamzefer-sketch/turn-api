@@ -4,19 +4,53 @@ services:
     restart: unless-stopped
     env_file:
       - ${ENV_FILE:?ENV_FILE is required}
+    environment:
+      APP_UPLOAD_STORAGE_ROOT: /var/lib/novbetime/uploads
+      APP_UPLOAD_ANTIVIRUS_ENABLED: "true"
+      APP_UPLOAD_CLAMAV_HOST: clamav
+      APP_UPLOAD_CLAMAV_PORT: "3310"
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
       - "127.0.0.1:${MANAGEMENT_PORT:-9090}:9090"
     read_only: true
     tmpfs:
       - /tmp
+    volumes:
+      - turn-upload-data:/var/lib/novbetime/uploads
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    depends_on:
+      clamav:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/actuator/health/readiness | grep -q UP"]
       interval: 15s
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    expose:
+      - "3310"
+    volumes:
+      - turn-clamav-data:/var/lib/clamav
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping=1"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+volumes:
+  turn-upload-data:
+  turn-clamav-data:

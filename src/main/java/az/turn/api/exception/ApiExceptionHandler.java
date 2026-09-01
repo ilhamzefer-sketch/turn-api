@@ -10,8 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -45,7 +47,11 @@ public class ApiExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message, request);
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, MissingRequestHeaderException.class})
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MissingRequestHeaderException.class,
+            MissingServletRequestPartException.class
+    })
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest(Exception exception, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST", "Sorğu məlumatları natamam və ya düzgün formatda deyil.", request);
     }
@@ -65,6 +71,53 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.CONFLICT, "DATA_CONFLICT", "Məlumat mövcud qeyd və ya biznes qaydası ilə ziddiyyət təşkil edir.", request);
+    }
+
+    @ExceptionHandler(SecureUploadException.class)
+    public ResponseEntity<ApiErrorResponse> handleSecureUpload(
+            SecureUploadException exception,
+            HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.getFailure()) {
+            case FILE_TOO_LARGE -> HttpStatus.PAYLOAD_TOO_LARGE;
+            case MALWARE_DETECTED, INVALID_IMAGE, IMAGE_DIMENSIONS_EXCEEDED -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case SCANNER_UNAVAILABLE, STORAGE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            case OWNER_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case EMPTY_FILE, UNSUPPORTED_FILE_TYPE -> HttpStatus.BAD_REQUEST;
+        };
+        return error(
+                status,
+                "UPLOAD_" + exception.getFailure().name(),
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(
+            MaxUploadSizeExceededException exception,
+            HttpServletRequest request
+    ) {
+        return error(
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                "UPLOAD_FILE_TOO_LARGE",
+                "Faylın ölçüsü 5 MB-dan böyük ola bilməz.",
+                request
+        );
+    }
+
+    @ExceptionHandler(WalletTopUpException.class)
+    public ResponseEntity<ApiErrorResponse> handleWalletTopUp(
+            WalletTopUpException exception,
+            HttpServletRequest request
+    ) {
+        HttpStatus status = switch (exception.getFailure()) {
+            case PACKAGE_NOT_FOUND -> HttpStatus.BAD_REQUEST;
+            case ACTIVE_REQUEST_EXISTS, RECEIPT_ALREADY_SUBMITTED -> HttpStatus.CONFLICT;
+            case REQUEST_NOT_FOUND, ATTACHMENT_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case RECEIPT_WINDOW_EXPIRED -> HttpStatus.GONE;
+        };
+        return error(status, "TOP_UP_" + exception.getFailure().name(), exception.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)

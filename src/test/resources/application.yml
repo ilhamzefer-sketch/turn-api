@@ -23,6 +23,18 @@ spring:
 
 app:
   env: test
+  upload:
+    storage-root: ${java.io.tmpdir}/novbetime-test-uploads
+    max-file-bytes: 5242880
+    max-dimension-pixels: 10000
+    max-image-pixels: 25000000
+    antivirus:
+      enabled: false
+      host: 127.0.0.1
+      port: 3310
+      connect-timeout: 1s
+      read-timeout: 1s
+      chunk-bytes: 8192
   wallet:
     coins-per-azn: 10
     minimum-top-up-coins: 1

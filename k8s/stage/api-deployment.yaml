@@ -5,10 +5,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+    type: Recreate
   selector:
     matchLabels:
       app: turn-api
@@ -23,6 +20,8 @@ spec:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: turn-api
           image: ghcr.io/ilhamzefer-sketch/turn-api:stage
@@ -154,6 +153,24 @@ spec:
               value: https://wa.me/message/P63GI5XJ3PQLC1
             - name: APP_PAYMENT_RECONCILIATION_ENABLED
               value: "false"
+            - name: APP_UPLOAD_STORAGE_ROOT
+              value: /var/lib/novbetime/uploads
+            - name: APP_UPLOAD_MAX_FILE_BYTES
+              value: "5242880"
+            - name: APP_UPLOAD_MAX_DIMENSION_PIXELS
+              value: "10000"
+            - name: APP_UPLOAD_MAX_IMAGE_PIXELS
+              value: "25000000"
+            - name: APP_UPLOAD_ANTIVIRUS_ENABLED
+              value: "true"
+            - name: APP_UPLOAD_CLAMAV_HOST
+              value: clamav
+            - name: APP_UPLOAD_CLAMAV_PORT
+              value: "3310"
+            - name: APP_UPLOAD_CLAMAV_CONNECT_TIMEOUT
+              value: 2s
+            - name: APP_UPLOAD_CLAMAV_READ_TIMEOUT
+              value: 15s
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -191,6 +208,11 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: uploads
+              mountPath: /var/lib/novbetime/uploads
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: turn-uploads

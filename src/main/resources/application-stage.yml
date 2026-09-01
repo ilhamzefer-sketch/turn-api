@@ -10,6 +10,9 @@ spring:
 
 app:
   env: stage
+  upload:
+    antivirus:
+      enabled: ${APP_UPLOAD_ANTIVIRUS_ENABLED:true}
   payment:
     mode: test
   security:

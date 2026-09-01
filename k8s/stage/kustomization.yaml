@@ -11,6 +11,11 @@ resources:
   - redis-pvc.yaml
   - redis-deployment.yaml
   - redis-service.yaml
+  - uploads-pvc.yaml
+  - clamav-pvc.yaml
+  - clamav-deployment.yaml
+  - clamav-service.yaml
+  - clamav-network-policy.yaml
   - api-deployment.yaml
   - api-service.yaml
   - api-internal-service.yaml

@@ -20,6 +20,10 @@ spring:
   h2:
     console:
       enabled: false
+  servlet:
+    multipart:
+      max-file-size: ${APP_UPLOAD_MAX_FILE_SIZE:5MB}
+      max-request-size: ${APP_UPLOAD_MAX_REQUEST_SIZE:6MB}
   data:
     redis:
       repositories:
@@ -43,11 +47,23 @@ server:
     enabled: true
   shutdown: graceful
   tomcat:
-    max-http-form-post-size: 64KB
-    max-swallow-size: 64KB
+    max-http-form-post-size: ${APP_UPLOAD_MAX_REQUEST_SIZE:6MB}
+    max-swallow-size: ${APP_UPLOAD_MAX_REQUEST_SIZE:6MB}
 
 app:
   env: ${APP_ENV:local}
+  upload:
+    storage-root: ${APP_UPLOAD_STORAGE_ROOT:/tmp/novbetime-uploads}
+    max-file-bytes: ${APP_UPLOAD_MAX_FILE_BYTES:5242880}
+    max-dimension-pixels: ${APP_UPLOAD_MAX_DIMENSION_PIXELS:10000}
+    max-image-pixels: ${APP_UPLOAD_MAX_IMAGE_PIXELS:25000000}
+    antivirus:
+      enabled: ${APP_UPLOAD_ANTIVIRUS_ENABLED:false}
+      host: ${APP_UPLOAD_CLAMAV_HOST:127.0.0.1}
+      port: ${APP_UPLOAD_CLAMAV_PORT:3310}
+      connect-timeout: ${APP_UPLOAD_CLAMAV_CONNECT_TIMEOUT:2s}
+      read-timeout: ${APP_UPLOAD_CLAMAV_READ_TIMEOUT:15s}
+      chunk-bytes: ${APP_UPLOAD_CLAMAV_CHUNK_BYTES:8192}
   wallet:
     coins-per-azn: ${APP_WALLET_COINS_PER_AZN:10}
     minimum-top-up-coins: ${APP_WALLET_MINIMUM_TOP_UP_COINS:1}

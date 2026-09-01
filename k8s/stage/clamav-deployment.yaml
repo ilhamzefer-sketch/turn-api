@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clamav
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: clamav
+  template:
+    metadata:
+      labels:
+        app: clamav
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: clamav
+          image: clamav/clamav:1.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: clamd
+              containerPort: 3310
+          env:
+            - name: FRESHCLAM_CHECKS
+              value: "24"
+          startupProbe:
+            exec:
+              command: ["clamdscan", "--ping=1"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 90
+          readinessProbe:
+            exec:
+              command: ["clamdscan", "--ping=1"]
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          livenessProbe:
+            exec:
+              command: ["clamdscan", "--ping=1"]
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 4
+          resources:
+            requests:
+              cpu: 250m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: clamav-data
+              mountPath: /var/lib/clamav
+      volumes:
+        - name: clamav-data
+          persistentVolumeClaim:
+            claimName: clamav-data
