@@ -28,13 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class WalletApiIntegrationTests {
     @Autowired
     private MockMvc mockMvc;
-
     @Autowired
     private ObjectMapper objectMapper;
-
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private WalletTransactionService transactionService;
 
@@ -43,6 +40,9 @@ class WalletApiIntegrationTests {
 
     @Autowired
     private AdminPlatformService adminPlatformService;
+
+    @Autowired
+    private SecureAttachmentRepository secureAttachmentRepository;
 
     @Test
     void registeredUserReadsBalanceAndPaginatedLedger() throws Exception {
@@ -267,7 +267,7 @@ class WalletApiIntegrationTests {
     }
 
     @Test
-    void uploadsReceiptAndMovesRequestToPendingReview() throws Exception {
+    void uploadsReceiptCreditsWalletImmediatelyAndPreventsDuplicateCredit() throws Exception {
         TestCsrfToken csrf = csrf();
         String accessToken = register(csrf, "0501290111");
         MvcResult created = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
@@ -289,15 +289,70 @@ class WalletApiIntegrationTests {
                         .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
+                .andExpect(jsonPath("$.status").value("AUTO_CREDITED_PENDING_REVIEW"))
                 .andExpect(jsonPath("$.receiptUploadedAt").exists())
                 .andExpect(jsonPath("$.receiptUploadOpen").value(false));
 
-        assertThat(walletTopUpRequestRepository.findById(requestId).orElseThrow().getReceiptAttachment()).isNotNull();
+        UserEntity user = userRepository.findByNormalizedPhone("+994501290111").orElseThrow();
+        WalletTopUpRequestEntity request = walletTopUpRequestRepository.findById(requestId).orElseThrow();
+        assertThat(request.getReceiptAttachment()).isNotNull();
+        assertThat(request.getWalletTransaction()).isNotNull();
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(30);
+
+        MockMultipartFile duplicate = new MockMultipartFile(
+                "file", "duplicate.png", MediaType.IMAGE_PNG_VALUE, pngBytes()
+        );
+        mockMvc.perform(multipart("/api/users/me/wallet/top-up-requests/{id}/receipt", requestId)
+                        .file(duplicate)
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isConflict());
+
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(30);
+    }
+
+    @Test
+    void uploadsAValidatedPdfReceipt() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String accessToken = register(csrf, "0501290112");
+        MvcResult created = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_5").toString()))
+                .andExpect(status().isOk())
+                .andReturn();
+        long requestId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asLong();
+
+        MockMultipartFile receipt = new MockMultipartFile(
+                "file", "kapital-receipt.pdf", MediaType.APPLICATION_PDF_VALUE, SecurePdfTestFiles.onePage()
+        );
+        mockMvc.perform(multipart("/api/users/me/wallet/top-up-requests/{id}/receipt", requestId)
+                        .file(receipt)
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AUTO_CREDITED_PENDING_REVIEW"));
+
+        Long attachmentId = walletTopUpRequestRepository.findById(requestId)
+                .orElseThrow()
+                .getReceiptAttachment()
+                .getId();
+        SecureAttachmentEntity attachment = secureAttachmentRepository.findById(attachmentId).orElseThrow();
+        assertThat(attachment.getMediaType()).isEqualTo(MediaType.APPLICATION_PDF_VALUE);
+        assertThat(attachment.getFileExtension()).isEqualTo("pdf");
+        assertThat(attachment.getWidthPixels()).isZero();
+        assertThat(attachment.getHeightPixels()).isZero();
     }
 
     @Autowired
     private WalletTopUpRequestRepository walletTopUpRequestRepository;
+
+    @Autowired
+    private WalletAccountRepository walletAccountRepository;
 
     private byte[] pngBytes() throws Exception {
         BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB);

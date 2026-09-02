@@ -53,6 +53,9 @@ public class UserEntity {
     @Column(nullable = false)
     private int failedLoginAttempts;
 
+    @Column(nullable = false)
+    private int confirmedWalletFraudCount;
+
     @Column
     private LocalDateTime lockedUntil;
 
@@ -149,6 +152,26 @@ public class UserEntity {
 
     public void setFailedLoginAttempts(int failedLoginAttempts) {
         this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public int getConfirmedWalletFraudCount() {
+        return confirmedWalletFraudCount;
+    }
+
+    public void setConfirmedWalletFraudCount(int confirmedWalletFraudCount) {
+        if (confirmedWalletFraudCount < 0) {
+            throw new IllegalArgumentException("Təsdiqlənmiş fırıldaq sayı mənfi ola bilməz.");
+        }
+        this.confirmedWalletFraudCount = confirmedWalletFraudCount;
+    }
+
+    public int registerConfirmedWalletFraud() {
+        confirmedWalletFraudCount = Math.incrementExact(confirmedWalletFraudCount);
+        return confirmedWalletFraudCount;
+    }
+
+    public boolean requiresManualWalletTopUpReview() {
+        return confirmedWalletFraudCount >= 3;
     }
 
     public LocalDateTime getLockedUntil() {

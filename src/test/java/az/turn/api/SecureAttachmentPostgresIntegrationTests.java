@@ -63,6 +63,27 @@ class SecureAttachmentPostgresIntegrationTests {
         }
     }
 
+    @Test
+    void allowsPdfOnlyForPaymentReceiptsWithoutImageDimensions() throws Exception {
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            long userId = insertUser(statement);
+            insertAttachment(statement, userId, "PAYMENT_RECEIPT", "application/pdf", "pdf", 256, 0, 0, "CLEAN");
+
+            assertThrows(
+                    SQLException.class,
+                    () -> insertAttachment(
+                            statement, userId, "SUPPORT_REQUEST", "application/pdf", "pdf", 256, 0, 0, "CLEAN"
+                    )
+            );
+            assertThrows(
+                    SQLException.class,
+                    () -> insertAttachment(
+                            statement, userId, "PAYMENT_RECEIPT", "application/pdf", "pdf", 256, 1, 1, "CLEAN"
+                    )
+            );
+        }
+    }
+
     private long insertUser(Statement statement) throws SQLException {
         try (ResultSet result = statement.executeQuery(
                 "insert into users (first_name, last_name, normalized_phone, password_hash, status) "
@@ -83,12 +104,36 @@ class SecureAttachmentPostgresIntegrationTests {
             int height,
             String scanStatus
     ) throws SQLException {
+        insertAttachment(
+                statement,
+                userId,
+                "PAYMENT_RECEIPT",
+                mediaType,
+                extension,
+                size,
+                width,
+                height,
+                scanStatus
+        );
+    }
+
+    private void insertAttachment(
+            Statement statement,
+            long userId,
+            String purpose,
+            String mediaType,
+            String extension,
+            long size,
+            int width,
+            int height,
+            String scanStatus
+    ) throws SQLException {
         String key = String.format("ab/ab123456-1234-1234-1234-%012d.%s", System.nanoTime() % 1_000_000_000_000L, extension);
         statement.executeUpdate(
                 "insert into secure_attachments "
                         + "(owner_user_id, purpose, storage_key, original_filename, media_type, file_extension, "
                         + "size_bytes, width_pixels, height_pixels, sha256, scan_status, scanned_at, created_at) values ("
-                        + userId + ", 'PAYMENT_RECEIPT', '" + key + "', 'receipt." + extension + "', '"
+                        + userId + ", '" + purpose + "', '" + key + "', 'receipt." + extension + "', '"
                         + mediaType + "', '" + extension + "', " + size + ", " + width + ", " + height + ", '"
                         + "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', '"
                         + scanStatus + "', current_timestamp, current_timestamp)"

@@ -26,19 +26,23 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminWalletTopUpController {
     private final RequestAuthenticationService authenticationService;
     private final AdminWalletTopUpService topUpService;
+    private final WalletTopUpFraudService fraudService;
 
     public AdminWalletTopUpController(
             RequestAuthenticationService authenticationService,
-            AdminWalletTopUpService topUpService
+            AdminWalletTopUpService topUpService,
+            WalletTopUpFraudService fraudService
     ) {
         this.authenticationService = authenticationService;
         this.topUpService = topUpService;
+        this.fraudService = fraudService;
     }
 
     @GetMapping
     public AdminTopUpRequestPageDto list(
             @RequestParam(required = false)
-            @Pattern(regexp = "(?i)AWAITING_RECEIPT|PENDING_REVIEW|APPROVED|REJECTED|EXPIRED") String status,
+            @Pattern(regexp = "(?i)REVIEW_REQUIRED|AWAITING_RECEIPT|PENDING_REVIEW|MANUAL_REVIEW|"
+                    + "AUTO_CREDITED_PENDING_REVIEW|APPROVED|VERIFIED|REJECTED|FRAUD_CONFIRMED|EXPIRED") String status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             Authentication authentication
@@ -63,12 +67,13 @@ public class AdminWalletTopUpController {
     ) {
         requireAdmin(authentication);
         AttachmentDownload download = topUpService.receipt(requestId);
+        ContentDisposition disposition = download.mediaType().equals(MediaType.APPLICATION_PDF_VALUE)
+                ? ContentDisposition.attachment().filename(download.filename()).build()
+                : ContentDisposition.inline().filename(download.filename()).build();
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(download.mediaType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
-                        .filename(download.filename())
-                        .build()
-                        .toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header("X-Content-Type-Options", "nosniff")
                 .body(new ByteArrayResource(download.bytes()));
     }
 
@@ -90,6 +95,16 @@ public class AdminWalletTopUpController {
     ) {
         AuthenticatedUser admin = requireAdmin(authentication);
         return topUpService.reject(requestId, admin.username(), request);
+    }
+
+    @PostMapping("/{requestId}/confirm-fraud")
+    public AdminTopUpRequestDto confirmFraud(
+            @PathVariable @Positive long requestId,
+            @Valid @RequestBody AdminTopUpFraudRequestDto request,
+            Authentication authentication
+    ) {
+        AuthenticatedUser admin = requireAdmin(authentication);
+        return fraudService.confirm(requestId, admin.username(), request);
     }
 
     private AuthenticatedUser requireAdmin(Authentication authentication) {

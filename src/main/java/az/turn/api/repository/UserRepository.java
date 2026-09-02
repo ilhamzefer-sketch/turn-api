@@ -34,4 +34,8 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from UserEntity user where user.normalizedPhone = :normalizedPhone")
     Optional<UserEntity> findByNormalizedPhoneForUpdate(String normalizedPhone);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select user from UserEntity user where user.id = :userId")
+    Optional<UserEntity> findByIdForUpdate(long userId);
 }

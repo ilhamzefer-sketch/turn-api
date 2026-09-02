@@ -10,7 +10,7 @@ public class SecureAttachmentService {
     private final UserRepository userRepository;
     private final SecureAttachmentRepository attachmentRepository;
     private final SecureUploadInputReader inputReader;
-    private final SecureImageNormalizer imageNormalizer;
+    private final SecureReceiptNormalizer normalizer;
     private final MalwareScanner malwareScanner;
     private final PrivateAttachmentStorage storage;
     private final SecureStorageKeyGenerator storageKeyGenerator;
@@ -20,7 +20,7 @@ public class SecureAttachmentService {
             UserRepository userRepository,
             SecureAttachmentRepository attachmentRepository,
             SecureUploadInputReader inputReader,
-            SecureImageNormalizer imageNormalizer,
+            SecureReceiptNormalizer normalizer,
             MalwareScanner malwareScanner,
             PrivateAttachmentStorage storage,
             SecureStorageKeyGenerator storageKeyGenerator,
@@ -29,7 +29,7 @@ public class SecureAttachmentService {
         this.userRepository = userRepository;
         this.attachmentRepository = attachmentRepository;
         this.inputReader = inputReader;
-        this.imageNormalizer = imageNormalizer;
+        this.normalizer = normalizer;
         this.malwareScanner = malwareScanner;
         this.storage = storage;
         this.storageKeyGenerator = storageKeyGenerator;
@@ -39,33 +39,50 @@ public class SecureAttachmentService {
     public StoredSecureAttachment storeImage(
             long ownerUserId,
             SecureAttachmentPurpose purpose,
-            SecureImageUploadCommand command
+            SecureUploadCommand command
+    ) {
+        return store(ownerUserId, purpose, command, false);
+    }
+
+    public StoredSecureAttachment storePaymentReceipt(
+            long ownerUserId,
+            SecureUploadCommand command
+    ) {
+        return store(ownerUserId, SecureAttachmentPurpose.PAYMENT_RECEIPT, command, true);
+    }
+
+    private StoredSecureAttachment store(
+            long ownerUserId,
+            SecureAttachmentPurpose purpose,
+            SecureUploadCommand command,
+            boolean allowPdf
     ) {
         UserEntity owner = userRepository.findById(ownerUserId)
                 .orElseThrow(() -> new SecureUploadException(
                         SecureUploadFailure.OWNER_NOT_FOUND,
                         "İstifadəçi tapılmadı."
                 ));
-        SecureImageSource source = inputReader.read(command);
+        SecureUploadSource source = inputReader.read(command);
         requireClean(malwareScanner.scan(source.bytes()));
-        NormalizedImage image = imageNormalizer.normalize(source);
-        String filename = imageNormalizer.sanitizeFilename(source.originalFilename());
-        String storageKey = storageKeyGenerator.generate(image.fileExtension());
+        NormalizedAttachment file = allowPdf
+                ? normalizer.normalizeReceipt(source)
+                : normalizer.normalizeImage(source);
+        String storageKey = storageKeyGenerator.generate(file.fileExtension());
         LocalDateTime now = LocalDateTime.now(clock);
-        storage.store(storageKey, image.bytes());
+        storage.store(storageKey, file.bytes());
         try {
             SecureAttachmentEntity attachment = attachmentRepository.saveAndFlush(
                     new SecureAttachmentEntity(
                             owner,
                             purpose,
                             storageKey,
-                            filename,
-                            image.mediaType(),
-                            image.fileExtension(),
-                            image.bytes().length,
-                            image.widthPixels(),
-                            image.heightPixels(),
-                            image.sha256(),
+                            file.originalFilename(),
+                            file.mediaType(),
+                            file.fileExtension(),
+                            file.bytes().length,
+                            file.widthPixels(),
+                            file.heightPixels(),
+                            file.sha256(),
                             now
                     )
             );

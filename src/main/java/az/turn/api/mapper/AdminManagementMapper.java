@@ -23,6 +23,7 @@ public class AdminManagementMapper {
                 user.getNormalizedPhone(),
                 user.getStatus(),
                 balance,
+                user.getConfirmedWalletFraudCount(),
                 user.getCreatedAt()
         );
     }

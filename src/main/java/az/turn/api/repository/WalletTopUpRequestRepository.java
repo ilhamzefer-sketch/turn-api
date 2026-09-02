@@ -22,7 +22,7 @@ public interface WalletTopUpRequestRepository extends JpaRepository<WalletTopUpR
             Pageable pageable
     );
 
-    Slice<WalletTopUpRequestEntity> findByStatusInOrderByCreatedAtAscIdAsc(
+    Slice<WalletTopUpRequestEntity> findByStatusInOrderByReceiptUploadedAtAscIdAsc(
             Collection<WalletTopUpRequestStatus> statuses,
             Pageable pageable
     );

@@ -3,6 +3,7 @@ package az.turn.api;
 public enum WalletTransactionType {
     ADMIN_CREDIT(WalletTransactionDirection.CREDIT),
     TOP_UP(WalletTransactionDirection.CREDIT),
+    TOP_UP_REVERSAL(WalletTransactionDirection.DEBIT),
     SUBSCRIPTION_PAYMENT(WalletTransactionDirection.DEBIT),
     REFUND(WalletTransactionDirection.CREDIT);
 

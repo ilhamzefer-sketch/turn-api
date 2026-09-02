@@ -9,6 +9,7 @@ public record AdminUserDto(
         String phone,
         UserStatus status,
         long coinBalance,
+        int confirmedWalletFraudCount,
         LocalDateTime createdAt
 ) {
 }

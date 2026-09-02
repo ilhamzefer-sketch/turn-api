@@ -78,7 +78,7 @@ public class UserSupportRequestService {
         if (request.getStatus() != SupportRequestStatus.OPEN && request.getStatus() != SupportRequestStatus.IN_REVIEW) {
             throw conflict("Yekunlaşdırılmış müraciətə şəkil əlavə edilə bilməz.");
         }
-        SecureImageUploadCommand command = multipartCommand(file);
+        SecureUploadCommand command = multipartCommand(file);
         StoredSecureAttachment stored = attachmentService.storeImage(userId, SecureAttachmentPurpose.SUPPORT_REQUEST, command);
         SecureAttachmentEntity attachment = attachmentRepository.findById(stored.id())
                 .orElseThrow(() -> notFound("Şəkil əlavəsi tapılmadı."));
@@ -150,12 +150,12 @@ public class UserSupportRequestService {
         return mapAdmin(saved);
     }
 
-    private SecureImageUploadCommand multipartCommand(MultipartFile file) {
+    private SecureUploadCommand multipartCommand(MultipartFile file) {
         if (file == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Şəkil faylı tələb olunur.");
         }
         try {
-            return new SecureImageUploadCommand(file.getOriginalFilename(), file.getContentType(), file.getSize(), file.getInputStream());
+            return new SecureUploadCommand(file.getOriginalFilename(), file.getContentType(), file.getSize(), file.getInputStream());
         } catch (IOException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Şəkil faylı oxuna bilmədi.", exception);
         }

@@ -78,6 +78,12 @@ public class WalletTopUpRequestEntity {
     @JoinColumn(name = "wallet_transaction_id", unique = true)
     private WalletTransactionEntity walletTransaction;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reversal_wallet_transaction_id", unique = true)
+    private WalletTransactionEntity reversalWalletTransaction;
+
+    private Integer fraudCountAfter;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -180,6 +186,14 @@ public class WalletTopUpRequestEntity {
         return walletTransaction;
     }
 
+    public WalletTransactionEntity getReversalWalletTransaction() {
+        return reversalWalletTransaction;
+    }
+
+    public Integer getFraudCountAfter() {
+        return fraudCountAfter;
+    }
+
     public SecureAttachmentEntity getReceiptAttachment() {
         return receiptAttachment;
     }
@@ -202,25 +216,28 @@ public class WalletTopUpRequestEntity {
     }
 
     public void submitReceipt(SecureAttachmentEntity attachment, LocalDateTime submittedAt) {
-        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
-        if (attachment == null || attachment.getPurpose() != SecureAttachmentPurpose.PAYMENT_RECEIPT
-                || attachment.getOwnerUser().getId() == null
-                || !attachment.getOwnerUser().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("Çek əlavəsi bu istifadəçiyə aid deyil.");
-        }
+        attachReceipt(attachment);
         submitReceipt(submittedAt);
-        receiptAttachment = attachment;
+    }
+
+    public void submitReceiptForManualReview(SecureAttachmentEntity attachment, LocalDateTime submittedAt) {
+        attachReceipt(attachment);
+        submitReceiptAt(submittedAt, WalletTopUpRequestStatus.MANUAL_REVIEW);
+    }
+
+    public void submitReceiptWithAutomaticCredit(
+            SecureAttachmentEntity attachment,
+            WalletTransactionEntity transaction,
+            LocalDateTime submittedAt
+    ) {
+        attachReceipt(attachment);
+        requireTopUpTransaction(transaction);
+        walletTransaction = transaction;
+        submitReceiptAt(submittedAt, WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW);
     }
 
     public void submitReceipt(LocalDateTime submittedAt) {
-        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
-        LocalDateTime uploadTime = Objects.requireNonNull(submittedAt);
-        if (!uploadTime.isBefore(receiptDeadlineAt)) {
-            throw new IllegalStateException("Çek yükləmə müddəti bitib.");
-        }
-        status = WalletTopUpRequestStatus.PENDING_REVIEW;
-        receiptUploadedAt = uploadTime;
-        updatedAt = uploadTime;
+        submitReceiptAt(submittedAt, WalletTopUpRequestStatus.PENDING_REVIEW);
     }
 
     public boolean expire(LocalDateTime now) {
@@ -240,7 +257,7 @@ public class WalletTopUpRequestEntity {
             WalletTransactionEntity transaction,
             LocalDateTime approvedAt
     ) {
-        requireStatus(WalletTopUpRequestStatus.PENDING_REVIEW);
+        requireStatusIn(WalletTopUpRequestStatus.PENDING_REVIEW, WalletTopUpRequestStatus.MANUAL_REVIEW);
         reviewedByAdmin = Objects.requireNonNull(admin);
         walletTransaction = Objects.requireNonNull(transaction);
         reviewedAt = Objects.requireNonNull(approvedAt);
@@ -249,8 +266,17 @@ public class WalletTopUpRequestEntity {
         updatedAt = approvedAt;
     }
 
+    public void verify(AdminAccountEntity admin, LocalDateTime verifiedAt) {
+        requireStatus(WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW);
+        reviewedByAdmin = Objects.requireNonNull(admin);
+        reviewedAt = Objects.requireNonNull(verifiedAt);
+        status = WalletTopUpRequestStatus.VERIFIED;
+        activeUserId = null;
+        updatedAt = verifiedAt;
+    }
+
     public void reject(AdminAccountEntity admin, String reason, LocalDateTime rejectedAt) {
-        requireStatus(WalletTopUpRequestStatus.PENDING_REVIEW);
+        requireStatusIn(WalletTopUpRequestStatus.PENDING_REVIEW, WalletTopUpRequestStatus.MANUAL_REVIEW);
         String normalizedReason = Objects.requireNonNull(reason).trim();
         if (normalizedReason.isEmpty()) {
             throw new IllegalArgumentException("Rədd səbəbi boş ola bilməz.");
@@ -263,8 +289,92 @@ public class WalletTopUpRequestEntity {
         updatedAt = rejectedAt;
     }
 
+    public void confirmFraud(
+            AdminAccountEntity admin,
+            WalletTransactionEntity reversalTransaction,
+            int confirmedFraudCount,
+            String reason,
+            LocalDateTime confirmedAt
+    ) {
+        requireFraudReviewStatus();
+        String normalizedReason = Objects.requireNonNull(reason).trim();
+        if (normalizedReason.isEmpty() || confirmedFraudCount < 1) {
+            throw new IllegalArgumentException("Fırıldaq təsdiqi məlumatları düzgün deyil.");
+        }
+        if (status == WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW) {
+            requireReversalTransaction(reversalTransaction);
+        } else if (reversalTransaction != null) {
+            throw new IllegalArgumentException("Manual yoxlamada coin geri çəkmə əməliyyatı ola bilməz.");
+        }
+        reviewedByAdmin = Objects.requireNonNull(admin);
+        reversalWalletTransaction = reversalTransaction;
+        fraudCountAfter = confirmedFraudCount;
+        reviewedAt = Objects.requireNonNull(confirmedAt);
+        resolutionNote = normalizedReason;
+        status = WalletTopUpRequestStatus.FRAUD_CONFIRMED;
+        activeUserId = null;
+        updatedAt = confirmedAt;
+    }
+
+    private void attachReceipt(SecureAttachmentEntity attachment) {
+        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        if (attachment == null || attachment.getPurpose() != SecureAttachmentPurpose.PAYMENT_RECEIPT
+                || attachment.getOwnerUser().getId() == null
+                || !attachment.getOwnerUser().getId().equals(user.getId())) {
+            throw new IllegalArgumentException("Çek əlavəsi bu istifadəçiyə aid deyil.");
+        }
+        receiptAttachment = attachment;
+    }
+
+    private void submitReceiptAt(LocalDateTime submittedAt, WalletTopUpRequestStatus nextStatus) {
+        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        LocalDateTime uploadTime = Objects.requireNonNull(submittedAt);
+        if (!uploadTime.isBefore(receiptDeadlineAt)) {
+            throw new IllegalStateException("Çek yükləmə müddəti bitib.");
+        }
+        status = Objects.requireNonNull(nextStatus);
+        receiptUploadedAt = uploadTime;
+        updatedAt = uploadTime;
+    }
+
+    private void requireTopUpTransaction(WalletTransactionEntity transaction) {
+        WalletTransactionEntity suppliedTransaction = Objects.requireNonNull(transaction);
+        Long walletUserId = suppliedTransaction.getWalletAccount().getUser().getId();
+        if (suppliedTransaction.getType() != WalletTransactionType.TOP_UP
+                || walletUserId == null
+                || !walletUserId.equals(user.getId())
+                || suppliedTransaction.getAmount() != coinAmount) {
+            throw new IllegalArgumentException("Coin əməliyyatı balans artırma sorğusuna uyğun deyil.");
+        }
+    }
+
+    private void requireReversalTransaction(WalletTransactionEntity transaction) {
+        WalletTransactionEntity suppliedTransaction = Objects.requireNonNull(transaction);
+        Long walletUserId = suppliedTransaction.getWalletAccount().getUser().getId();
+        if (suppliedTransaction.getType() != WalletTransactionType.TOP_UP_REVERSAL
+                || walletUserId == null
+                || !walletUserId.equals(user.getId())
+                || suppliedTransaction.getAmount() != coinAmount) {
+            throw new IllegalArgumentException("Coin geri çəkmə əməliyyatı sorğuya uyğun deyil.");
+        }
+    }
+
     private void requireStatus(WalletTopUpRequestStatus expectedStatus) {
         if (status != expectedStatus) {
+            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
+        }
+    }
+
+    private void requireStatusIn(WalletTopUpRequestStatus first, WalletTopUpRequestStatus second) {
+        if (status != first && status != second) {
+            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
+        }
+    }
+
+    private void requireFraudReviewStatus() {
+        if (status != WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW
+                && status != WalletTopUpRequestStatus.MANUAL_REVIEW
+                && status != WalletTopUpRequestStatus.PENDING_REVIEW) {
             throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
         }
     }

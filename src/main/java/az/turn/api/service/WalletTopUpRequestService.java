@@ -101,10 +101,9 @@ public class WalletTopUpRequestService {
             throw new SecureUploadException(SecureUploadFailure.EMPTY_FILE, "Çek faylı seçilməyib.");
         }
         try {
-            return attachmentService.storeImage(
+            return attachmentService.storePaymentReceipt(
                     userId,
-                    SecureAttachmentPurpose.PAYMENT_RECEIPT,
-                    new SecureImageUploadCommand(
+                    new SecureUploadCommand(
                             file.getOriginalFilename(),
                             file.getContentType(),
                             file.getSize(),
@@ -113,7 +112,7 @@ public class WalletTopUpRequestService {
             ).id();
         } catch (IOException exception) {
             throw new SecureUploadException(
-                    SecureUploadFailure.INVALID_IMAGE,
+                    SecureUploadFailure.INVALID_FILE,
                     "Çek faylı oxuna bilmədi.",
                     exception
             );

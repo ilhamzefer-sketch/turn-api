@@ -26,7 +26,7 @@ public class SecureImageNormalizer {
         this.properties = properties;
     }
 
-    public NormalizedImage normalize(SecureImageSource source) {
+    public NormalizedImage normalize(SecureUploadSource source) {
         SecureImageType type = SecureImageType.detect(source.bytes());
         String filename = sanitizeFilename(source.originalFilename());
         validateDeclaredType(source.declaredMediaType(), type);

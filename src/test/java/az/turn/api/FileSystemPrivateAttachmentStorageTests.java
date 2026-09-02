@@ -29,6 +29,18 @@ class FileSystemPrivateAttachmentStorageTests {
     }
 
     @Test
+    void storesPdfContentUsingTheSamePrivateKeyRules() {
+        FileSystemPrivateAttachmentStorage storage = storage(10);
+        String pdfKey = "cd/cd123456-1234-1234-1234-123456789012.pdf";
+
+        storage.store(pdfKey, new byte[]{4, 5, 6});
+
+        assertThat(storage.read(pdfKey)).containsExactly(4, 5, 6);
+        storage.deleteIfExists(pdfKey);
+        assertThat(Files.exists(temporaryDirectory.resolve(pdfKey))).isFalse();
+    }
+
+    @Test
     void rejectsTraversalInvalidKeysAndOversizedContent() {
         FileSystemPrivateAttachmentStorage storage = storage(2);
 

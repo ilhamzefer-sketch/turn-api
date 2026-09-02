@@ -26,7 +26,7 @@ class SecureImageNormalizerTests {
         System.arraycopy(payload, 0, polyglot, image.length, payload.length);
 
         NormalizedImage normalized = normalizer.normalize(
-                new SecureImageSource("ödəniş çeki.png", "image/png", polyglot)
+                new SecureUploadSource("ödəniş çeki.png", "image/png", polyglot)
         );
 
         assertThat(normalized.mediaType()).isEqualTo("image/png");
@@ -41,7 +41,7 @@ class SecureImageNormalizerTests {
     @Test
     void acceptsJpegAndNormalizesItsExtension() throws Exception {
         NormalizedImage normalized = normalizer.normalize(
-                new SecureImageSource("receipt.jpeg", "image/jpeg", image("jpg", 2, 2))
+                new SecureUploadSource("receipt.jpeg", "image/jpeg", image("jpg", 2, 2))
         );
 
         assertThat(normalized.mediaType()).isEqualTo("image/jpeg");
@@ -51,15 +51,15 @@ class SecureImageNormalizerTests {
     @Test
     void rejectsMismatchedMimeExtensionAndMagicBytes() throws Exception {
         assertFailure(
-                new SecureImageSource("receipt.png", "image/jpeg", image("png", 2, 2)),
+                new SecureUploadSource("receipt.png", "image/jpeg", image("png", 2, 2)),
                 SecureUploadFailure.UNSUPPORTED_FILE_TYPE
         );
         assertFailure(
-                new SecureImageSource("receipt.jpg", "image/png", image("png", 2, 2)),
+                new SecureUploadSource("receipt.jpg", "image/png", image("png", 2, 2)),
                 SecureUploadFailure.UNSUPPORTED_FILE_TYPE
         );
         assertFailure(
-                new SecureImageSource("receipt.png", "image/png", "not-an-image".getBytes(StandardCharsets.UTF_8)),
+                new SecureUploadSource("receipt.png", "image/png", "not-an-image".getBytes(StandardCharsets.UTF_8)),
                 SecureUploadFailure.UNSUPPORTED_FILE_TYPE
         );
     }
@@ -67,7 +67,7 @@ class SecureImageNormalizerTests {
     @Test
     void rejectsImagesOutsidePixelAndDimensionLimits() throws Exception {
         assertFailure(
-                new SecureImageSource("large.png", "image/png", image("png", 11, 1)),
+                new SecureUploadSource("large.png", "image/png", image("png", 11, 1)),
                 SecureUploadFailure.IMAGE_DIMENSIONS_EXCEEDED
         );
     }
@@ -90,7 +90,7 @@ class SecureImageNormalizerTests {
         }
     }
 
-    private void assertFailure(SecureImageSource source, SecureUploadFailure expected) {
+    private void assertFailure(SecureUploadSource source, SecureUploadFailure expected) {
         assertThatThrownBy(() -> normalizer.normalize(source))
                 .isInstanceOfSatisfying(SecureUploadException.class, exception ->
                         assertThat(exception.getFailure()).isEqualTo(expected));

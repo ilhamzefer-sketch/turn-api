@@ -80,7 +80,7 @@ public class ApiExceptionHandler {
     ) {
         HttpStatus status = switch (exception.getFailure()) {
             case FILE_TOO_LARGE -> HttpStatus.PAYLOAD_TOO_LARGE;
-            case MALWARE_DETECTED, INVALID_IMAGE, IMAGE_DIMENSIONS_EXCEEDED -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case MALWARE_DETECTED, INVALID_FILE, INVALID_IMAGE, IMAGE_DIMENSIONS_EXCEEDED -> HttpStatus.UNPROCESSABLE_ENTITY;
             case SCANNER_UNAVAILABLE, STORAGE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case OWNER_NOT_FOUND -> HttpStatus.NOT_FOUND;
             case EMPTY_FILE, UNSUPPORTED_FILE_TYPE -> HttpStatus.BAD_REQUEST;

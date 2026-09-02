@@ -82,10 +82,56 @@ class WalletTopUpPostgresIntegrationTests {
         }
     }
 
+    @Test
+    void preparesFraudCountAndTopUpReversalConstraints() throws Exception {
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            long userId = insertUser(statement, "+994501293405");
+            assertThat(readFraudCount(statement, userId)).isZero();
+            assertThrows(SQLException.class, () -> statement.executeUpdate(
+                    "update users set confirmed_wallet_fraud_count = -1 where id = " + userId
+            ));
+
+            long walletAccountId = insertWalletAccount(statement, userId);
+            statement.executeUpdate(
+                    "insert into wallet_transactions "
+                            + "(wallet_account_id, transaction_type, direction, amount, balance_before, balance_after, "
+                            + "actor_type, actor_reference, reference_key, created_at) values ("
+                            + walletAccountId + ", 'TOP_UP_REVERSAL', 'DEBIT', 30, 30, 0, "
+                            + "'SYSTEM', 'fraud-review-test', 'top-up-reversal:valid', current_timestamp)"
+            );
+            assertThrows(SQLException.class, () -> statement.executeUpdate(
+                    "insert into wallet_transactions "
+                            + "(wallet_account_id, transaction_type, direction, amount, balance_before, balance_after, "
+                            + "actor_type, actor_reference, reference_key, created_at) values ("
+                            + walletAccountId + ", 'TOP_UP_REVERSAL', 'CREDIT', 30, 0, 30, "
+                            + "'SYSTEM', 'fraud-review-test', 'top-up-reversal:invalid', current_timestamp)"
+            ));
+        }
+    }
+
     private long insertUser(Statement statement, String phone) throws SQLException {
         try (ResultSet result = statement.executeQuery(
                 "insert into users (first_name, last_name, normalized_phone, password_hash, status) "
                         + "values ('Top up', 'Postgres', '" + phone + "', 'hash', 'ACTIVE') returning id"
+        )) {
+            result.next();
+            return result.getLong(1);
+        }
+    }
+
+    private int readFraudCount(Statement statement, long userId) throws SQLException {
+        try (ResultSet result = statement.executeQuery(
+                "select confirmed_wallet_fraud_count from users where id = " + userId
+        )) {
+            result.next();
+            return result.getInt(1);
+        }
+    }
+
+    private long insertWalletAccount(Statement statement, long userId) throws SQLException {
+        try (ResultSet result = statement.executeQuery(
+                "insert into wallet_accounts (user_id, balance, currency, version, created_at, updated_at) values ("
+                        + userId + ", 30, 'COIN', 0, current_timestamp, current_timestamp) returning id"
         )) {
             result.next();
             return result.getLong(1);

@@ -10,15 +10,21 @@ import java.time.LocalDateTime;
 public class WalletTopUpRequestStateService {
     private final WalletTopUpRequestRepository requestRepository;
     private final SecureAttachmentRepository attachmentRepository;
+    private final UserRepository userRepository;
+    private final WalletTopUpCreditService creditService;
     private final Clock clock;
 
     public WalletTopUpRequestStateService(
             WalletTopUpRequestRepository requestRepository,
             SecureAttachmentRepository attachmentRepository,
+            UserRepository userRepository,
+            WalletTopUpCreditService creditService,
             Clock clock
     ) {
         this.requestRepository = requestRepository;
         this.attachmentRepository = attachmentRepository;
+        this.userRepository = userRepository;
+        this.creditService = creditService;
         this.clock = clock;
     }
 
@@ -86,7 +92,17 @@ public class WalletTopUpRequestStateService {
                     "Yüklənmiş fayl ödəniş çeki kimi istifadə edilə bilməz."
             );
         }
-        request.submitReceipt(attachment, uploadedAt);
+        UserEntity user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new WalletTopUpException(
+                        WalletTopUpFailure.REQUEST_NOT_FOUND,
+                        "İstifadəçi tapılmadı."
+                ));
+        if (user.requiresManualWalletTopUpReview()) {
+            request.submitReceiptForManualReview(attachment, uploadedAt);
+        } else {
+            WalletTransactionEntity transaction = creditService.credit(request);
+            request.submitReceiptWithAutomaticCredit(attachment, transaction, uploadedAt);
+        }
         return requestRepository.saveAndFlush(request);
     }
 

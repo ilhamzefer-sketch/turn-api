@@ -7,6 +7,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class SubscriptionCoinPaymentService {
@@ -69,12 +70,14 @@ public class SubscriptionCoinPaymentService {
                 .orElse(null);
         if (concurrentReplay != null) return replay(concurrentReplay, request, planCode);
 
-        ProviderSubscriptionEntity subscription = subscriptionRepository
-                .findByScopeTypeAndScopeId(request.scopeType(), request.scopeId())
+        Optional<ProviderSubscriptionEntity> existingSubscription = subscriptionRepository
+                .findByScopeTypeAndScopeId(request.scopeType(), request.scopeId());
+        ProviderSubscriptionEntity subscription = existingSubscription
                 .orElseGet(() -> createSubscription(request, plan));
+        SubscriptionCoinPaymentEntity payment = new SubscriptionCoinPaymentEntity();
+        payment.captureSubscriptionState(subscription, existingSubscription.isPresent());
         ProviderSubscriptionEntity activated = activationService.activate(subscription.getId(), plan);
         LocalDateTime now = LocalDateTime.now(clock);
-        SubscriptionCoinPaymentEntity payment = new SubscriptionCoinPaymentEntity();
         payment.setPayerUser(userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "İstifadəçi tapılmadı.")));
         payment.setProviderSubscription(activated);

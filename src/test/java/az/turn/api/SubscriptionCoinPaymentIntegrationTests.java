@@ -65,6 +65,45 @@ class SubscriptionCoinPaymentIntegrationTests {
                 walletAccountRepository.findByUserId(owner.getId()).orElseThrow().getId()
         )).isEqualTo(2);
         assertThat(coinPaymentRepository.count()).isPositive();
+        SubscriptionCoinPaymentEntity payment = coinPaymentRepository.findById(first.paymentId()).orElseThrow();
+        assertThat(payment.isSubscriptionStateCaptured()).isTrue();
+        assertThat(payment.isSubscriptionExistedBefore()).isFalse();
+    }
+
+    @Test
+    void capturesTheActiveSubscriptionBeforeARenewalExtendsIt() {
+        UserEntity owner = user("+994501390006");
+        credit(owner, 60, "renewal-credit");
+        IndividualWorkspaceResponseDto workspace = workspaceService.create(
+                owner.getId(),
+                new IndividualWorkspaceCreateRequestDto("Yenilənən sahə", "Asia/Baku")
+        );
+        SubscriptionCoinPurchaseDto first = coinPaymentService.purchase(
+                owner.getId(),
+                purchaseRequest(
+                        ProviderScopeType.INDIVIDUAL_WORKSPACE,
+                        workspace.id(),
+                        "INDIVIDUAL_MONTHLY",
+                        "renewal-one"
+                )
+        );
+
+        SubscriptionCoinPurchaseDto second = coinPaymentService.purchase(
+                owner.getId(),
+                purchaseRequest(
+                        ProviderScopeType.INDIVIDUAL_WORKSPACE,
+                        workspace.id(),
+                        "INDIVIDUAL_MONTHLY",
+                        "renewal-two"
+                )
+        );
+
+        SubscriptionCoinPaymentEntity payment = coinPaymentRepository.findById(second.paymentId()).orElseThrow();
+        assertThat(payment.isSubscriptionStateCaptured()).isTrue();
+        assertThat(payment.isSubscriptionExistedBefore()).isTrue();
+        assertThat(payment.getPreviousSubscriptionStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(payment.getPreviousExpiresAt()).isEqualTo(first.subscription().expiresAt());
+        assertThat(second.subscription().expiresAt()).isAfter(first.subscription().expiresAt());
     }
 
     @Test

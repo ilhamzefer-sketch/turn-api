@@ -9,16 +9,24 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 
 @Service
 public class AdminWalletTopUpService {
+    private static final List<WalletTopUpRequestStatus> REVIEW_REQUIRED_STATUSES = List.of(
+            WalletTopUpRequestStatus.PENDING_REVIEW,
+            WalletTopUpRequestStatus.MANUAL_REVIEW,
+            WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW
+    );
+
     private final WalletTopUpRequestRepository requestRepository;
     private final AdminAccountRepository adminRepository;
     private final WalletAccountRepository walletAccountRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final WalletTransactionService walletTransactionService;
     private final PrivateAttachmentStorage attachmentStorage;
+    private final AdminTopUpRequestMapper mapper;
     private final PlatformAuditService auditService;
     private final Clock clock;
 
@@ -29,6 +37,7 @@ public class AdminWalletTopUpService {
             WalletTransactionRepository walletTransactionRepository,
             WalletTransactionService walletTransactionService,
             PrivateAttachmentStorage attachmentStorage,
+            AdminTopUpRequestMapper mapper,
             PlatformAuditService auditService,
             Clock clock
     ) {
@@ -38,6 +47,7 @@ public class AdminWalletTopUpService {
         this.walletTransactionRepository = walletTransactionRepository;
         this.walletTransactionService = walletTransactionService;
         this.attachmentStorage = attachmentStorage;
+        this.mapper = mapper;
         this.auditService = auditService;
         this.clock = clock;
     }
@@ -46,14 +56,19 @@ public class AdminWalletTopUpService {
     public AdminTopUpRequestPageDto list(String suppliedStatus, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
         Slice<WalletTopUpRequestEntity> result;
-        WalletTopUpRequestStatus status = parseStatus(suppliedStatus);
-        if (status == null) {
+        if (isReviewRequired(suppliedStatus)) {
+            result = requestRepository.findByStatusInOrderByReceiptUploadedAtAscIdAsc(
+                    REVIEW_REQUIRED_STATUSES,
+                    pageable
+            );
+        } else if (suppliedStatus == null || suppliedStatus.isBlank()) {
             result = requestRepository.findAllByOrderByCreatedAtAscIdAsc(pageable);
         } else {
+            WalletTopUpRequestStatus status = parseStatus(suppliedStatus);
             result = requestRepository.findByStatusOrderByReceiptUploadedAtAscIdAsc(status, pageable);
         }
         return new AdminTopUpRequestPageDto(
-                result.getContent().stream().map(this::map).toList(),
+                result.getContent().stream().map(mapper::toDto).toList(),
                 result.getNumber(),
                 result.getSize(),
                 result.hasNext()
@@ -62,7 +77,7 @@ public class AdminWalletTopUpService {
 
     @Transactional(readOnly = true)
     public AdminTopUpRequestDto get(long requestId) {
-        return map(requireRequest(requestId));
+        return mapper.toDto(requireRequest(requestId));
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +97,10 @@ public class AdminWalletTopUpService {
     @Transactional
     public AdminTopUpRequestDto approve(long requestId, String adminUsername, AdminTopUpReviewRequestDto suppliedNote) {
         AdminAccountEntity admin = requireAdmin(adminUsername);
-        WalletTopUpRequestEntity request = lockedPendingRequest(requestId);
+        WalletTopUpRequestEntity request = lockedReviewRequest(requestId);
+        if (request.getStatus() == WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW) {
+            return verifyAutomaticCredit(request, admin, adminUsername);
+        }
         String note = normalizeNote(suppliedNote == null ? null : suppliedNote.note());
         String reference = "top-up-request:" + requestId;
         walletTransactionService.apply(
@@ -107,27 +125,51 @@ public class AdminWalletTopUpService {
         requestRepository.saveAndFlush(request);
         auditService.record("ADMIN", adminUsername, "WALLET_TOP_UP_APPROVED", "WALLET_TOP_UP_REQUEST", requestId,
                 "coins=" + request.getCoinAmount());
-        return map(request);
+        return mapper.toDto(request);
     }
 
     @Transactional
     public AdminTopUpRequestDto reject(long requestId, String adminUsername, AdminTopUpRejectRequestDto suppliedRequest) {
         AdminAccountEntity admin = requireAdmin(adminUsername);
-        WalletTopUpRequestEntity request = lockedPendingRequest(requestId);
+        WalletTopUpRequestEntity request = lockedManualRequest(requestId);
         String reason = normalizeRequiredReason(suppliedRequest.reason());
         LocalDateTime now = LocalDateTime.now(clock);
         request.reject(admin, reason, now);
         requestRepository.saveAndFlush(request);
         auditService.record("ADMIN", adminUsername, "WALLET_TOP_UP_REJECTED", "WALLET_TOP_UP_REQUEST", requestId,
                 "reason=" + reason);
-        return map(request);
+        return mapper.toDto(request);
     }
 
-    private WalletTopUpRequestEntity lockedPendingRequest(long requestId) {
+    private AdminTopUpRequestDto verifyAutomaticCredit(
+            WalletTopUpRequestEntity request,
+            AdminAccountEntity admin,
+            String adminUsername
+    ) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        request.verify(admin, now);
+        requestRepository.saveAndFlush(request);
+        auditService.record("ADMIN", adminUsername, "WALLET_TOP_UP_VERIFIED", "WALLET_TOP_UP_REQUEST", request.getId(),
+                "coins=" + request.getCoinAmount());
+        return mapper.toDto(request);
+    }
+
+    private WalletTopUpRequestEntity lockedReviewRequest(long requestId) {
         WalletTopUpRequestEntity request = requestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Balans artırma sorğusu tapılmadı."));
-        if (request.getStatus() != WalletTopUpRequestStatus.PENDING_REVIEW) {
+        if (!REVIEW_REQUIRED_STATUSES.contains(request.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Yalnız gözləyən çek sorğusu bağlana bilər.");
+        }
+        return request;
+    }
+
+    private WalletTopUpRequestEntity lockedManualRequest(long requestId) {
+        WalletTopUpRequestEntity request = lockedReviewRequest(requestId);
+        if (request.getStatus() == WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Avtomatik əlavə edilmiş coin üçün fırıldaq yoxlamasından istifadə edin."
+            );
         }
         return request;
     }
@@ -143,33 +185,11 @@ public class AdminWalletTopUpService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Balans artırma sorğusu tapılmadı."));
     }
 
-    private AdminTopUpRequestDto map(WalletTopUpRequestEntity request) {
-        SecureAttachmentEntity attachment = request.getReceiptAttachment();
-        UserEntity user = request.getUser();
-        return new AdminTopUpRequestDto(
-                request.getId(),
-                user.getId(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getNormalizedPhone(),
-                request.getTopUpPackage().getCode(),
-                request.getAmountAzn(),
-                request.getCoinAmount(),
-                request.getCurrency(),
-                request.getStatus().name(),
-                request.getClickedAt(),
-                request.getReceiptDeadlineAt(),
-                request.getReceiptUploadedAt(),
-                attachment == null ? null : attachment.getId(),
-                attachment == null ? null : attachment.getMediaType(),
-                attachment == null ? null : attachment.getSizeBytes(),
-                request.getReviewedAt(),
-                request.getResolutionNote()
-        );
+    private boolean isReviewRequired(String value) {
+        return value != null && value.trim().equalsIgnoreCase("REVIEW_REQUIRED");
     }
 
     private WalletTopUpRequestStatus parseStatus(String value) {
-        if (value == null || value.isBlank()) return null;
         try {
             return WalletTopUpRequestStatus.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {

@@ -19,6 +19,8 @@ public record AdminTopUpRequestDto(
         Long receiptAttachmentId,
         String receiptMediaType,
         Long receiptSizeBytes,
+        int confirmedFraudCount,
+        Integer fraudCountAfter,
         LocalDateTime reviewedAt,
         String resolutionNote
 ) {

@@ -14,7 +14,7 @@ public class SecureUploadInputReader {
         this.properties = properties;
     }
 
-    public SecureImageSource read(SecureImageUploadCommand command) {
+    public SecureUploadSource read(SecureUploadCommand command) {
         Objects.requireNonNull(command);
         if (command.declaredSizeBytes() == 0) {
             throw failure(SecureUploadFailure.EMPTY_FILE, "Boş fayl yükləmək olmaz.");
@@ -29,7 +29,7 @@ public class SecureUploadInputReader {
         if (bytes.length == 0) {
             throw failure(SecureUploadFailure.EMPTY_FILE, "Boş fayl yükləmək olmaz.");
         }
-        return new SecureImageSource(command.originalFilename(), command.declaredMediaType(), bytes);
+        return new SecureUploadSource(command.originalFilename(), command.declaredMediaType(), bytes);
     }
 
     private byte[] readBounded(InputStream inputStream) {
@@ -41,7 +41,7 @@ public class SecureUploadInputReader {
             return bytes;
         } catch (IOException exception) {
             throw new SecureUploadException(
-                    SecureUploadFailure.INVALID_IMAGE,
+                    SecureUploadFailure.INVALID_FILE,
                     "Fayl oxuna bilmədi.",
                     exception
             );

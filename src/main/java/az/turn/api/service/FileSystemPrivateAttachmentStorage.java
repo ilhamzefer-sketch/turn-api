@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 public class FileSystemPrivateAttachmentStorage implements PrivateAttachmentStorage {
     private static final Logger logger = LoggerFactory.getLogger(FileSystemPrivateAttachmentStorage.class);
     private static final Pattern STORAGE_KEY = Pattern.compile(
-            "^[a-f0-9]{2}/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png)$"
+            "^[a-f0-9]{2}/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(jpg|png|pdf)$"
     );
     private static final Set<PosixFilePermission> DIRECTORY_PERMISSIONS = Set.of(
             PosixFilePermission.OWNER_READ,

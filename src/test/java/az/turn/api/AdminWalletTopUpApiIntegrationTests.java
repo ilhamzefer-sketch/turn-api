@@ -18,6 +18,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,9 +48,11 @@ class AdminWalletTopUpApiIntegrationTests {
         uploadReceipt(userCsrf, userToken, requestId);
         String adminToken = loginAdmin(csrf());
         TestCsrfToken adminCsrf = csrf();
+        UserEntity user = userRepository.findByNormalizedPhone("+994501290120").orElseThrow();
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(100);
 
         MvcResult listResult = mockMvc.perform(get("/api/admin/payments/top-ups")
-                        .param("status", "PENDING_REVIEW")
+                        .param("status", "REVIEW_REQUIRED")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -61,12 +64,22 @@ class AdminWalletTopUpApiIntegrationTests {
                 .orElseThrow();
         assertThat(listedRequest.get("phone").asText()).isEqualTo("+994501290120");
         assertThat(listedRequest.get("coinAmount").asLong()).isEqualTo(100);
+        assertThat(listedRequest.get("status").asText()).isEqualTo("AUTO_CREDITED_PENDING_REVIEW");
         assertThat(listedRequest.get("receiptAttachmentId").isNumber()).isTrue();
 
         mockMvc.perform(get("/api/admin/payments/top-ups/{id}/receipt", requestId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE));
+
+        mockMvc.perform(post("/api/admin/payments/top-ups/{id}/reject", requestId)
+                        .cookie(adminCsrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, adminCsrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("reason", "Uyğun deyil").toString()))
+                .andExpect(status().isConflict());
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(100);
 
         mockMvc.perform(post("/api/admin/payments/top-ups/{id}/approve", requestId)
                         .cookie(adminCsrf.cookie())
@@ -75,13 +88,12 @@ class AdminWalletTopUpApiIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.createObjectNode().put("note", "Çek yoxlanıldı").toString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.status").value("VERIFIED"))
                 .andExpect(jsonPath("$.resolutionNote").doesNotExist());
 
-        UserEntity user = userRepository.findByNormalizedPhone("+994501290120").orElseThrow();
         assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(100);
         assertThat(auditRepository.findAll()).anySatisfy(event ->
-                assertThat(event.getAction()).isEqualTo("WALLET_TOP_UP_APPROVED"));
+                assertThat(event.getAction()).isEqualTo("WALLET_TOP_UP_VERIFIED"));
 
         mockMvc.perform(post("/api/admin/payments/top-ups/{id}/approve", requestId)
                         .cookie(adminCsrf.cookie())
@@ -92,6 +104,55 @@ class AdminWalletTopUpApiIntegrationTests {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    void adminApprovalCreditsAUserWhoseReceiptRequiresManualReview() throws Exception {
+        TestCsrfToken userCsrf = csrf();
+        String userToken = register(userCsrf, "0501290123");
+        UserEntity user = userRepository.findByNormalizedPhone("+994501290123").orElseThrow();
+        user.setConfirmedWalletFraudCount(3);
+        userRepository.saveAndFlush(user);
+        long requestId = createTopUp(userCsrf, userToken, "AZN_5");
+        uploadReceipt(userCsrf, userToken, requestId);
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isZero();
+        String adminToken = loginAdmin(csrf());
+        TestCsrfToken adminCsrf = csrf();
+
+        mockMvc.perform(post("/api/admin/payments/top-ups/{id}/approve", requestId)
+                        .cookie(adminCsrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, adminCsrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("note", "Ödəniş təsdiqləndi").toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(50);
+    }
+
+    @Test
+    void downloadsPdfReceiptsWithoutInlineExecution() throws Exception {
+        TestCsrfToken userCsrf = csrf();
+        String userToken = register(userCsrf, "0501290122");
+        long requestId = createTopUp(userCsrf, userToken, "AZN_3");
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "receipt.pdf", MediaType.APPLICATION_PDF_VALUE, SecurePdfTestFiles.onePage()
+        );
+        mockMvc.perform(multipart("/api/users/me/wallet/top-up-requests/{id}/receipt", requestId)
+                        .file(file)
+                        .cookie(userCsrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, userCsrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken))
+                .andExpect(status().isOk());
+
+        String adminToken = loginAdmin(csrf());
+        mockMvc.perform(get("/api/admin/payments/top-ups/{id}/receipt", requestId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, startsWith("attachment;")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+    }
+
     @Autowired
     private UserRepository userRepository;
 
@@ -99,8 +160,13 @@ class AdminWalletTopUpApiIntegrationTests {
     void adminRejectsPendingReceiptWithReason() throws Exception {
         TestCsrfToken userCsrf = csrf();
         String userToken = register(userCsrf, "0501290121");
+        UserEntity user = userRepository.findByNormalizedPhone("+994501290121").orElseThrow();
+        user.setConfirmedWalletFraudCount(3);
+        userRepository.saveAndFlush(user);
         long requestId = createTopUp(userCsrf, userToken, "AZN_5");
         uploadReceipt(userCsrf, userToken, requestId);
+        assertThat(requestRepository.findById(requestId).orElseThrow().getStatus())
+                .isEqualTo(WalletTopUpRequestStatus.MANUAL_REVIEW);
         String adminToken = loginAdmin(csrf());
         TestCsrfToken adminCsrf = csrf();
 
@@ -114,7 +180,6 @@ class AdminWalletTopUpApiIntegrationTests {
                 .andExpect(jsonPath("$.status").value("REJECTED"))
                 .andExpect(jsonPath("$.resolutionNote").value("Çekdə məbləğ görünmür"));
 
-        UserEntity user = userRepository.findByNormalizedPhone("+994501290121").orElseThrow();
         assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isZero();
         assertThat(requestRepository.findById(requestId).orElseThrow().getStatus())
                 .isEqualTo(WalletTopUpRequestStatus.REJECTED);
@@ -136,11 +201,10 @@ class AdminWalletTopUpApiIntegrationTests {
         MockMultipartFile file = new MockMultipartFile("file", "receipt.png", MediaType.IMAGE_PNG_VALUE, pngBytes());
         mockMvc.perform(multipart("/api/users/me/wallet/top-up-requests/{id}/receipt", requestId)
                         .file(file)
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING_REVIEW"));
+                .cookie(csrf.cookie())
+                .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk());
     }
 
     private String register(TestCsrfToken csrf, String phone) throws Exception {
