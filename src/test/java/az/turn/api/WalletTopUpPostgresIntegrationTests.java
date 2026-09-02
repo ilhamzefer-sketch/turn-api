@@ -130,8 +130,8 @@ class WalletTopUpPostgresIntegrationTests {
 
     private long insertWalletAccount(Statement statement, long userId) throws SQLException {
         try (ResultSet result = statement.executeQuery(
-                "insert into wallet_accounts (user_id, balance, currency, version, created_at, updated_at) values ("
-                        + userId + ", 30, 'COIN', 0, current_timestamp, current_timestamp) returning id"
+                "insert into wallet_accounts (user_id, balance, version, created_at, updated_at) values ("
+                        + userId + ", 30, 0, current_timestamp, current_timestamp) returning id"
         )) {
             result.next();
             return result.getLong(1);
