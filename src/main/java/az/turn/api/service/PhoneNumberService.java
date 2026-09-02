@@ -15,6 +15,6 @@ public class PhoneNumberService {
     }
 
     private ResponseStatusException invalidPhone() {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Telefon nömrəsini 0504059961 formatında yazın.");
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Telefon nömrəsini 0500000000 formatında yazın.");
     }
 }
