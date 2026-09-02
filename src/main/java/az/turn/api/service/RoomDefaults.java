@@ -18,7 +18,7 @@ public class RoomDefaults {
     }
 
     public RoomVisibility visibility(RoomVisibility value) {
-        return value == null ? RoomVisibility.UNLISTED : value;
+        return value == null ? RoomVisibility.PUBLIC : value;
     }
 
     public void applyCreationConfiguration(RoomEntity room) {

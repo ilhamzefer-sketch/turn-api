@@ -75,11 +75,12 @@ class ProviderWorkspaceApiIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"Kosmetoloq","reservationMode":"PLANNED_BOOKING",
-                                "defaultSlotDurationMinutes":30,"visibility":"UNLISTED"}
+                                "defaultSlotDurationMinutes":30}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.businessId").value(businessId))
-                .andExpect(jsonPath("$.status").value("DRAFT"));
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.visibility").value("PUBLIC"));
 
         mockMvc.perform(get("/api/users/me/workspaces")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))

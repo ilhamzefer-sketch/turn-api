@@ -194,7 +194,7 @@ class LiveQueueApiIntegrationTests {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.reservationMode").value("LIVE_QUEUE"))
                 .andExpect(jsonPath("$.defaultSlotDurationMinutes").value(30))
-                .andExpect(jsonPath("$.visibility").value("UNLISTED"))
+                .andExpect(jsonPath("$.visibility").value("PUBLIC"))
                 .andExpect(jsonPath("$.liveQueueResetPolicy").value("DAILY_AT_TIME"))
                 .andExpect(jsonPath("$.liveQueueResetLocalTime").value("00:00:00"))
                 .andExpect(jsonPath("$.liveQueueAcceptingNewEntries").value(true))
