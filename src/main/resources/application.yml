@@ -52,6 +52,7 @@ server:
 
 app:
   env: ${APP_ENV:local}
+  public-base-url: ${APP_PUBLIC_BASE_URL:https://novbetime.az}
   upload:
     storage-root: ${APP_UPLOAD_STORAGE_ROOT:/tmp/novbetime-uploads}
     max-file-bytes: ${APP_UPLOAD_MAX_FILE_BYTES:5242880}

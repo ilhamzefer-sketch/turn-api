@@ -30,6 +30,8 @@ public class QrCredentialEntity {
     private String publicToken;
     @Column(unique = true, length = 64)
     private String legacyTokenHash;
+    @Column(length = 80)
+    private String posterTitle;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private QrCredentialType type;
@@ -53,6 +55,8 @@ public class QrCredentialEntity {
     public void setPublicToken(String value) { this.publicToken = value; }
     public String getLegacyTokenHash() { return legacyTokenHash; }
     public void setLegacyTokenHash(String value) { this.legacyTokenHash = value; }
+    public String getPosterTitle() { return posterTitle; }
+    public void setPosterTitle(String value) { this.posterTitle = value; }
     public QrCredentialType getType() { return type; }
     public void setType(QrCredentialType value) { this.type = value; }
     public boolean isActive() { return active; }

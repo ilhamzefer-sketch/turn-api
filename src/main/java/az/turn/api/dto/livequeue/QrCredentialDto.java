@@ -8,6 +8,7 @@ public record QrCredentialDto(
         QrCredentialType type,
         boolean active,
         String token,
+        String posterTitle,
         LocalDateTime createdAt,
         LocalDateTime revokedAt
 ) {

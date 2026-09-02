@@ -32,7 +32,7 @@ public class QrCredentialService {
     public QrCredentialDto create(long roomId, long userId) {
         RoomEntity room = accessService.requireEditableRoom(roomId, userId);
         UserEntity creator = accessService.requireActiveUser(userId);
-        return createCredential(room, creator);
+        return createCredential(room, creator, null);
     }
 
     @Transactional
@@ -65,7 +65,42 @@ public class QrCredentialService {
             current.setRevokedAt(LocalDateTime.now(clock));
             qrCredentialRepository.save(current);
         }
-        return createCredential(room, creator);
+        return createCredential(room, creator, current.getPosterTitle());
+    }
+
+    @Transactional
+    public QrCredentialDto updatePosterTitle(
+            long roomId,
+            long credentialId,
+            long userId,
+            QrPosterTitleUpdateDto request
+    ) {
+        accessService.requireEditableRoom(roomId, userId);
+        QrCredentialEntity credential = find(roomId, credentialId);
+        credential.setPosterTitle(normalizePosterTitle(request.posterTitle()));
+        return toDto(qrCredentialRepository.save(credential));
+    }
+
+    @Transactional
+    public QrPosterSpecification posterData(long roomId, long credentialId, long userId, String publicBaseUrl) {
+        RoomEntity room = accessService.requireRoomViewer(roomId, userId);
+        QrCredentialEntity credential = ensurePublicToken(find(roomId, credentialId));
+        if (!credential.isActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ləğv edilmiş QR kod üçün afişa yaradıla bilməz.");
+        }
+        String posterTitle = credential.getPosterTitle() == null ? room.getName() : credential.getPosterTitle();
+        String baseUrl = publicBaseUrl.endsWith("/")
+                ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
+                : publicBaseUrl;
+        return new QrPosterSpecification(
+                credential.getId(),
+                posterTitle,
+                baseUrl + "/q/" + credential.getPublicToken(),
+                room.getReservationMode(),
+                room.getRoomNumberOrCode(),
+                room.getDefaultSlotDurationMinutes(),
+                room.getDescription()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -78,7 +113,7 @@ public class QrCredentialService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "QR kod tapılmadı və ya ləğv edilib."));
     }
 
-    private QrCredentialDto createCredential(RoomEntity room, UserEntity creator) {
+    private QrCredentialDto createCredential(RoomEntity room, UserEntity creator, String posterTitle) {
         String rawToken = tokenService.generate();
         QrCredentialEntity credential = new QrCredentialEntity();
         credential.setRoom(room);
@@ -87,6 +122,7 @@ public class QrCredentialService {
         credential.setType(QrCredentialType.PERMANENT_ROOM);
         credential.setActive(true);
         credential.setCreatedByUser(creator);
+        credential.setPosterTitle(posterTitle);
         return toDto(qrCredentialRepository.save(credential));
     }
 
@@ -114,8 +150,14 @@ public class QrCredentialService {
                 value.getType(),
                 value.isActive(),
                 value.getPublicToken(),
+                value.getPosterTitle(),
                 value.getCreatedAt(),
                 value.getRevokedAt()
         );
+    }
+
+    private String normalizePosterTitle(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim().replaceAll("\\s+", " ");
     }
 }
