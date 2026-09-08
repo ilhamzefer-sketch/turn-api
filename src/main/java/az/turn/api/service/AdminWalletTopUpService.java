@@ -62,7 +62,7 @@ public class AdminWalletTopUpService {
                     pageable
             );
         } else if (suppliedStatus == null || suppliedStatus.isBlank()) {
-            result = requestRepository.findAllByOrderByCreatedAtAscIdAsc(pageable);
+            result = requestRepository.findAllByOrderByCreatedAtDescIdDesc(pageable);
         } else {
             WalletTopUpRequestStatus status = parseStatus(suppliedStatus);
             result = requestRepository.findByStatusOrderByReceiptUploadedAtAscIdAsc(status, pageable);

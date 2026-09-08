@@ -27,7 +27,7 @@ public interface WalletTopUpRequestRepository extends JpaRepository<WalletTopUpR
             Pageable pageable
     );
 
-    Slice<WalletTopUpRequestEntity> findAllByOrderByCreatedAtAscIdAsc(Pageable pageable);
+    Slice<WalletTopUpRequestEntity> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select request from WalletTopUpRequestEntity request where request.id = :requestId")
