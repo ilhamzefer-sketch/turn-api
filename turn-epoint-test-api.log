@@ -1,0 +1,29 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< az.turn:turn-api >--------------------------
+[INFO] Building turn-api 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.13:run (default-cli) > test-compile @ turn-api >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ turn-api ---
+[INFO] Copying 4 resources from src\main\resources to target\classes
+[INFO] Copying 44 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ turn-api ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 481 source files with javac [debug parameters release 17] to target\classes
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  9.432 s
+[INFO] Finished at: 2026-09-07T20:42:53+04:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.14.1:compile (default-compile) on project turn-api: Fatal error compiling: C:\Users\User\Desktop\turn-api\.m2\repository\org\springframework\spring-context\6.2.17\spring-context-6.2.17.jar -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
