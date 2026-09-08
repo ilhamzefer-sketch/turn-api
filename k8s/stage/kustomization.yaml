@@ -16,11 +16,20 @@ resources:
   - clamav-deployment.yaml
   - clamav-service.yaml
   - clamav-network-policy.yaml
+  - epoint-sandbox-deployment.yaml
+  - epoint-sandbox-service.yaml
   - api-deployment.yaml
   - api-service.yaml
   - api-internal-service.yaml
   - api-management-service.yaml
   - ingress.yaml
+
+configMapGenerator:
+  - name: epoint-sandbox-checkout-assets
+    files:
+      - tokens.css=epoint-sandbox-assets/tokens.css
+      - checkout.css=epoint-sandbox-assets/checkout.css
+      - logo.svg=epoint-sandbox-assets/logo.svg
 
 images:
   - name: ghcr.io/ilhamzefer-sketch/turn-api
