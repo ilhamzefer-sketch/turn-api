@@ -113,6 +113,16 @@ app:
       recipient-account: ${ABB_RECIPIENT_ACCOUNT:}
       recipient-tax-id: ${ABB_RECIPIENT_TAX_ID:}
       recipient-bank-code: ${ABB_RECIPIENT_BANK_CODE:805250}
+    epoint:
+      public-key: ${EPOINT_PUBLIC_KEY:}
+      private-key: ${EPOINT_PRIVATE_KEY:}
+      api-base-url: ${EPOINT_API_BASE_URL:https://epoint.az/api/1}
+      success-url: ${EPOINT_SUCCESS_URL:${EPOINT_SUCCESS_REDIRECT_URL:}}
+      error-url: ${EPOINT_ERROR_URL:${EPOINT_ERROR_REDIRECT_URL:}}
+      result-url: ${EPOINT_RESULT_URL:}
+      language: ${EPOINT_LANGUAGE:az}
+      currency: ${EPOINT_CURRENCY:AZN}
+      sandbox-enabled: ${EPOINT_SANDBOX_ENABLED:false}
     reconciliation-enabled: ${APP_PAYMENT_RECONCILIATION_ENABLED:false}
     reconciliation-delay-ms: ${APP_PAYMENT_RECONCILIATION_DELAY_MS:60000}
     reconciliation-initial-delay-ms: ${APP_PAYMENT_RECONCILIATION_INITIAL_DELAY_MS:30000}

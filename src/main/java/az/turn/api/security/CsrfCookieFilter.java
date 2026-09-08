@@ -23,6 +23,9 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
     public static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
     public static final String CSRF_HEADER_NAME = "X-CSRF-TOKEN";
     private static final Set<String> SAFE_METHODS = Set.of(HttpMethod.GET.name(), HttpMethod.HEAD.name(), HttpMethod.OPTIONS.name());
+    private static final Set<String> CSRF_EXEMPT_PATHS = Set.of(
+            "/api/payments/epoint/callback"
+    );
     private static final Set<String> ROTATION_PATHS = Set.of(
             "/api/auth/register",
             "/api/auth/login",
@@ -49,7 +52,7 @@ public class CsrfCookieFilter extends OncePerRequestFilter {
         String token = ensureCookie(request, response);
         request.setAttribute("csrfToken", token);
 
-        if (!SAFE_METHODS.contains(request.getMethod())) {
+        if (!SAFE_METHODS.contains(request.getMethod()) && !CSRF_EXEMPT_PATHS.contains(request.getRequestURI())) {
             String cookieToken = findCookieValue(request, CSRF_COOKIE_NAME);
             String headerToken = request.getHeader(CSRF_HEADER_NAME);
             if (cookieToken == null || headerToken == null || !cookieToken.equals(headerToken)) {

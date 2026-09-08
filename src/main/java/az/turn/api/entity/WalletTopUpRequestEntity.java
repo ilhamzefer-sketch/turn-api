@@ -49,6 +49,18 @@ public class WalletTopUpRequestEntity {
     @Column(nullable = false, length = 500)
     private String paymentUrl;
 
+    @Column(nullable = false, length = 30)
+    private String paymentProvider;
+
+    @Column(length = 80)
+    private String externalOrderId;
+
+    @Column(length = 180)
+    private String externalPaymentReference;
+
+    @Column(length = 40)
+    private String externalPaymentStatus;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private WalletTopUpRequestStatus status;
@@ -116,6 +128,7 @@ public class WalletTopUpRequestEntity {
         coinAmount = topUpPackage.getCoinAmount();
         currency = "AZN";
         paymentUrl = topUpPackage.getPaymentUrl();
+        paymentProvider = "manual";
         status = WalletTopUpRequestStatus.AWAITING_RECEIPT;
         receiptDeadlineAt = clickedAt.plusMinutes(RECEIPT_WINDOW_MINUTES);
         createdAt = clickedAt;
@@ -152,6 +165,22 @@ public class WalletTopUpRequestEntity {
 
     public String getPaymentUrl() {
         return paymentUrl;
+    }
+
+    public String getPaymentProvider() {
+        return paymentProvider;
+    }
+
+    public String getExternalOrderId() {
+        return externalOrderId;
+    }
+
+    public String getExternalPaymentReference() {
+        return externalPaymentReference;
+    }
+
+    public String getExternalPaymentStatus() {
+        return externalPaymentStatus;
     }
 
     public WalletTopUpRequestStatus getStatus() {
@@ -212,7 +241,51 @@ public class WalletTopUpRequestEntity {
 
     public boolean isReceiptWindowOpen(LocalDateTime now) {
         return status == WalletTopUpRequestStatus.AWAITING_RECEIPT
+                && "manual".equals(paymentProvider)
                 && Objects.requireNonNull(now).isBefore(receiptDeadlineAt);
+    }
+
+    public void startExternalPayment(
+            String provider,
+            String orderId,
+            String redirectUrl,
+            LocalDateTime updatedAt
+    ) {
+        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        paymentProvider = requireNonBlank(provider, "Payment provider mutleqdir.");
+        externalOrderId = requireNonBlank(orderId, "External order id mutleqdir.");
+        paymentUrl = requireNonBlank(redirectUrl, "Payment redirect URL mutleqdir.");
+        this.updatedAt = Objects.requireNonNull(updatedAt);
+    }
+
+    public void completeExternalPayment(
+            String paymentReference,
+            String providerStatus,
+            WalletTransactionEntity transaction,
+            LocalDateTime paidAt
+    ) {
+        requireExternalCompletableStatus();
+        requireTopUpTransaction(transaction);
+        externalPaymentReference = normalizeOptional(paymentReference);
+        externalPaymentStatus = requireNonBlank(providerStatus, "Provider status mutleqdir.");
+        walletTransaction = transaction;
+        receiptUploadedAt = Objects.requireNonNull(paidAt);
+        activeUserId = null;
+        status = WalletTopUpRequestStatus.PAID;
+        updatedAt = paidAt;
+    }
+
+    public void failExternalPayment(
+            String paymentReference,
+            String providerStatus,
+            LocalDateTime failedAt
+    ) {
+        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        externalPaymentReference = normalizeOptional(paymentReference);
+        externalPaymentStatus = requireNonBlank(providerStatus, "Provider status mutleqdir.");
+        activeUserId = null;
+        status = WalletTopUpRequestStatus.PAYMENT_FAILED;
+        updatedAt = Objects.requireNonNull(failedAt);
     }
 
     public void submitReceipt(SecureAttachmentEntity attachment, LocalDateTime submittedAt) {
@@ -365,10 +438,31 @@ public class WalletTopUpRequestEntity {
         }
     }
 
+    private void requireExternalCompletableStatus() {
+        if (status != WalletTopUpRequestStatus.AWAITING_RECEIPT && status != WalletTopUpRequestStatus.EXPIRED) {
+            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
+        }
+    }
+
     private void requireStatusIn(WalletTopUpRequestStatus first, WalletTopUpRequestStatus second) {
         if (status != first && status != second) {
             throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
         }
+    }
+
+    private String requireNonBlank(String value, String message) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            throw new IllegalArgumentException(message);
+        }
+        return normalized;
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private void requireFraudReviewStatus() {

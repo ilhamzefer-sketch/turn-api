@@ -90,7 +90,8 @@ public class SecurityConfig {
                                 "/api/auth/refreshRequest", "/api/auth/logout", "/api/auth/logoutRequest",
                                 "/api/payments/registration-sessions",
                                 "/api/payments/registration-sessions/*/confirm",
-                                "/api/payments/registration-sessions/*/cancel", "/api/queues/scan",
+                                "/api/payments/registration-sessions/*/cancel",
+                                "/api/payments/epoint/callback", "/api/queues/scan",
                                 "/api/public/rooms/*/live-queue/join",
                                 "/api/support/ownership-disputes",
                                 "/api/public/qr/*/live-queue/join").permitAll()

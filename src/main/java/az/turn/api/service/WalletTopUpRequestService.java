@@ -16,6 +16,7 @@ public class WalletTopUpRequestService {
     private final WalletTopUpPackageRepository packageRepository;
     private final WalletTopUpRequestRepository requestRepository;
     private final WalletTopUpRequestStateService stateService;
+    private final EpointWalletPaymentService epointPaymentService;
     private final SecureAttachmentService attachmentService;
     private final PrivateAttachmentStorage attachmentStorage;
     private final SecureAttachmentRepository attachmentRepository;
@@ -26,6 +27,7 @@ public class WalletTopUpRequestService {
             WalletTopUpPackageRepository packageRepository,
             WalletTopUpRequestRepository requestRepository,
             WalletTopUpRequestStateService stateService,
+            EpointWalletPaymentService epointPaymentService,
             SecureAttachmentService attachmentService,
             PrivateAttachmentStorage attachmentStorage,
             SecureAttachmentRepository attachmentRepository,
@@ -35,6 +37,7 @@ public class WalletTopUpRequestService {
         this.packageRepository = packageRepository;
         this.requestRepository = requestRepository;
         this.stateService = stateService;
+        this.epointPaymentService = epointPaymentService;
         this.attachmentService = attachmentService;
         this.attachmentStorage = attachmentStorage;
         this.attachmentRepository = attachmentRepository;
@@ -66,7 +69,11 @@ public class WalletTopUpRequestService {
             }
         });
         try {
-            return map(requestRepository.saveAndFlush(new WalletTopUpRequestEntity(user, topUpPackage, now)), now);
+            WalletTopUpRequestEntity savedRequest = requestRepository.saveAndFlush(new WalletTopUpRequestEntity(user, topUpPackage, now));
+            if (epointPaymentService.isConfigured()) {
+                savedRequest = epointPaymentService.start(savedRequest);
+            }
+            return map(savedRequest, now);
         } catch (DataIntegrityViolationException exception) {
             throw new WalletTopUpException(
                     WalletTopUpFailure.ACTIVE_REQUEST_EXISTS,

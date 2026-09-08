@@ -42,7 +42,7 @@ public class AdminWalletTopUpController {
     public AdminTopUpRequestPageDto list(
             @RequestParam(required = false)
             @Pattern(regexp = "(?i)REVIEW_REQUIRED|AWAITING_RECEIPT|PENDING_REVIEW|MANUAL_REVIEW|"
-                    + "AUTO_CREDITED_PENDING_REVIEW|APPROVED|VERIFIED|REJECTED|FRAUD_CONFIRMED|EXPIRED") String status,
+                    + "AUTO_CREDITED_PENDING_REVIEW|APPROVED|VERIFIED|PAID|PAYMENT_FAILED|REJECTED|FRAUD_CONFIRMED|EXPIRED") String status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             Authentication authentication

@@ -2,7 +2,10 @@ package az.turn.api;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -48,6 +51,46 @@ class WalletTopUpRequestEntityTests {
         assertThat(request.getActiveUserId()).isNull();
         assertThatThrownBy(() -> request.submitReceipt(CLICKED_AT.plusMinutes(30)))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void completesExternalPaymentWithoutReceiptAndReleasesTheUser() {
+        UserEntity user = user();
+        WalletTopUpRequestEntity request = new WalletTopUpRequestEntity(user, topUpPackage(), CLICKED_AT);
+        request.startExternalPayment("epoint", "42", "https://epoint.az/pay/42", CLICKED_AT.plusSeconds(1));
+        WalletTransactionEntity transaction = new WalletTransactionEntity(
+                new WalletAccountEntity(user, CLICKED_AT),
+                WalletTransactionType.TOP_UP,
+                30,
+                0,
+                30,
+                WalletActorType.SYSTEM,
+                null,
+                "epoint",
+                "top-up-request:42",
+                "Epoint payment credited.",
+                CLICKED_AT.plusMinutes(31)
+        );
+
+        request.completeExternalPayment("EPOINT-42", "success", transaction, CLICKED_AT.plusMinutes(31));
+
+        assertThat(request.getStatus()).isEqualTo(WalletTopUpRequestStatus.PAID);
+        assertThat(request.getActiveUserId()).isNull();
+        assertThat(request.getReceiptAttachment()).isNull();
+        assertThat(request.getWalletTransaction()).isEqualTo(transaction);
+        assertThat(request.getExternalPaymentReference()).isEqualTo("EPOINT-42");
+        assertThat(request.isReceiptWindowOpen(CLICKED_AT.plusMinutes(5))).isFalse();
+    }
+
+    @Test
+    void epointOrderIdsAreUniqueButStillCarryTheTopUpRequestId() {
+        Clock fixedClock = Clock.fixed(Instant.parse("2026-09-07T18:10:17Z"), ZoneOffset.UTC);
+
+        String orderId = EpointWalletPaymentService.orderIdFor(42L, fixedClock);
+
+        assertThat(orderId).isEqualTo("wallet-42-1788804617000");
+        assertThat(EpointWalletPaymentService.requestIdFromOrderId(orderId)).isEqualTo(42L);
+        assertThat(EpointWalletPaymentService.requestIdFromOrderId("42")).isEqualTo(42L);
     }
 
     @Test

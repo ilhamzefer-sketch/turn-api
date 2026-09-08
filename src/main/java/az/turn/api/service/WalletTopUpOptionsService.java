@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class WalletTopUpOptionsService {
     private final WalletProperties properties;
+    private final EpointWalletPaymentService epointPaymentService;
 
-    public WalletTopUpOptionsService(WalletProperties properties) {
+    public WalletTopUpOptionsService(WalletProperties properties, EpointWalletPaymentService epointPaymentService) {
         this.properties = properties;
+        this.epointPaymentService = epointPaymentService;
     }
 
     public WalletTopUpOptionsDto options() {
@@ -17,7 +19,7 @@ public class WalletTopUpOptionsService {
                 properties.maximumTopUpCoins(),
                 "AZN",
                 properties.whatsappUrl().toString(),
-                false
+                epointPaymentService.isConfigured()
         );
     }
 }

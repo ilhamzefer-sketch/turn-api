@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class UploadEnvironmentValidatorTests {
     @Test
     void requiresAntivirusInStageAndProduction() {
-        UploadProperties properties = SecureUploadTestProperties.properties(Path.of("/private/uploads"));
+        UploadProperties properties = SecureUploadTestProperties.properties(absolutePrivateUploadsPath());
 
         assertThrows(
                 IllegalStateException.class,
@@ -24,7 +24,7 @@ class UploadEnvironmentValidatorTests {
 
     @Test
     void acceptsAnAbsolutePrivatePathAndEnabledAntivirus() {
-        UploadProperties base = SecureUploadTestProperties.properties(Path.of("/private/uploads"));
+        UploadProperties base = SecureUploadTestProperties.properties(absolutePrivateUploadsPath());
         UploadProperties properties = new UploadProperties(
                 base.storageRoot(),
                 base.maxFileBytes(),
@@ -43,5 +43,11 @@ class UploadEnvironmentValidatorTests {
 
         assertDoesNotThrow(() -> new UploadEnvironmentValidator("local", properties).validate());
         assertDoesNotThrow(() -> new UploadEnvironmentValidator("test", properties).validate());
+    }
+
+    private Path absolutePrivateUploadsPath() {
+        return Path.of(System.getProperty("java.io.tmpdir"))
+                .resolve("private/uploads")
+                .toAbsolutePath();
     }
 }

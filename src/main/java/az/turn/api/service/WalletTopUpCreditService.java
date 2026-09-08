@@ -16,6 +16,26 @@ public class WalletTopUpCreditService {
     }
 
     public WalletTransactionEntity credit(WalletTopUpRequestEntity request) {
+        return credit(
+                request,
+                "receipt-auto-credit",
+                "Çek yükləndikdən sonra coin avtomatik əlavə edildi."
+        );
+    }
+
+    public WalletTransactionEntity creditExternalPayment(WalletTopUpRequestEntity request, String providerName) {
+        return credit(
+                request,
+                providerName,
+                "Epoint ödənişi uğurlu olduqdan sonra coin avtomatik əlavə edildi."
+        );
+    }
+
+    private WalletTransactionEntity credit(
+            WalletTopUpRequestEntity request,
+            String actorReference,
+            String description
+    ) {
         long requestId = requireRequestId(request);
         String reference = "top-up-request:" + requestId;
         WalletTransactionDto transaction = walletTransactionService.apply(
@@ -25,9 +45,9 @@ public class WalletTopUpCreditService {
                         request.getCoinAmount(),
                         WalletActorType.SYSTEM,
                         null,
-                        "receipt-auto-credit",
+                        actorReference,
                         reference,
-                        "Çek yükləndikdən sonra coin avtomatik əlavə edildi."
+                        description
                 )
         );
         return walletTransactionRepository.findById(transaction.id())
