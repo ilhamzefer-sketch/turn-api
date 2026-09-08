@@ -302,8 +302,13 @@ public class PaymentSessionService {
 
     private String buildCheckoutUrl(PaymentSessionEntity entity) {
         if (entity.getStatus() != PaymentStatus.PENDING
-                || entity.getExternalHppUrl() == null || entity.getExternalHppUrl().isBlank()
-                || entity.getExternalOrderId() == null || entity.getExternalOrderPassword() == null
+                || entity.getExternalHppUrl() == null || entity.getExternalHppUrl().isBlank()) {
+            return null;
+        }
+        if ("epoint".equalsIgnoreCase(entity.getProvider())) {
+            return entity.getExternalHppUrl();
+        }
+        if (entity.getExternalOrderId() == null || entity.getExternalOrderPassword() == null
                 || entity.getExternalOrderPassword().isBlank()) {
             return null;
         }

@@ -154,7 +154,7 @@ spec:
             - name: APP_PAYMENT_MODE
               value: test
             - name: APP_PAYMENT_PROVIDER
-              value: birbank
+              value: epoint
             - name: APP_PAYMENT_CALLBACK_BASE_URL
               value: https://novbetime.az
             - name: EPOINT_PUBLIC_KEY
