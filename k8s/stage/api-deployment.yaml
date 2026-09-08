@@ -180,7 +180,7 @@ spec:
             - name: EPOINT_ERROR_URL
               value: https://novbetime.az/app/wallet?payment=failed
             - name: EPOINT_RESULT_URL
-              value: https://novbetime.az/api/payments/epoint/callback
+              value: http://turn-api:8080/api/payments/epoint/callback
             - name: EPOINT_LANGUAGE
               value: az
             - name: EPOINT_CURRENCY
