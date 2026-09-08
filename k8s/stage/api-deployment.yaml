@@ -162,16 +162,19 @@ spec:
                 secretKeyRef:
                   name: turn-stage-secrets
                   key: EPOINT_PUBLIC_KEY
+                  optional: true
             - name: EPOINT_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
                   name: turn-stage-secrets
                   key: EPOINT_PRIVATE_KEY
+                  optional: true
             - name: EPOINT_API_BASE_URL
               valueFrom:
                 secretKeyRef:
                   name: turn-stage-secrets
                   key: EPOINT_API_BASE_URL
+                  optional: true
             - name: EPOINT_SUCCESS_URL
               value: https://novbetime.az/app/wallet?payment=success
             - name: EPOINT_ERROR_URL
@@ -187,6 +190,7 @@ spec:
                 secretKeyRef:
                   name: turn-stage-secrets
                   key: EPOINT_SANDBOX_ENABLED
+                  optional: true
             - name: APP_PAYMENT_RECONCILIATION_ENABLED
               value: "false"
             - name: APP_UPLOAD_STORAGE_ROOT
