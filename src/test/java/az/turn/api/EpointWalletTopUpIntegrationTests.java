@@ -115,6 +115,39 @@ class EpointWalletTopUpIntegrationTests {
                 .andExpect(jsonPath("$.balance").value(30));
     }
 
+    @Test
+    void newEpointTopUpReplacesUnfinishedExternalCheckout() throws Exception {
+        TestCsrfToken csrf = csrf();
+        String accessToken = register(csrf, "0501290125");
+
+        MvcResult first = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_10").toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AWAITING_RECEIPT"))
+                .andReturn();
+
+        long firstRequestId = objectMapper.readTree(first.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                        .cookie(csrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_3").toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.packageCode").value("AZN_3"))
+                .andExpect(jsonPath("$.status").value("AWAITING_RECEIPT"));
+
+        WalletTopUpRequestEntity replaced = topUpRequestRepository.findById(firstRequestId).orElseThrow();
+        assertThat(replaced.getStatus()).isEqualTo(WalletTopUpRequestStatus.PAYMENT_FAILED);
+        assertThat(replaced.getExternalPaymentStatus()).isEqualTo("replaced_by_new_request");
+        assertThat(replaced.getActiveUserId()).isNull();
+    }
+
     private static void checkout(HttpExchange exchange) throws IOException {
         byte[] body = """
                 {"status":"success","redirect_url":"http://epoint.test/checkout","transaction":"EPOINT-CHECKOUT-1"}

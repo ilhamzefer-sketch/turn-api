@@ -61,6 +61,10 @@ public class WalletTopUpRequestService {
         requestRepository.findActiveByUserIdForUpdate(userId).ifPresent(active -> {
             if (active.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT && active.expire(now)) {
                 requestRepository.saveAndFlush(active);
+            } else if (active.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT
+                    && !"manual".equalsIgnoreCase(active.getPaymentProvider())) {
+                active.failExternalPayment("REPLACED-" + active.getId(), "replaced_by_new_request", now);
+                requestRepository.saveAndFlush(active);
             } else {
                 throw new WalletTopUpException(
                         WalletTopUpFailure.ACTIVE_REQUEST_EXISTS,
