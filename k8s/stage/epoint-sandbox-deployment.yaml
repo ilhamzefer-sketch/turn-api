@@ -37,6 +37,10 @@ spec:
               mountPath: /app/src/epoint_sandbox/web/static/logo.svg
               subPath: logo.svg
               readOnly: true
+            - name: checkout-assets
+              mountPath: /app/src/epoint_sandbox/web/templates/base.html
+              subPath: base.html
+              readOnly: true
       volumes:
         - name: checkout-assets
           configMap:

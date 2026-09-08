@@ -30,6 +30,7 @@ configMapGenerator:
       - tokens.css=epoint-sandbox-assets/tokens.css
       - checkout.css=epoint-sandbox-assets/checkout.css
       - logo.svg=epoint-sandbox-assets/logo.svg
+      - base.html=epoint-sandbox-assets/base.html
 
 images:
   - name: ghcr.io/ilhamzefer-sketch/turn-api
