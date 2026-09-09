@@ -30,7 +30,6 @@ configMapGenerator:
       - tokens.css=epoint-sandbox-assets/tokens.css
       - checkout.css=epoint-sandbox-assets/checkout.css
       - logo.svg=epoint-sandbox-assets/logo.svg
-      - novbetime-logo.png=epoint-sandbox-assets/novbetime-logo.png
       - base.html=epoint-sandbox-assets/base.html
       - checkout.html=epoint-sandbox-assets/checkout.html
 
