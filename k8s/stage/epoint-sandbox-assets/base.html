@@ -10,7 +10,12 @@
 </head>
 <body>
 <header>
-  <a class="logo" href="/"><img src="/_epoint/checkout-assets/logo.svg?v=novbetime-logo-49371b2" alt="NövbəTime"></a>
+  <a class="logo" href="/" aria-label="NövbəTime ana səhifə">
+    <span class="logo__mark" aria-hidden="true">
+      <img class="logo__image" src="/_epoint/checkout-assets/novbetime-logo.png?v=novbetime-logo-real" alt="" width="512" height="512">
+    </span>
+    <span class="logo__name">NövbəTime</span>
+  </a>
   <div class="phone">{{ merchant.contact_phone or '051-832-03-16' }}</div>
 </header>
 <main>
