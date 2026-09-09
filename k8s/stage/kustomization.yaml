@@ -31,6 +31,7 @@ configMapGenerator:
       - checkout.css=epoint-sandbox-assets/checkout.css
       - logo.svg=epoint-sandbox-assets/logo.svg
       - base.html=epoint-sandbox-assets/base.html
+      - checkout.html=epoint-sandbox-assets/checkout.html
 
 images:
   - name: ghcr.io/ilhamzefer-sketch/turn-api

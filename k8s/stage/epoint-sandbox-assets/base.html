@@ -5,20 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ t.title }}</title>
 <link rel="icon" type="image/x-icon" href="/_epoint/checkout-assets/favicon.ico">
-<link rel="stylesheet" href="/_epoint/checkout-assets/tokens.css?v=novbetime-15c1ac4">
-<link rel="stylesheet" href="/_epoint/checkout-assets/checkout.css?v=novbetime-15c1ac4">
+<link rel="stylesheet" href="/_epoint/checkout-assets/tokens.css?v=novbetime-live-20260909">
+<link rel="stylesheet" href="/_epoint/checkout-assets/checkout.css?v=novbetime-live-20260909">
 </head>
 <body>
 <header>
-  <a class="logo" href="/"><img src="/_epoint/checkout-assets/logo.svg?v=novbetime-15c1ac4" alt="NovbeTime"><span class="badge">SANDBOX</span></a>
-  <div class="phone">{{ merchant.contact_phone or '' }}</div>
+  <a class="logo" href="/"><img src="/_epoint/checkout-assets/logo.svg?v=novbetime-live-20260909" alt="NovbeTime"></a>
+  <div class="phone">{{ merchant.contact_phone or '051-832-03-16' }}</div>
 </header>
 <main>
   {% block content %}{% endblock %}
 </main>
 <footer>
-  <span>NovbeTime test checkout</span>
-  <nav><a href="/">Dashboard</a><a href="/docs">API reference</a></nav>
+  <span>NovbeTime</span>
 </footer>
 </body>
 </html>

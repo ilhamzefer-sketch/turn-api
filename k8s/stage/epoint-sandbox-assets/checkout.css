@@ -46,13 +46,13 @@ header {
 
 .logo img {
   display: block;
-  width: 11rem;
+  width: 10.5rem;
   max-width: 48vw;
   height: auto;
 }
 
 .badge {
-  display: inline-flex;
+  display: none;
   min-height: 1.75rem;
   align-items: center;
   border: 1px solid color-mix(in srgb, var(--color-warm), var(--color-line) 35%);
@@ -254,6 +254,7 @@ button:focus-visible {
 }
 
 .hint {
+  display: none;
   width: min(100%, 30rem);
   margin: 1.5rem auto 0;
   color: var(--color-muted);
@@ -298,7 +299,7 @@ footer {
   display: flex;
   min-height: 3.5rem;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   padding: 0 clamp(1rem, 4vw, 3rem);
   border-top: 1px solid var(--color-line);
@@ -308,7 +309,7 @@ footer {
 }
 
 footer nav {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.75rem 1.25rem;

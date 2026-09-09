@@ -35,7 +35,12 @@ public class EpointSandboxConfigurer {
 
         try {
             String sandboxUrl = trimTrailingSlash(properties.apiBaseUrl()).replaceFirst("/api/1$", "");
-            byte[] body = objectMapper.writeValueAsBytes(Map.of("result_url", properties.resultUrl()));
+            byte[] body = objectMapper.writeValueAsBytes(Map.of(
+                    "name", "NovbeTime",
+                    "tin", "1201088522",
+                    "contact_phone", "051-832-03-16",
+                    "result_url", properties.resultUrl()
+            ));
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(sandboxUrl + "/_sandbox/merchants/" + properties.publicKey()))
                     .header("Content-Type", "application/json")
