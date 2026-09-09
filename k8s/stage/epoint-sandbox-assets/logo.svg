@@ -1,8 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="304" height="88" viewBox="0 0 304 88" role="img" aria-labelledby="title">
-  <title id="title">NovbeTime</title>
-  <rect width="88" height="88" rx="22" fill="#fffdf8"/>
-  <rect x="10" y="10" width="68" height="68" rx="18" fill="#0c4a43"/>
-  <path d="M44 22a22 22 0 1 0 22 22h-9a13 13 0 1 1-13-13v-9Z" fill="#f2bd68"/>
-  <path d="M45 27v18l15 8" fill="none" stroke="#fffdf8" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="106" y="53" fill="#102421" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="34" font-weight="780">NovbeTime</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="308" height="88" viewBox="0 0 308 88" role="img" aria-labelledby="title">
+  <title id="title">NövbəTime</title>
+  <rect x="2" y="2" width="84" height="84" rx="20" fill="#fffdf8"/>
+  <path d="M25 25c0-7.2 5.8-13 13-13h18c7.2 0 13 5.8 13 13v38c0 7.2-5.8 13-13 13H38c-7.2 0-13-5.8-13-13V25Z" fill="#00675f"/>
+  <path d="M42 21v44" stroke="#fffdf8" stroke-width="6.5" stroke-linecap="round"/>
+  <path d="M42 22l26 38" stroke="#fffdf8" stroke-width="6.5" stroke-linecap="round"/>
+  <circle cx="58" cy="31" r="12.5" fill="#fffdf8"/>
+  <path d="M58 23v9l7 4" fill="none" stroke="#00675f" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="18" cy="69" r="3.5" fill="#00675f"/>
+  <circle cx="27" cy="69" r="3.5" fill="#00675f"/>
+  <circle cx="36" cy="69" r="3.5" fill="#00675f"/>
+  <circle cx="27" cy="60" r="3.5" fill="#00675f"/>
+  <circle cx="36" cy="60" r="3.5" fill="#00675f"/>
+  <circle cx="36" cy="51" r="3.5" fill="#00675f"/>
+  <text x="112" y="56" fill="#061815" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="32" font-weight="800">NövbəTime</text>
 </svg>
