@@ -297,7 +297,7 @@ class WalletApiIntegrationTests {
         WalletTopUpRequestEntity request = walletTopUpRequestRepository.findById(requestId).orElseThrow();
         assertThat(request.getReceiptAttachment()).isNotNull();
         assertThat(request.getWalletTransaction()).isNotNull();
-        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(30);
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(1);
 
         MockMultipartFile duplicate = new MockMultipartFile(
                 "file", "duplicate.png", MediaType.IMAGE_PNG_VALUE, pngBytes()
@@ -309,7 +309,7 @@ class WalletApiIntegrationTests {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isConflict());
 
-        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(30);
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(1);
     }
 
     @Test

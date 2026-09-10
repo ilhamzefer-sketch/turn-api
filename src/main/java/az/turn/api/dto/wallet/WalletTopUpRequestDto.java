@@ -1,11 +1,12 @@
 package az.turn.api;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record WalletTopUpRequestDto(
         long id,
         String packageCode,
-        int amountAzn,
+        BigDecimal amountAzn,
         long coinAmount,
         String currency,
         String paymentUrl,

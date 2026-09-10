@@ -172,9 +172,9 @@ spec:
             - name: EPOINT_API_BASE_URL
               value: https://epoint.az/api/1
             - name: EPOINT_SUCCESS_URL
-              value: https://novbetime.az/app/wallet?payment=success
+              value: https://www.novbetime.az/app/wallet?payment=success
             - name: EPOINT_ERROR_URL
-              value: https://novbetime.az/app/wallet?payment=failed
+              value: https://www.novbetime.az/app/wallet?payment=failed
             - name: EPOINT_RESULT_URL
               value: https://novbetime.az/api/payments/epoint/callback
             - name: EPOINT_LANGUAGE

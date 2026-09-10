@@ -14,6 +14,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -37,8 +38,8 @@ public class WalletTopUpRequestEntity {
     @JoinColumn(name = "package_code", nullable = false)
     private WalletTopUpPackageEntity topUpPackage;
 
-    @Column(nullable = false)
-    private int amountAzn;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal amountAzn;
 
     @Column(nullable = false)
     private long coinAmount;
@@ -151,7 +152,7 @@ public class WalletTopUpRequestEntity {
         return topUpPackage;
     }
 
-    public int getAmountAzn() {
+    public BigDecimal getAmountAzn() {
         return amountAzn;
     }
 

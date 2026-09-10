@@ -122,7 +122,7 @@ public class EpointWalletPaymentService {
     private String createCheckoutUrl(WalletTopUpRequestEntity request, String orderId) throws IOException {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("public_key", properties.publicKey());
-        payload.put("amount", BigDecimal.valueOf(request.getAmountAzn()).stripTrailingZeros().toPlainString());
+        payload.put("amount", request.getAmountAzn().stripTrailingZeros().toPlainString());
         payload.put("currency", currency());
         payload.put("language", language());
         payload.put("order_id", orderId);
@@ -209,7 +209,7 @@ public class EpointWalletPaymentService {
         } catch (NumberFormatException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint məbləği düzgün deyil.", exception);
         }
-        if (actualAmount.compareTo(BigDecimal.valueOf(request.getAmountAzn())) != 0) {
+        if (actualAmount.compareTo(request.getAmountAzn()) != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Epoint məbləği sorğu ilə uyğun deyil.");
         }
         if (suppliedCurrency != null && !currency().equalsIgnoreCase(String.valueOf(suppliedCurrency))) {

@@ -56,7 +56,7 @@ class AdminWalletFraudApiIntegrationTests {
         TestCsrfToken userCsrf = csrf();
         String userToken = register(userCsrf, "0501290130");
         UserEntity user = userRepository.findByNormalizedPhone("+994501290130").orElseThrow();
-        long topUpId = createAndUploadTopUp(userCsrf, userToken, "AZN_3");
+        long topUpId = createAndUploadTopUp(userCsrf, userToken, "AZN_5");
         IndividualWorkspaceResponseDto workspace = workspaceService.create(
                 user.getId(),
                 new IndividualWorkspaceCreateRequestDto("Fırıldaq testi", "Asia/Baku")
@@ -70,7 +70,7 @@ class AdminWalletFraudApiIntegrationTests {
                         "fraud-subscription-purchase"
                 )
         );
-        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isZero();
+        assertThat(walletAccountRepository.findByUserId(user.getId()).orElseThrow().getBalance()).isEqualTo(20);
         String adminToken = loginAdmin(csrf());
         TestCsrfToken adminCsrf = csrf();
 

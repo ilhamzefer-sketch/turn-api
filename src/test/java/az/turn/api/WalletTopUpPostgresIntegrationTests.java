@@ -12,6 +12,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,11 +42,11 @@ class WalletTopUpPostgresIntegrationTests {
                      "select amount_azn, coin_amount from wallet_top_up_packages "
                              + "where active = true order by display_order"
              )) {
-            int[] amounts = {3, 5, 10, 15, 20};
-            long[] coins = {30, 50, 100, 150, 200};
+            BigDecimal[] amounts = {new BigDecimal("0.10"), new BigDecimal("5.00"), new BigDecimal("10.00"), new BigDecimal("15.00"), new BigDecimal("20.00")};
+            long[] coins = {1, 50, 100, 150, 200};
             for (int index = 0; index < amounts.length; index++) {
                 assertThat(result.next()).isTrue();
-                assertThat(result.getInt("amount_azn")).isEqualTo(amounts[index]);
+                assertThat(result.getBigDecimal("amount_azn")).isEqualByComparingTo(amounts[index]);
                 assertThat(result.getLong("coin_amount")).isEqualTo(coins[index]);
             }
             assertThat(result.next()).isFalse();

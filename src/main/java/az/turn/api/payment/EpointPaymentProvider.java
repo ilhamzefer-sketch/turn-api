@@ -127,7 +127,7 @@ public class EpointPaymentProvider implements PaymentProvider {
 
     private String orderIdFor(PaymentSessionEntity session) {
         if (session.getId() == null || session.getId() <= 0) {
-            throw new IllegalArgumentException("Öd?nis sessiyasi saxlanilmis olmalidir.");
+            throw new IllegalArgumentException("Payment session must be persisted.");
         }
         return "registration-" + session.getId() + "-" + Instant.now().toEpochMilli();
     }

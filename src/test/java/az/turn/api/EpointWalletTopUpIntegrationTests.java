@@ -98,7 +98,7 @@ class EpointWalletTopUpIntegrationTests {
                         .content(signedForm(Map.of(
                                 "order_id", request.getExternalOrderId(),
                                 "status", "success",
-                                "amount", "3.00",
+                                "amount", "0.10",
                                 "transaction", "EPOINT-TEST-1"
                         ))))
                 .andExpect(status().isOk());
@@ -107,12 +107,12 @@ class EpointWalletTopUpIntegrationTests {
         assertThat(paid.getStatus()).isEqualTo(WalletTopUpRequestStatus.PAID);
         assertThat(paid.getActiveUserId()).isNull();
         assertThat(paid.getWalletTransaction()).isNotNull();
-        assertThat(walletAccountRepository.findByUserId(paid.getUser().getId()).orElseThrow().getBalance()).isEqualTo(30);
+        assertThat(walletAccountRepository.findByUserId(paid.getUser().getId()).orElseThrow().getBalance()).isEqualTo(1);
 
         mockMvc.perform(get("/api/users/me/wallet")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.balance").value(30));
+                .andExpect(jsonPath("$.balance").value(1));
     }
 
     @Test

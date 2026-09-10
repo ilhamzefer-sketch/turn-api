@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,8 +17,8 @@ public class WalletTopUpPackageEntity {
     @Column(length = 30)
     private String code;
 
-    @Column(nullable = false, unique = true)
-    private int amountAzn;
+    @Column(nullable = false, unique = true, precision = 10, scale = 2)
+    private BigDecimal amountAzn;
 
     @Column(nullable = false, unique = true)
     private long coinAmount;
@@ -46,6 +47,18 @@ public class WalletTopUpPackageEntity {
             boolean active,
             LocalDateTime createdAt
     ) {
+        this(code, BigDecimal.valueOf(amountAzn), coinAmount, paymentUrl, displayOrder, active, createdAt);
+    }
+
+    public WalletTopUpPackageEntity(
+            String code,
+            BigDecimal amountAzn,
+            long coinAmount,
+            String paymentUrl,
+            int displayOrder,
+            boolean active,
+            LocalDateTime createdAt
+    ) {
         this.code = code;
         this.amountAzn = amountAzn;
         this.coinAmount = coinAmount;
@@ -59,7 +72,7 @@ public class WalletTopUpPackageEntity {
         return code;
     }
 
-    public int getAmountAzn() {
+    public BigDecimal getAmountAzn() {
         return amountAzn;
     }
 

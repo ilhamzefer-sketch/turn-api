@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,9 +33,9 @@ class WalletTopUpPersistenceIntegrationTests {
         List<WalletTopUpPackageEntity> packages = packageRepository.findByActiveTrueOrderByDisplayOrderAsc();
 
         assertThat(packages).extracting(WalletTopUpPackageEntity::getAmountAzn)
-                .containsExactly(3, 5, 10, 15, 20);
+                .containsExactly(new BigDecimal("0.10"), new BigDecimal("5.00"), new BigDecimal("10.00"), new BigDecimal("15.00"), new BigDecimal("20.00"));
         assertThat(packages).extracting(WalletTopUpPackageEntity::getCoinAmount)
-                .containsExactly(30L, 50L, 100L, 150L, 200L);
+                .containsExactly(1L, 50L, 100L, 150L, 200L);
     }
 
     @Test
@@ -47,7 +48,7 @@ class WalletTopUpPersistenceIntegrationTests {
                 new WalletTopUpRequestEntity(user, topUpPackage, clickedAt)
         );
 
-        assertThat(request.getAmountAzn()).isEqualTo(10);
+        assertThat(request.getAmountAzn()).isEqualByComparingTo(new BigDecimal("10.00"));
         assertThat(request.getCoinAmount()).isEqualTo(100);
         assertThat(request.getPaymentUrl())
                 .isEqualTo("https://cb.birbank.business/pay/75c998cbda8e4674bb11cbf961d91c27");

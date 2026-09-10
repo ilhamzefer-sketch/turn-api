@@ -2,6 +2,7 @@ package az.turn.api;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,8 +20,8 @@ class WalletTopUpRequestEntityTests {
 
         assertThat(request.getStatus()).isEqualTo(WalletTopUpRequestStatus.AWAITING_RECEIPT);
         assertThat(request.getActiveUserId()).isEqualTo(91L);
-        assertThat(request.getAmountAzn()).isEqualTo(3);
-        assertThat(request.getCoinAmount()).isEqualTo(30);
+        assertThat(request.getAmountAzn()).isEqualByComparingTo(new BigDecimal("0.10"));
+        assertThat(request.getCoinAmount()).isEqualTo(1);
         assertThat(request.getCurrency()).isEqualTo("AZN");
         assertThat(request.getReceiptDeadlineAt()).isEqualTo(CLICKED_AT.plusMinutes(30));
         assertThat(request.isReceiptWindowOpen(CLICKED_AT.plusMinutes(29))).isTrue();
@@ -61,9 +62,9 @@ class WalletTopUpRequestEntityTests {
         WalletTransactionEntity transaction = new WalletTransactionEntity(
                 new WalletAccountEntity(user, CLICKED_AT),
                 WalletTransactionType.TOP_UP,
-                30,
+                1,
                 0,
-                30,
+                1,
                 WalletActorType.SYSTEM,
                 null,
                 "epoint",
@@ -97,8 +98,8 @@ class WalletTopUpRequestEntityTests {
     void rejectsInactivePackagesAndBlankRejectionReasons() {
         WalletTopUpPackageEntity inactivePackage = new WalletTopUpPackageEntity(
                 "AZN_3",
-                3,
-                30,
+                new BigDecimal("0.10"),
+                1,
                 "https://cb.birbank.business/pay/7847238243e34c9c9dd4666f749d5879",
                 1,
                 false,
@@ -123,8 +124,8 @@ class WalletTopUpRequestEntityTests {
     private WalletTopUpPackageEntity topUpPackage() {
         return new WalletTopUpPackageEntity(
                 "AZN_3",
-                3,
-                30,
+                new BigDecimal("0.10"),
+                1,
                 "https://cb.birbank.business/pay/7847238243e34c9c9dd4666f749d5879",
                 1,
                 true,

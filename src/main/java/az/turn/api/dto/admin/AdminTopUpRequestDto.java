@@ -1,5 +1,6 @@
 package az.turn.api;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record AdminTopUpRequestDto(
@@ -9,7 +10,7 @@ public record AdminTopUpRequestDto(
         String lastName,
         String phone,
         String packageCode,
-        int amountAzn,
+        BigDecimal amountAzn,
         long coinAmount,
         String currency,
         String status,
