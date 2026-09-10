@@ -35,4 +35,4 @@ configMapGenerator:
 
 images:
   - name: ghcr.io/ilhamzefer-sketch/turn-api
-    newTag: f67566647c57206fb7bd760be4e569069aec888e
+    newTag: d2c9697d152104bcde48f6f8d662b51cc33be945
