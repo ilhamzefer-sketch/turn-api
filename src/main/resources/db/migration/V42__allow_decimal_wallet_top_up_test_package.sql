@@ -1,3 +1,4 @@
+-- Keep AZN_3 as a low-value live Epoint smoke test package.
 alter table wallet_top_up_requests drop constraint if exists chk_wallet_top_up_requests_fixed_package;
 alter table wallet_top_up_packages drop constraint if exists chk_wallet_top_up_packages_fixed_catalog;
 alter table wallet_top_up_packages drop constraint if exists chk_wallet_top_up_packages_coin_amount;
