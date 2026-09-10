@@ -59,7 +59,7 @@ class EpointWalletTopUpIntegrationTests {
     @DynamicPropertySource
     static void epointProperties(DynamicPropertyRegistry registry) throws IOException {
         epointServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        epointServer.createContext("/api/1/request", EpointWalletTopUpIntegrationTests::checkout);
+        epointServer.createContext("/api/1/payment-request", EpointWalletTopUpIntegrationTests::checkout);
         epointServer.start();
         registry.add(
                 "app.payment.epoint.api-base-url",

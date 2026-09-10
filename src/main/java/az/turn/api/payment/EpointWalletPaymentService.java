@@ -133,7 +133,7 @@ public class EpointWalletPaymentService {
 
         String encodedData = Base64.getEncoder().encodeToString(objectMapper.writeValueAsBytes(payload));
         String signedData = EpointSignature.sign(encodedData, properties.privateKey());
-        Map<String, Object> response = postForm(apiBaseUrl() + "/request", encodedData, signedData);
+        Map<String, Object> response = postForm(apiBaseUrl() + "/payment-request", encodedData, signedData);
         String redirectUrl = response == null ? null : Objects.toString(response.get("redirect_url"), null);
         if (redirectUrl == null || redirectUrl.isBlank() || "null".equalsIgnoreCase(redirectUrl)) {
             throw new IOException("Epoint did not return checkout URL. " + responseSummary(response));
