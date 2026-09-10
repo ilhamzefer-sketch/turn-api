@@ -38,6 +38,8 @@ alter table wallet_top_up_packages add constraint chk_wallet_top_up_packages_fix
 );
 
 alter table wallet_top_up_requests add constraint chk_wallet_top_up_requests_fixed_package check (
+    (package_code = 'AZN_3' and amount_azn = 3.00 and coin_amount = 30)
+    or
     (
         payment_provider <> 'manual'
         and (
