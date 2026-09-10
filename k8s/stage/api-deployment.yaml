@@ -152,7 +152,7 @@ spec:
             - name: APP_WALLET_WHATSAPP_URL
               value: https://wa.me/message/P63GI5XJ3PQLC1
             - name: APP_PAYMENT_MODE
-              value: test
+              value: live
             - name: APP_PAYMENT_PROVIDER
               value: epoint
             - name: APP_PAYMENT_CALLBACK_BASE_URL
@@ -170,27 +170,19 @@ spec:
                   key: EPOINT_PRIVATE_KEY
                   optional: true
             - name: EPOINT_API_BASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: EPOINT_API_BASE_URL
-                  optional: true
+              value: https://epoint.az/api/1
             - name: EPOINT_SUCCESS_URL
               value: https://novbetime.az/app/wallet?payment=success
             - name: EPOINT_ERROR_URL
               value: https://novbetime.az/app/wallet?payment=failed
             - name: EPOINT_RESULT_URL
-              value: http://turn-api:8080/api/payments/epoint/callback
+              value: https://novbetime.az/api/payments/epoint/callback
             - name: EPOINT_LANGUAGE
               value: az
             - name: EPOINT_CURRENCY
               value: AZN
             - name: EPOINT_SANDBOX_ENABLED
-              valueFrom:
-                secretKeyRef:
-                  name: turn-stage-secrets
-                  key: EPOINT_SANDBOX_ENABLED
-                  optional: true
+              value: "false"
             - name: APP_PAYMENT_RECONCILIATION_ENABLED
               value: "false"
             - name: APP_UPLOAD_STORAGE_ROOT
