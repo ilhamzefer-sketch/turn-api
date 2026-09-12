@@ -19,7 +19,9 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,6 +48,8 @@ class AdminWalletTopUpApiIntegrationTests {
     private PlatformAuditEventRepository auditRepository;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private Clock clock;
 
     @Test
     void groupedFiltersAndGlobalSummaryRespectBakuDayBoundary() throws Exception {
@@ -106,16 +110,27 @@ class AdminWalletTopUpApiIntegrationTests {
         assertThat(after.get("paidTodayAmount").decimalValue()).isEqualByComparingTo(paidTodayBefore.add(new BigDecimal("5")));
 
         LocalDate yesterday = LocalDate.now(ZoneId.of("Asia/Baku")).minusDays(1);
+        LocalDateTime yesterdayAt23 = inStorageZone(yesterday, 23, 0, 0);
+        LocalDateTime yesterdayAt2330 = inStorageZone(yesterday, 23, 30, 0);
+        LocalDateTime yesterdayAt2310 = inStorageZone(yesterday, 23, 10, 0);
+        LocalDateTime yesterdayAt2359 = inStorageZone(yesterday, 23, 59, 59);
         jdbcTemplate.update("update wallet_top_up_requests set created_at = ?, clicked_at = ?, "
                         + "receipt_deadline_at = ?, receipt_uploaded_at = ?, reviewed_at = ?, updated_at = ? where id = ?",
-                Timestamp.valueOf(yesterday.atTime(23, 0)),
-                Timestamp.valueOf(yesterday.atTime(23, 0)),
-                Timestamp.valueOf(yesterday.atTime(23, 30)),
-                Timestamp.valueOf(yesterday.atTime(23, 10)),
-                Timestamp.valueOf(yesterday.atTime(23, 59, 59)),
-                Timestamp.valueOf(yesterday.atTime(23, 59, 59)), paidId);
+                Timestamp.valueOf(yesterdayAt23),
+                Timestamp.valueOf(yesterdayAt23),
+                Timestamp.valueOf(yesterdayAt2330),
+                Timestamp.valueOf(yesterdayAt2310),
+                Timestamp.valueOf(yesterdayAt2359),
+                Timestamp.valueOf(yesterdayAt2359), paidId);
         assertThat(listTopUps(adminToken, "WAITING_GROUP", 0, 1).get("summary")
                 .get("paidTodayAmount").decimalValue()).isEqualByComparingTo(paidTodayBefore);
+    }
+
+    private LocalDateTime inStorageZone(LocalDate day, int hour, int minute, int second) {
+        return LocalDateTime.ofInstant(
+                day.atTime(hour, minute, second).atZone(ZoneId.of("Asia/Baku")).toInstant(),
+                clock.getZone()
+        );
     }
 
     private JsonNode listTopUps(String adminToken, String statusFilter, int page, int size) throws Exception {
