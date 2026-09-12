@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: turn-stage
+
+resources:
+  - ../stage
+  - epoint-sandbox-deployment.yaml
+  - epoint-sandbox-service.yaml
+
+configMapGenerator:
+  - name: epoint-sandbox-checkout-assets
+    files:
+      - tokens.css=epoint-sandbox-assets/tokens.css
+      - checkout.css=epoint-sandbox-assets/checkout.css
+      - logo.svg=epoint-sandbox-assets/logo.svg
+      - base.html=epoint-sandbox-assets/base.html
+      - checkout.html=epoint-sandbox-assets/checkout.html

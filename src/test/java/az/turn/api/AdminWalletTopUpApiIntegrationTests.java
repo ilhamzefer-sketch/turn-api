@@ -10,12 +10,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.startsWith;
@@ -39,6 +44,95 @@ class AdminWalletTopUpApiIntegrationTests {
     private WalletTopUpRequestRepository requestRepository;
     @Autowired
     private PlatformAuditEventRepository auditRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void groupedFiltersAndGlobalSummaryRespectBakuDayBoundary() throws Exception {
+        String adminToken = loginAdmin(csrf());
+        TestCsrfToken adminCsrf = csrf();
+        JsonNode before = listTopUps(adminToken, "", 0, 1).get("summary");
+
+        TestCsrfToken paidCsrf = csrf();
+        String paidToken = register(paidCsrf, "0501290140");
+        UserEntity paidUser = userRepository.findByNormalizedPhone("+994501290140").orElseThrow();
+        paidUser.setConfirmedWalletFraudCount(3);
+        userRepository.saveAndFlush(paidUser);
+        long paidId = createTopUp(paidCsrf, paidToken, "AZN_5");
+        uploadReceipt(paidCsrf, paidToken, paidId);
+        mockMvc.perform(post("/api/admin/payments/top-ups/{id}/approve", paidId)
+                        .cookie(adminCsrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, adminCsrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+
+        TestCsrfToken failedCsrf = csrf();
+        String failedToken = register(failedCsrf, "0501290141");
+        UserEntity failedUser = userRepository.findByNormalizedPhone("+994501290141").orElseThrow();
+        failedUser.setConfirmedWalletFraudCount(3);
+        userRepository.saveAndFlush(failedUser);
+        long failedId = createTopUp(failedCsrf, failedToken, "AZN_3");
+        uploadReceipt(failedCsrf, failedToken, failedId);
+        mockMvc.perform(post("/api/admin/payments/top-ups/{id}/reject", failedId)
+                        .cookie(adminCsrf.cookie())
+                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, adminCsrf.value())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Çek uyğun deyil\"}"))
+                .andExpect(status().isOk());
+
+        TestCsrfToken waitingCsrf = csrf();
+        String waitingToken = register(waitingCsrf, "0501290142");
+        long waitingId = createTopUp(waitingCsrf, waitingToken, "AZN_10");
+
+        assertThat(containsId(listTopUps(adminToken, "PAID_GROUP", 0, 100), paidId)).isTrue();
+        assertThat(containsId(listTopUps(adminToken, "FAILED_GROUP", 0, 100), failedId)).isTrue();
+        assertThat(containsId(listTopUps(adminToken, "WAITING_GROUP", 0, 100), waitingId)).isTrue();
+
+        JsonNode page = listTopUps(adminToken, "PAID_GROUP", 0, 1);
+        assertThat(page.get("hasNext").asBoolean()).isTrue();
+        JsonNode nextPage = listTopUps(adminToken, "PAID_GROUP", 1, 1);
+        assertThat(nextPage.get("items").get(0).get("id").asLong())
+                .isNotEqualTo(page.get("items").get(0).get("id").asLong());
+        JsonNode after = page.get("summary");
+        assertThat(after.get("total").asLong()).isEqualTo(before.get("total").asLong() + 3);
+        assertThat(after.get("paid").asLong()).isEqualTo(before.get("paid").asLong() + 1);
+        assertThat(after.get("failed").asLong()).isEqualTo(before.get("failed").asLong() + 1);
+        assertThat(after.get("waiting").asLong()).isEqualTo(before.get("waiting").asLong() + 1);
+        assertThat(after.get("timezone").asText()).isEqualTo("Asia/Baku");
+        BigDecimal paidTodayBefore = before.get("paidTodayAmount").decimalValue();
+        assertThat(after.get("paidTodayAmount").decimalValue()).isEqualByComparingTo(paidTodayBefore.add(new BigDecimal("5")));
+
+        LocalDate yesterday = LocalDate.now(ZoneId.of("Asia/Baku")).minusDays(1);
+        jdbcTemplate.update("update wallet_top_up_requests set created_at = ?, clicked_at = ?, "
+                        + "receipt_deadline_at = ?, receipt_uploaded_at = ?, reviewed_at = ?, updated_at = ? where id = ?",
+                Timestamp.valueOf(yesterday.atTime(23, 0)),
+                Timestamp.valueOf(yesterday.atTime(23, 0)),
+                Timestamp.valueOf(yesterday.atTime(23, 30)),
+                Timestamp.valueOf(yesterday.atTime(23, 10)),
+                Timestamp.valueOf(yesterday.atTime(23, 59, 59)),
+                Timestamp.valueOf(yesterday.atTime(23, 59, 59)), paidId);
+        assertThat(listTopUps(adminToken, "WAITING_GROUP", 0, 1).get("summary")
+                .get("paidTodayAmount").decimalValue()).isEqualByComparingTo(paidTodayBefore);
+    }
+
+    private JsonNode listTopUps(String adminToken, String statusFilter, int page, int size) throws Exception {
+        var request = get("/api/admin/payments/top-ups")
+                .param("page", Integer.toString(page))
+                .param("size", Integer.toString(size))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken);
+        if (!statusFilter.isBlank()) request.param("status", statusFilter);
+        MvcResult result = mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
+    private boolean containsId(JsonNode page, long id) {
+        return page.get("items").valueStream().anyMatch(item -> item.get("id").asLong() == id);
+    }
 
     @Test
     void adminListsReceiptAndApprovesTopUpExactlyOnce() throws Exception {

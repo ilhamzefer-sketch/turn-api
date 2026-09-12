@@ -36,6 +36,7 @@ app:
       read-timeout: 1s
       chunk-bytes: 8192
   wallet:
+    manual-top-up-enabled: true
     coins-per-azn: 10
     minimum-top-up-coins: 1
     maximum-top-up-coins: 1000000
@@ -52,3 +53,5 @@ app:
     bootstrap-must-change: false
   security:
     jwt-secret: test-only-secret-test-only-secret-test-only-secret-123456
+    rate-limit:
+      global-per-minute: 1000

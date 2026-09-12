@@ -17,6 +17,8 @@ public class AdminTopUpRequestMapper {
                 request.getAmountAzn(),
                 request.getCoinAmount(),
                 request.getCurrency(),
+                request.getPaymentProvider(),
+                request.getExternalOrderId(),
                 request.getStatus().name(),
                 request.getClickedAt(),
                 request.getReceiptDeadlineAt(),

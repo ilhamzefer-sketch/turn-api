@@ -42,8 +42,8 @@ class WalletTopUpPostgresIntegrationTests {
                      "select amount_azn, coin_amount from wallet_top_up_packages "
                              + "where active = true order by display_order"
              )) {
-            BigDecimal[] amounts = {new BigDecimal("0.10"), new BigDecimal("5.00"), new BigDecimal("10.00"), new BigDecimal("15.00"), new BigDecimal("20.00")};
-            long[] coins = {1, 50, 100, 150, 200};
+            BigDecimal[] amounts = {new BigDecimal("3.00"), new BigDecimal("5.00"), new BigDecimal("10.00"), new BigDecimal("15.00"), new BigDecimal("20.00")};
+            long[] coins = {30, 50, 100, 150, 200};
             for (int index = 0; index < amounts.length; index++) {
                 assertThat(result.next()).isTrue();
                 assertThat(result.getBigDecimal("amount_azn")).isEqualByComparingTo(amounts[index]);
@@ -107,6 +107,48 @@ class WalletTopUpPostgresIntegrationTests {
                             + walletAccountId + ", 'TOP_UP_REVERSAL', 'CREDIT', 30, 0, 30, "
                             + "'SYSTEM', 'fraud-review-test', 'top-up-reversal:invalid', current_timestamp)"
             ));
+        }
+    }
+
+    @Test
+    void forwardMigrationPreservesHistoricalAmountsAndReplacedOrders() throws Exception {
+        Flyway.configure().dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .cleanDisabled(false).load().clean();
+        Flyway.configure().dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .target("42").load().migrate();
+        long manualUser;
+        long replacedUser;
+        long originalUser;
+        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
+            manualUser = insertUser(statement, "+994509940001");
+            replacedUser = insertUser(statement, "+994509940002");
+            originalUser = insertUser(statement, "+994509940003");
+            insertAwaitingRequest(statement, manualUser, "AZN_3", "2026-08-31 12:00:00");
+            insertAwaitingRequest(statement, replacedUser, "AZN_3", "2026-08-31 12:00:00");
+            insertAwaitingRequest(statement, originalUser, "AZN_3", "2026-08-31 12:00:00");
+            statement.executeUpdate("update wallet_top_up_requests set amount_azn=3.00, coin_amount=30 where user_id=" + originalUser);
+            statement.executeUpdate("update wallet_top_up_requests set payment_provider='epoint', "
+                    + "external_order_id='wallet-123-456', external_payment_status='replaced_by_new_request', "
+                    + "external_payment_reference='REPLACED-123', active_user_id=null, status='PAYMENT_FAILED' where user_id=" + replacedUser);
+        }
+        Flyway.configure().dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()).load().migrate();
+        try (Connection connection = connection(); Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery("select user_id, amount_azn, coin_amount, status, payment_provider, checkout_state "
+                     + "from wallet_top_up_requests order by user_id")) {
+            assertThat(result.next()).isTrue();
+            assertThat(result.getLong("user_id")).isEqualTo(manualUser);
+            assertThat(result.getBigDecimal("amount_azn")).isEqualByComparingTo("0.10");
+            assertThat(result.getLong("coin_amount")).isEqualTo(1);
+            assertThat(result.getString("checkout_state")).isEqualTo("NOT_REQUIRED");
+            assertThat(result.next()).isTrue();
+            assertThat(result.getLong("user_id")).isEqualTo(replacedUser);
+            assertThat(result.getBigDecimal("amount_azn")).isEqualByComparingTo("0.10");
+            assertThat(result.getString("status")).isEqualTo("SUPERSEDED");
+            assertThat(result.getString("checkout_state")).isEqualTo("READY");
+            assertThat(result.next()).isTrue();
+            assertThat(result.getLong("user_id")).isEqualTo(originalUser);
+            assertThat(result.getBigDecimal("amount_azn")).isEqualByComparingTo("3.00");
+            assertThat(result.getLong("coin_amount")).isEqualTo(30);
         }
     }
 

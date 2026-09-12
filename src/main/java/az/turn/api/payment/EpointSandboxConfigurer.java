@@ -42,11 +42,13 @@ public class EpointSandboxConfigurer {
                     "result_url", properties.resultUrl()
             ));
             HttpRequest request = HttpRequest.newBuilder()
+                    .timeout(properties.requestTimeout())
                     .uri(URI.create(sandboxUrl + "/_sandbox/merchants/" + properties.publicKey()))
                     .header("Content-Type", "application/json")
                     .method("PATCH", HttpRequest.BodyPublishers.ofByteArray(body))
                     .build();
             HttpResponse<Void> response = HttpClient.newBuilder()
+                    .connectTimeout(properties.connectTimeout())
                     .version(HttpClient.Version.HTTP_1_1)
                     .build()
                     .send(request, HttpResponse.BodyHandlers.discarding());

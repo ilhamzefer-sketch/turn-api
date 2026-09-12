@@ -9,6 +9,7 @@ public enum WalletTopUpRequestStatus {
     VERIFIED,
     PAID,
     PAYMENT_FAILED,
+    SUPERSEDED,
     REJECTED,
     FRAUD_CONFIRMED,
     EXPIRED;

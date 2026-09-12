@@ -66,6 +66,7 @@ app:
       read-timeout: ${APP_UPLOAD_CLAMAV_READ_TIMEOUT:15s}
       chunk-bytes: ${APP_UPLOAD_CLAMAV_CHUNK_BYTES:8192}
   wallet:
+    manual-top-up-enabled: ${APP_WALLET_MANUAL_TOP_UP_ENABLED:false}
     coins-per-azn: ${APP_WALLET_COINS_PER_AZN:10}
     minimum-top-up-coins: ${APP_WALLET_MINIMUM_TOP_UP_COINS:1}
     maximum-top-up-coins: ${APP_WALLET_MAXIMUM_TOP_UP_COINS:1000000}
@@ -123,6 +124,8 @@ app:
       language: ${EPOINT_LANGUAGE:az}
       currency: ${EPOINT_CURRENCY:AZN}
       sandbox-enabled: ${EPOINT_SANDBOX_ENABLED:false}
+      connect-timeout: ${EPOINT_CONNECT_TIMEOUT:3s}
+      request-timeout: ${EPOINT_REQUEST_TIMEOUT:10s}
     reconciliation-enabled: ${APP_PAYMENT_RECONCILIATION_ENABLED:false}
     reconciliation-delay-ms: ${APP_PAYMENT_RECONCILIATION_DELAY_MS:60000}
     reconciliation-initial-delay-ms: ${APP_PAYMENT_RECONCILIATION_INITIAL_DELAY_MS:30000}

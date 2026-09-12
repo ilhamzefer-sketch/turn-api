@@ -8,13 +8,39 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 
 @Service
 public class AdminWalletTopUpService {
+    private static final ZoneId BUSINESS_TIMEZONE = ZoneId.of("Asia/Baku");
+    private static final List<WalletTopUpRequestStatus> PAID_STATUSES = List.of(
+            WalletTopUpRequestStatus.PAID,
+            WalletTopUpRequestStatus.APPROVED,
+            WalletTopUpRequestStatus.VERIFIED
+    );
+    private static final List<WalletTopUpRequestStatus> REVIEWED_PAID_STATUSES = List.of(
+            WalletTopUpRequestStatus.APPROVED,
+            WalletTopUpRequestStatus.VERIFIED
+    );
+    private static final List<WalletTopUpRequestStatus> FAILED_STATUSES = List.of(
+            WalletTopUpRequestStatus.PAYMENT_FAILED,
+            WalletTopUpRequestStatus.SUPERSEDED,
+            WalletTopUpRequestStatus.REJECTED,
+            WalletTopUpRequestStatus.FRAUD_CONFIRMED,
+            WalletTopUpRequestStatus.EXPIRED
+    );
     private static final List<WalletTopUpRequestStatus> REVIEW_REQUIRED_STATUSES = List.of(
+            WalletTopUpRequestStatus.PENDING_REVIEW,
+            WalletTopUpRequestStatus.MANUAL_REVIEW,
+            WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW
+    );
+    private static final List<WalletTopUpRequestStatus> WAITING_STATUSES = List.of(
+            WalletTopUpRequestStatus.AWAITING_RECEIPT,
             WalletTopUpRequestStatus.PENDING_REVIEW,
             WalletTopUpRequestStatus.MANUAL_REVIEW,
             WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW
@@ -56,11 +82,14 @@ public class AdminWalletTopUpService {
     public AdminTopUpRequestPageDto list(String suppliedStatus, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
         Slice<WalletTopUpRequestEntity> result;
+        List<WalletTopUpRequestStatus> groupedStatuses = groupedStatuses(suppliedStatus);
         if (isReviewRequired(suppliedStatus)) {
             result = requestRepository.findByStatusInOrderByReceiptUploadedAtAscIdAsc(
                     REVIEW_REQUIRED_STATUSES,
                     pageable
             );
+        } else if (groupedStatuses != null) {
+            result = requestRepository.findByStatusInOrderByCreatedAtDescIdDesc(groupedStatuses, pageable);
         } else if (suppliedStatus == null || suppliedStatus.isBlank()) {
             result = requestRepository.findAllByOrderByCreatedAtDescIdDesc(pageable);
         } else {
@@ -71,7 +100,8 @@ public class AdminWalletTopUpService {
                 result.getContent().stream().map(mapper::toDto).toList(),
                 result.getNumber(),
                 result.getSize(),
-                result.hasNext()
+                result.hasNext(),
+                summary()
         );
     }
 
@@ -185,8 +215,41 @@ public class AdminWalletTopUpService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Balans artırma sorğusu tapılmadı."));
     }
 
+    private List<WalletTopUpRequestStatus> groupedStatuses(String value) {
+        if (value == null) return null;
+        return switch (value.trim().toUpperCase(Locale.ROOT)) {
+            case "PAID_GROUP" -> PAID_STATUSES;
+            case "FAILED_GROUP" -> FAILED_STATUSES;
+            case "WAITING_GROUP" -> WAITING_STATUSES;
+            case "REVIEW_REQUIRED" -> REVIEW_REQUIRED_STATUSES;
+            default -> null;
+        };
+    }
+
     private boolean isReviewRequired(String value) {
         return value != null && value.trim().equalsIgnoreCase("REVIEW_REQUIRED");
+    }
+
+    private AdminTopUpSummaryDto summary() {
+        LocalDate businessDate = LocalDate.now(clock.withZone(BUSINESS_TIMEZONE));
+        LocalDateTime from = LocalDateTime.ofInstant(
+                businessDate.atStartOfDay(BUSINESS_TIMEZONE).toInstant(), clock.getZone());
+        LocalDateTime to = LocalDateTime.ofInstant(
+                businessDate.plusDays(1).atStartOfDay(BUSINESS_TIMEZONE).toInstant(), clock.getZone());
+        BigDecimal paidToday = requestRepository.sumAmountByStatusAndReceiptUploadedAt(
+                WalletTopUpRequestStatus.PAID,
+                from,
+                to
+        ).add(requestRepository.sumAmountByStatusInAndReviewedAt(REVIEWED_PAID_STATUSES, from, to));
+        return new AdminTopUpSummaryDto(
+                requestRepository.count(),
+                requestRepository.countByStatusIn(PAID_STATUSES),
+                requestRepository.countByStatusIn(FAILED_STATUSES),
+                requestRepository.countByStatusIn(WAITING_STATUSES),
+                paidToday,
+                businessDate,
+                BUSINESS_TIMEZONE.getId()
+        );
     }
 
     private WalletTopUpRequestStatus parseStatus(String value) {

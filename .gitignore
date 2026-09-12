@@ -1,9 +1,12 @@
 /target/
+/.m2/
 /.mvn/wrapper/maven-wrapper.jar
 /.tmp-spring/
 /.tmp-spring.zip
 /spring-run.log
 /spring-run.err.log
+/turn-epoint-test-api.log
+/turn-epoint-test-api.err.log
 /.idea/
 /*.iml
 /data/

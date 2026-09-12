@@ -14,6 +14,9 @@ public record WalletTopUpRequestDto(
         LocalDateTime clickedAt,
         LocalDateTime receiptDeadlineAt,
         LocalDateTime receiptUploadedAt,
-        boolean receiptUploadOpen
+        boolean receiptUploadOpen,
+        String paymentProvider,
+        String externalOrderId,
+        WalletCheckoutState checkoutState
 ) {
 }

@@ -18,6 +18,15 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+import static az.turn.api.WalletTopUpRequestValidation.requireNonBlank;
+import static az.turn.api.WalletTopUpRequestValidation.requireStatus;
+import static az.turn.api.WalletTopUpRequestValidation.requireStatusIn;
+import static az.turn.api.WalletTopUpRequestValidation.requireExternalCompletableStatus;
+import static az.turn.api.WalletTopUpRequestValidation.requireFraudReviewStatus;
+import static az.turn.api.WalletTopUpRequestValidation.normalizeOptional;
+import static az.turn.api.WalletTopUpRequestValidation.requireTopUpTransaction;
+import static az.turn.api.WalletTopUpRequestValidation.requireReversalTransaction;
+
 @Entity
 @Table(name = "wallet_top_up_requests")
 public class WalletTopUpRequestEntity {
@@ -62,9 +71,16 @@ public class WalletTopUpRequestEntity {
     @Column(length = 40)
     private String externalPaymentStatus;
 
+    @Column(length = 180, unique = true)
+    private String externalCheckoutTransactionId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private WalletTopUpRequestStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private WalletCheckoutState checkoutState = WalletCheckoutState.NOT_REQUIRED;
 
     @Column(nullable = false)
     private LocalDateTime clickedAt;
@@ -136,109 +152,34 @@ public class WalletTopUpRequestEntity {
         updatedAt = clickedAt;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public UserEntity getUser() {
-        return user;
-    }
-
-    public Long getActiveUserId() {
-        return activeUserId;
-    }
-
-    public WalletTopUpPackageEntity getTopUpPackage() {
-        return topUpPackage;
-    }
-
-    public BigDecimal getAmountAzn() {
-        return amountAzn;
-    }
-
-    public long getCoinAmount() {
-        return coinAmount;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public String getPaymentUrl() {
-        return paymentUrl;
-    }
-
-    public String getPaymentProvider() {
-        return paymentProvider;
-    }
-
-    public String getExternalOrderId() {
-        return externalOrderId;
-    }
-
-    public String getExternalPaymentReference() {
-        return externalPaymentReference;
-    }
-
-    public String getExternalPaymentStatus() {
-        return externalPaymentStatus;
-    }
-
-    public WalletTopUpRequestStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getClickedAt() {
-        return clickedAt;
-    }
-
-    public LocalDateTime getReceiptDeadlineAt() {
-        return receiptDeadlineAt;
-    }
-
-    public LocalDateTime getReceiptUploadedAt() {
-        return receiptUploadedAt;
-    }
-
-    public AdminAccountEntity getReviewedByAdmin() {
-        return reviewedByAdmin;
-    }
-
-    public LocalDateTime getReviewedAt() {
-        return reviewedAt;
-    }
-
-    public String getResolutionNote() {
-        return resolutionNote;
-    }
-
-    public WalletTransactionEntity getWalletTransaction() {
-        return walletTransaction;
-    }
-
-    public WalletTransactionEntity getReversalWalletTransaction() {
-        return reversalWalletTransaction;
-    }
-
-    public Integer getFraudCountAfter() {
-        return fraudCountAfter;
-    }
-
-    public SecureAttachmentEntity getReceiptAttachment() {
-        return receiptAttachment;
-    }
-
-    public long getVersion() {
-        return version;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
+    public String getExternalCheckoutTransactionId() { return externalCheckoutTransactionId; }
+    public WalletCheckoutState getCheckoutState() { return checkoutState; }
+    public Long getId() { return id; }
+    public UserEntity getUser() { return user; }
+    public Long getActiveUserId() { return activeUserId; }
+    public WalletTopUpPackageEntity getTopUpPackage() { return topUpPackage; }
+    public BigDecimal getAmountAzn() { return amountAzn; }
+    public long getCoinAmount() { return coinAmount; }
+    public String getCurrency() { return currency; }
+    public String getPaymentUrl() { return paymentUrl; }
+    public String getPaymentProvider() { return paymentProvider; }
+    public String getExternalOrderId() { return externalOrderId; }
+    public String getExternalPaymentReference() { return externalPaymentReference; }
+    public String getExternalPaymentStatus() { return externalPaymentStatus; }
+    public WalletTopUpRequestStatus getStatus() { return status; }
+    public LocalDateTime getClickedAt() { return clickedAt; }
+    public LocalDateTime getReceiptDeadlineAt() { return receiptDeadlineAt; }
+    public LocalDateTime getReceiptUploadedAt() { return receiptUploadedAt; }
+    public AdminAccountEntity getReviewedByAdmin() { return reviewedByAdmin; }
+    public LocalDateTime getReviewedAt() { return reviewedAt; }
+    public String getResolutionNote() { return resolutionNote; }
+    public WalletTransactionEntity getWalletTransaction() { return walletTransaction; }
+    public WalletTransactionEntity getReversalWalletTransaction() { return reversalWalletTransaction; }
+    public Integer getFraudCountAfter() { return fraudCountAfter; }
+    public SecureAttachmentEntity getReceiptAttachment() { return receiptAttachment; }
+    public long getVersion() { return version; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
 
     public boolean isReceiptWindowOpen(LocalDateTime now) {
         return status == WalletTopUpRequestStatus.AWAITING_RECEIPT
@@ -252,11 +193,43 @@ public class WalletTopUpRequestEntity {
             String redirectUrl,
             LocalDateTime updatedAt
     ) {
-        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        requireStatus(status, WalletTopUpRequestStatus.AWAITING_RECEIPT);
         paymentProvider = requireNonBlank(provider, "Payment provider mutleqdir.");
         externalOrderId = requireNonBlank(orderId, "External order id mutleqdir.");
         paymentUrl = requireNonBlank(redirectUrl, "Payment redirect URL mutleqdir.");
+        checkoutState = WalletCheckoutState.PREPARING;
         this.updatedAt = Objects.requireNonNull(updatedAt);
+    }
+
+    public void bindCheckoutTransaction(String transactionId) {
+        if (externalCheckoutTransactionId != null && !externalCheckoutTransactionId.equals(transactionId)) {
+            throw new IllegalStateException("Epoint transaction does not match the payment attempt.");
+        }
+        externalCheckoutTransactionId = requireNonBlank(transactionId, "Epoint transaction is required.");
+    }
+
+    public void recordCheckout(String redirectUrl, String transactionId, LocalDateTime now) {
+        if (status == WalletTopUpRequestStatus.PAID && !Objects.equals(externalPaymentReference, transactionId)) {
+            throw new IllegalStateException("Epoint transaction does not match the payment attempt.");
+        }
+        bindCheckoutTransaction(transactionId);
+        paymentUrl = requireNonBlank(redirectUrl, "Checkout URL is required.");
+        checkoutState = WalletCheckoutState.READY;
+        updatedAt = now;
+    }
+
+    public void markCheckoutUnknown(LocalDateTime now) {
+        if (checkoutState == WalletCheckoutState.PREPARING) {
+            checkoutState = WalletCheckoutState.UNKNOWN;
+            updatedAt = now;
+        }
+    }
+
+    public void supersede(LocalDateTime now) {
+        requireStatus(status, WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        status = WalletTopUpRequestStatus.SUPERSEDED;
+        activeUserId = null;
+        updatedAt = now;
     }
 
     public void completeExternalPayment(
@@ -265,8 +238,8 @@ public class WalletTopUpRequestEntity {
             WalletTransactionEntity transaction,
             LocalDateTime paidAt
     ) {
-        requireExternalCompletableStatus();
-        requireTopUpTransaction(transaction);
+        requireExternalCompletableStatus(status, paymentProvider);
+        requireTopUpTransaction(transaction, user.getId(), coinAmount);
         externalPaymentReference = normalizeOptional(paymentReference);
         externalPaymentStatus = requireNonBlank(providerStatus, "Provider status mutleqdir.");
         walletTransaction = transaction;
@@ -281,7 +254,7 @@ public class WalletTopUpRequestEntity {
             String providerStatus,
             LocalDateTime failedAt
     ) {
-        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        requireStatus(status, WalletTopUpRequestStatus.AWAITING_RECEIPT);
         externalPaymentReference = normalizeOptional(paymentReference);
         externalPaymentStatus = requireNonBlank(providerStatus, "Provider status mutleqdir.");
         activeUserId = null;
@@ -305,7 +278,7 @@ public class WalletTopUpRequestEntity {
             LocalDateTime submittedAt
     ) {
         attachReceipt(attachment);
-        requireTopUpTransaction(transaction);
+        requireTopUpTransaction(transaction, user.getId(), coinAmount);
         walletTransaction = transaction;
         submitReceiptAt(submittedAt, WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW);
     }
@@ -331,7 +304,7 @@ public class WalletTopUpRequestEntity {
             WalletTransactionEntity transaction,
             LocalDateTime approvedAt
     ) {
-        requireStatusIn(WalletTopUpRequestStatus.PENDING_REVIEW, WalletTopUpRequestStatus.MANUAL_REVIEW);
+        requireStatusIn(status, WalletTopUpRequestStatus.PENDING_REVIEW, WalletTopUpRequestStatus.MANUAL_REVIEW);
         reviewedByAdmin = Objects.requireNonNull(admin);
         walletTransaction = Objects.requireNonNull(transaction);
         reviewedAt = Objects.requireNonNull(approvedAt);
@@ -341,7 +314,7 @@ public class WalletTopUpRequestEntity {
     }
 
     public void verify(AdminAccountEntity admin, LocalDateTime verifiedAt) {
-        requireStatus(WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW);
+        requireStatus(status, WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW);
         reviewedByAdmin = Objects.requireNonNull(admin);
         reviewedAt = Objects.requireNonNull(verifiedAt);
         status = WalletTopUpRequestStatus.VERIFIED;
@@ -350,7 +323,7 @@ public class WalletTopUpRequestEntity {
     }
 
     public void reject(AdminAccountEntity admin, String reason, LocalDateTime rejectedAt) {
-        requireStatusIn(WalletTopUpRequestStatus.PENDING_REVIEW, WalletTopUpRequestStatus.MANUAL_REVIEW);
+        requireStatusIn(status, WalletTopUpRequestStatus.PENDING_REVIEW, WalletTopUpRequestStatus.MANUAL_REVIEW);
         String normalizedReason = Objects.requireNonNull(reason).trim();
         if (normalizedReason.isEmpty()) {
             throw new IllegalArgumentException("Rədd səbəbi boş ola bilməz.");
@@ -370,13 +343,13 @@ public class WalletTopUpRequestEntity {
             String reason,
             LocalDateTime confirmedAt
     ) {
-        requireFraudReviewStatus();
+        requireFraudReviewStatus(status);
         String normalizedReason = Objects.requireNonNull(reason).trim();
         if (normalizedReason.isEmpty() || confirmedFraudCount < 1) {
             throw new IllegalArgumentException("Fırıldaq təsdiqi məlumatları düzgün deyil.");
         }
         if (status == WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW) {
-            requireReversalTransaction(reversalTransaction);
+            requireReversalTransaction(reversalTransaction, user.getId(), coinAmount);
         } else if (reversalTransaction != null) {
             throw new IllegalArgumentException("Manual yoxlamada coin geri çəkmə əməliyyatı ola bilməz.");
         }
@@ -391,7 +364,7 @@ public class WalletTopUpRequestEntity {
     }
 
     private void attachReceipt(SecureAttachmentEntity attachment) {
-        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        requireStatus(status, WalletTopUpRequestStatus.AWAITING_RECEIPT);
         if (attachment == null || attachment.getPurpose() != SecureAttachmentPurpose.PAYMENT_RECEIPT
                 || attachment.getOwnerUser().getId() == null
                 || !attachment.getOwnerUser().getId().equals(user.getId())) {
@@ -401,9 +374,9 @@ public class WalletTopUpRequestEntity {
     }
 
     private void submitReceiptAt(LocalDateTime submittedAt, WalletTopUpRequestStatus nextStatus) {
-        requireStatus(WalletTopUpRequestStatus.AWAITING_RECEIPT);
+        requireStatus(status, WalletTopUpRequestStatus.AWAITING_RECEIPT);
         LocalDateTime uploadTime = Objects.requireNonNull(submittedAt);
-        if (!uploadTime.isBefore(receiptDeadlineAt)) {
+        if (!isReceiptWindowOpen(uploadTime)) {
             throw new IllegalStateException("Çek yükləmə müddəti bitib.");
         }
         status = Objects.requireNonNull(nextStatus);
@@ -411,66 +384,4 @@ public class WalletTopUpRequestEntity {
         updatedAt = uploadTime;
     }
 
-    private void requireTopUpTransaction(WalletTransactionEntity transaction) {
-        WalletTransactionEntity suppliedTransaction = Objects.requireNonNull(transaction);
-        Long walletUserId = suppliedTransaction.getWalletAccount().getUser().getId();
-        if (suppliedTransaction.getType() != WalletTransactionType.TOP_UP
-                || walletUserId == null
-                || !walletUserId.equals(user.getId())
-                || suppliedTransaction.getAmount() != coinAmount) {
-            throw new IllegalArgumentException("Coin əməliyyatı balans artırma sorğusuna uyğun deyil.");
-        }
-    }
-
-    private void requireReversalTransaction(WalletTransactionEntity transaction) {
-        WalletTransactionEntity suppliedTransaction = Objects.requireNonNull(transaction);
-        Long walletUserId = suppliedTransaction.getWalletAccount().getUser().getId();
-        if (suppliedTransaction.getType() != WalletTransactionType.TOP_UP_REVERSAL
-                || walletUserId == null
-                || !walletUserId.equals(user.getId())
-                || suppliedTransaction.getAmount() != coinAmount) {
-            throw new IllegalArgumentException("Coin geri çəkmə əməliyyatı sorğuya uyğun deyil.");
-        }
-    }
-
-    private void requireStatus(WalletTopUpRequestStatus expectedStatus) {
-        if (status != expectedStatus) {
-            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
-        }
-    }
-
-    private void requireExternalCompletableStatus() {
-        if (status != WalletTopUpRequestStatus.AWAITING_RECEIPT && status != WalletTopUpRequestStatus.EXPIRED) {
-            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
-        }
-    }
-
-    private void requireStatusIn(WalletTopUpRequestStatus first, WalletTopUpRequestStatus second) {
-        if (status != first && status != second) {
-            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
-        }
-    }
-
-    private String requireNonBlank(String value, String message) {
-        String normalized = normalizeOptional(value);
-        if (normalized == null) {
-            throw new IllegalArgumentException(message);
-        }
-        return normalized;
-    }
-
-    private String normalizeOptional(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.trim();
-    }
-
-    private void requireFraudReviewStatus() {
-        if (status != WalletTopUpRequestStatus.AUTO_CREDITED_PENDING_REVIEW
-                && status != WalletTopUpRequestStatus.MANUAL_REVIEW
-                && status != WalletTopUpRequestStatus.PENDING_REVIEW) {
-            throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
-        }
-    }
 }

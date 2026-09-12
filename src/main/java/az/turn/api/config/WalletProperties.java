@@ -14,7 +14,8 @@ public record WalletProperties(
         @Min(1) int coinsPerAzn,
         @Min(1) long minimumTopUpCoins,
         @Min(1) long maximumTopUpCoins,
-        @NotNull URI whatsappUrl
+        @NotNull URI whatsappUrl,
+        boolean manualTopUpEnabled
 ) {
     @AssertTrue(message = "Maksimum coin məbləği minimum məbləğdən az ola bilməz.")
     public boolean isTopUpRangeValid() {

@@ -13,6 +13,8 @@ public record AdminTopUpRequestDto(
         BigDecimal amountAzn,
         long coinAmount,
         String currency,
+        String paymentProvider,
+        String externalOrderId,
         String status,
         LocalDateTime clickedAt,
         LocalDateTime receiptDeadlineAt,

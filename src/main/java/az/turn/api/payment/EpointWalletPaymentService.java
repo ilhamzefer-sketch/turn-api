@@ -1,6 +1,5 @@
 package az.turn.api;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,14 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -24,7 +20,6 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 public class EpointWalletPaymentService {
@@ -37,6 +32,8 @@ public class EpointWalletPaymentService {
     private final WalletTopUpCreditService creditService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final EpointClient client;
+    private final WalletTopUpCheckoutService checkoutService;
     private final String publicBaseUrl;
     private final String callbackBaseUrl;
 
@@ -46,6 +43,8 @@ public class EpointWalletPaymentService {
             WalletTopUpCreditService creditService,
             ObjectMapper objectMapper,
             Clock clock,
+            EpointClient client,
+            WalletTopUpCheckoutService checkoutService,
             @Value("${app.public-base-url:https://novbetime.az}") String publicBaseUrl,
             @Value("${app.payment.callback-base-url:http://127.0.0.1:8080}") String callbackBaseUrl
     ) {
@@ -54,28 +53,36 @@ public class EpointWalletPaymentService {
         this.creditService = creditService;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.client = client;
+        this.checkoutService = checkoutService;
         this.publicBaseUrl = publicBaseUrl;
         this.callbackBaseUrl = callbackBaseUrl;
     }
 
-    @Transactional
-    public WalletTopUpRequestEntity start(WalletTopUpRequestEntity request) {
+    public WalletTopUpRequestDto start(WalletTopUpRequestDto request) {
         requireConfiguration();
-        String orderId = orderIdFor(requireRequestId(request), clock);
         try {
-            String redirectUrl = createCheckoutUrl(request, orderId);
-            request.startExternalPayment(PROVIDER, orderId, redirectUrl, LocalDateTime.now(clock));
-            return requestRepository.saveAndFlush(request);
-        } catch (ResponseStatusException exception) {
-            throw exception;
+            Map<String, Object> response = createCheckout(request);
+            String redirectUrl = normalizeRequired(response.get("redirect_url"), "Epoint checkout URL is missing.");
+            URI redirect = URI.create(redirectUrl);
+            if (!"success".equals(response.get("status")) || !"https".equalsIgnoreCase(redirect.getScheme())
+                    || redirect.getHost() == null || redirect.getUserInfo() != null || redirectUrl.length() > 500) {
+                throw new IOException("Epoint returned an invalid checkout response.");
+            }
+            String transaction = normalizeRequired(response.get("transaction"), "Epoint transaction is missing.");
+            if (transaction.length() > 180) {
+                throw new IOException("Epoint transaction is too long.");
+            }
+            return checkoutService.finish(request.id(), redirectUrl, transaction);
         } catch (Exception exception) {
-            log.warn("Epoint wallet checkout request failed for top-up {}", request.getId(), exception);
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Epoint checkout yaradıla bilmədi.", exception);
+            log.warn("Epoint checkout outcome is unknown for top-up {} ({})", request.id(), exception.getClass().getSimpleName());
+            return checkoutService.unknown(request.id());
         }
     }
 
     public boolean isConfigured() {
-        return !isBlank(properties.publicKey()) && !isBlank(properties.privateKey());
+        return !isBlank(properties.publicKey()) && !isBlank(properties.privateKey())
+                && (isBlank(properties.currency()) || "AZN".equalsIgnoreCase(properties.currency().trim()));
     }
 
     @Transactional
@@ -95,96 +102,58 @@ public class EpointWalletPaymentService {
         String providerStatus = normalizeRequired(callback.get("status"), "Epoint status boşdur.");
         String providerReference = providerReference(callback);
 
-        if (request.getStatus() == WalletTopUpRequestStatus.PAID
-                || request.getStatus() == WalletTopUpRequestStatus.PAYMENT_FAILED) {
+        if (request.getExternalCheckoutTransactionId() != null
+                && !request.getExternalCheckoutTransactionId().equals(providerReference)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Epoint transaction sorğu ilə uyğun deyil.");
+        }
+        if ("success".equalsIgnoreCase(providerStatus)) {
+            requireMatchingAmount(callback, request);
+        }
+        if (request.getStatus() == WalletTopUpRequestStatus.PAID) {
             return;
         }
         if (request.getStatus() != WalletTopUpRequestStatus.AWAITING_RECEIPT
-                && request.getStatus() != WalletTopUpRequestStatus.EXPIRED) {
+                && request.getStatus() != WalletTopUpRequestStatus.EXPIRED
+                && request.getStatus() != WalletTopUpRequestStatus.SUPERSEDED
+                && request.getStatus() != WalletTopUpRequestStatus.PAYMENT_FAILED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ödəniş sorğusunun statusu uyğun deyil.");
         }
-
+        request.bindCheckoutTransaction(providerReference);
         if (!"success".equalsIgnoreCase(providerStatus)) {
-            if (request.getStatus() == WalletTopUpRequestStatus.EXPIRED) {
-                return;
+            if (("failed".equalsIgnoreCase(providerStatus) || "error".equalsIgnoreCase(providerStatus))
+                    && request.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT) {
+                request.failExternalPayment(providerReference, providerStatus.toLowerCase(Locale.ROOT), LocalDateTime.now(clock));
             }
-            request.failExternalPayment(providerReference, providerStatus, LocalDateTime.now(clock));
             requestRepository.saveAndFlush(request);
             return;
         }
 
-        requireMatchingAmount(callback, request);
         WalletTransactionEntity transaction = creditService.creditExternalPayment(request, PROVIDER);
         request.completeExternalPayment(providerReference, providerStatus, transaction, LocalDateTime.now(clock));
         requestRepository.saveAndFlush(request);
     }
 
-    private String createCheckoutUrl(WalletTopUpRequestEntity request, String orderId) throws IOException {
+    private Map<String, Object> createCheckout(WalletTopUpRequestDto request) throws IOException {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("public_key", properties.publicKey());
-        payload.put("amount", request.getAmountAzn().stripTrailingZeros().toPlainString());
-        payload.put("currency", currency());
+        payload.put("amount", request.amountAzn().stripTrailingZeros().toPlainString());
+        payload.put("currency", request.currency());
         payload.put("language", language());
-        payload.put("order_id", orderId);
-        payload.put("description", "NovbeTime wallet top-up #" + request.getId());
-        payload.put("success_redirect_url", successUrl());
-        payload.put("error_redirect_url", errorUrl());
+        payload.put("order_id", request.externalOrderId());
+        payload.put("description", "NovbeTime wallet top-up #" + request.id());
+        payload.put("success_redirect_url", correlatedUrl(successUrl(), request.id()));
+        payload.put("error_redirect_url", correlatedUrl(errorUrl(), request.id()));
         payload.put("result_url", resultUrl());
-
-        String encodedData = Base64.getEncoder().encodeToString(objectMapper.writeValueAsBytes(payload));
-        String signedData = EpointSignature.sign(encodedData, properties.privateKey());
-        Map<String, Object> response = postForm(apiBaseUrl() + "/payment-request", encodedData, signedData);
-        String redirectUrl = response == null ? null : Objects.toString(response.get("redirect_url"), null);
-        if (redirectUrl == null || redirectUrl.isBlank() || "null".equalsIgnoreCase(redirectUrl)) {
-            throw new IOException("Epoint did not return checkout URL. " + responseSummary(response));
-        }
-        return redirectUrl;
+        return client.postForm(apiBaseUrl() + "/payment-request", payload);
     }
 
-    private Map<String, Object> postForm(String endpoint, String data, String signature) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) URI.create(endpoint).toURL().openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setDoOutput(true);
-
-        String body = "data=" + URLEncoder.encode(data, StandardCharsets.UTF_8)
-                + "&signature=" + URLEncoder.encode(signature, StandardCharsets.UTF_8);
-        connection.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
-
-        int status = connection.getResponseCode();
-        try (InputStream stream = status >= 200 && status < 300
-                ? connection.getInputStream()
-                : connection.getErrorStream()) {
-            if (stream == null) {
-                throw new IOException("Epoint returned HTTP " + status + ".");
-            }
-            Map<String, Object> response = objectMapper.readValue(stream, new TypeReference<>() {});
-            if (status < 200 || status >= 300) {
-                throw new IOException("Epoint returned HTTP " + status + ". " + responseSummary(response));
-            }
-            return response;
-        } finally {
-            connection.disconnect();
-        }
-    }
-
-    private String responseSummary(Map<String, Object> response) {
-        if (response == null || response.isEmpty()) {
-            return "Response was empty.";
-        }
-        Map<String, Object> safe = new LinkedHashMap<>();
-        for (String key : new String[]{"status", "message", "error", "errors", "code"}) {
-            if (response.containsKey(key)) {
-                safe.put(key, response.get(key));
-            }
-        }
-        return safe.isEmpty() ? "Response keys: " + response.keySet() : "Response: " + safe;
+    private String correlatedUrl(String url, long requestId) {
+        return UriComponentsBuilder.fromUriString(url).replaceQueryParam("requestId", requestId).build().toUriString();
     }
 
     private Map<String, Object> decodeCallback(String data) {
         try {
-            return objectMapper.readValue(Base64.getDecoder().decode(data), new TypeReference<>() {});
+            return objectMapper.readValue(Base64.getDecoder().decode(data), objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class));
         } catch (Exception exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint callback data oxuna bilmədi.", exception);
         }
@@ -201,7 +170,11 @@ public class EpointWalletPaymentService {
         Object suppliedAmount = callback.get("amount");
         Object suppliedCurrency = callback.get("currency");
         if (suppliedAmount == null) {
-            return;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint məbləği boşdur.");
+        }
+        Object operation = callback.get("operation_code");
+        if (operation != null && !"100".equals(String.valueOf(operation))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Epoint əməliyyat növü uyğun deyil.");
         }
         BigDecimal actualAmount;
         try {
@@ -212,28 +185,17 @@ public class EpointWalletPaymentService {
         if (actualAmount.compareTo(request.getAmountAzn()) != 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Epoint məbləği sorğu ilə uyğun deyil.");
         }
-        if (suppliedCurrency != null && !currency().equalsIgnoreCase(String.valueOf(suppliedCurrency))) {
+        if (suppliedCurrency != null && !request.getCurrency().equalsIgnoreCase(String.valueOf(suppliedCurrency))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Epoint məbləği sorğu ilə uyğun deyil.");
         }
     }
 
     private String providerReference(Map<String, Object> callback) {
-        for (String key : new String[]{"transaction", "transaction_id", "payment_id", "bank_transaction", "rrn"}) {
-            Object value = callback.get(key);
-            if (value != null && !String.valueOf(value).isBlank()) {
-                return String.valueOf(value).trim();
-            }
+        String reference = normalizeRequired(callback.get("transaction"), "Epoint transaction boşdur.");
+        if (reference.length() > 180) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint transaction düzgün deyil.");
         }
-        return "EPOINT-" + normalizeRequired(callback.get("order_id"), "Epoint order id boşdur.");
-    }
-
-    private long parseRequiredLong(Map<String, Object> callback, String key) {
-        String value = normalizeRequired(callback.get(key), "Epoint " + key + " boşdur.");
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint " + key + " düzgün deyil.", exception);
-        }
+        return reference;
     }
 
     private String normalizeRequired(Object value, String message) {
@@ -253,22 +215,18 @@ public class EpointWalletPaymentService {
 
     static long requestIdFromOrderId(String orderId) {
         String normalized = orderId == null ? "" : orderId.trim();
-        if (normalized.matches("\\d+")) {
-            return Long.parseLong(normalized);
-        }
-        String prefix = "wallet-";
-        if (!normalized.startsWith(prefix)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint order id duzgun deyil.");
-        }
-        int idStart = prefix.length();
-        int idEnd = normalized.indexOf('-', idStart);
-        if (idEnd <= idStart) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint order id duzgun deyil.");
+        if (!normalized.matches("(?:[0-9]+|wallet-[0-9]+-[0-9]+)")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint order id düzgün deyil.");
         }
         try {
-            return Long.parseLong(normalized.substring(idStart, idEnd));
+            String id = normalized.startsWith("wallet-") ? normalized.split("-")[1] : normalized;
+            long parsed = Long.parseLong(id);
+            if (parsed <= 0) {
+                throw new NumberFormatException("Non-positive ID");
+            }
+            return parsed;
         } catch (NumberFormatException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint order id duzgun deyil.", exception);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Epoint order id düzgün deyil.");
         }
     }
 
@@ -278,23 +236,16 @@ public class EpointWalletPaymentService {
         }
     }
 
-    private Long requireRequestId(WalletTopUpRequestEntity request) {
-        if (request == null || request.getId() == null) {
-            throw new IllegalArgumentException("Balans artırma sorğusu saxlanılmış olmalıdır.");
-        }
-        return request.getId();
-    }
-
     private String apiBaseUrl() {
         return isBlank(properties.apiBaseUrl()) ? "https://epoint.az/api/1" : trimTrailingSlash(properties.apiBaseUrl());
     }
 
     private String successUrl() {
-        return isBlank(properties.successUrl()) ? trimTrailingSlash(publicBaseUrl) + "/wallet?payment=success" : properties.successUrl();
+        return isBlank(properties.successUrl()) ? trimTrailingSlash(publicBaseUrl) + "/app/wallet?payment=success" : properties.successUrl();
     }
 
     private String errorUrl() {
-        return isBlank(properties.errorUrl()) ? trimTrailingSlash(publicBaseUrl) + "/wallet?payment=failed" : properties.errorUrl();
+        return isBlank(properties.errorUrl()) ? trimTrailingSlash(publicBaseUrl) + "/app/wallet?payment=failed" : properties.errorUrl();
     }
 
     private String resultUrl() {
@@ -303,10 +254,6 @@ public class EpointWalletPaymentService {
 
     private String language() {
         return isBlank(properties.language()) ? "az" : properties.language().trim().toLowerCase(Locale.ROOT);
-    }
-
-    private String currency() {
-        return isBlank(properties.currency()) ? "AZN" : properties.currency().trim().toUpperCase(Locale.ROOT);
     }
 
     private String trimTrailingSlash(String value) {

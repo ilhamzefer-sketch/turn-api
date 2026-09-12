@@ -9,6 +9,7 @@ public record WalletTopUpOptionsDto(
         String currency,
         String whatsappUrl,
         boolean bankCardEnabled,
+        boolean manualTopUpEnabled,
         List<WalletTopUpPackageDto> packages
 ) {
 }

@@ -1,6 +1,6 @@
 # Coin sisteminin yayımlama yoxlama siyahısı
 
-Bu sənəd V29–V32 miqrasiyalarını və onlarla birlikdə yayımlanan coin balansı, coin abunəliyi, biznes otaq limiti və çox-adminli idarəetmə funksiyalarını əhatə edir.
+Bu sənəd coin balansı və abunəliyi ilə yanaşı V41–V43 Epoint wallet miqrasiyalarını, legacy manual sorğuları və biznes otaq limitini əhatə edir.
 
 ## Yayımlamadan əvvəl
 
@@ -11,10 +11,12 @@ Bu sənəd V29–V32 miqrasiyalarını və onlarla birlikdə yayımlanan coin ba
 - Production admin istifadəçi adı və BCrypt şifrəsinin lokal default dəyərlərdən fərqli olduğunu təsdiqləyin.
 - Backend və frontend-in tam test, lint və build yoxlamalarını uğurla tamamlayın.
 - PostgreSQL migration testlərini Docker/Testcontainers işləyən CI və ya stage mühitində icra edin.
+- Epoint merchant açarlarını, callback URL-ni və imza yoxlamasını secret və provider tərəfində təsdiqləyin; açarlar yoxdursa kart ödənişi istifadəçiyə əlçatmaz göstərilir.
+- Stage Argo CD-nin yalnız `k8s/stage` izlədiyini və Epoint sandbox-un yalnız `k8s/sandbox` overlay-də olduğunu təsdiqləyin.
 
 ## Yayımlama ardıcıllığı
 
-1. Yeni backend image-ni yayımlayın. Flyway V29–V32 miqrasiyalarını tətbiq edəcək.
+1. Yeni backend image-ni yayımlayın. Flyway tətbiq olunmamış V41–V43 miqrasiyalarını tətbiq edəcək.
 2. Readiness uğurlu olmadan frontend-i yeni versiyaya keçirməyin.
 3. Backend hazır olduqdan sonra frontend image-ni yayımlayın.
 4. Wallet, subscription, biznes otaqları və admin panel üçün aşağıdakı smoke testləri aparın.
@@ -34,12 +36,15 @@ Bu sənəd V29–V32 miqrasiyalarını və onlarla birlikdə yayımlanan coin ba
 
 - Yeni və mövcud istifadəçi wallet səhifəsini aça bilir.
 - `100 coin` daxil ediləndə `10 AZN` görünür.
-- Bank kartı boz və deaktivdir, statusu mətnlə izah olunur.
-- WhatsApp düyməsi seçilmiş coin və AZN məbləğini ötürür.
+- Epoint açarları varsa kartla balans artırma linki açılır; açarlar yoxdursa kartın əlçatan olmaması aydın göstərilir.
+- Legacy manual sorğuda qəbz yükləmə və admin təsdiqi qalır; external Epoint sorğusu manual təsdiq edilmir.
+- Geri dönüş URL-si təkbaşına uğur göstərmir: sorğunun serverdə `PAID` olması və balans ledgerinin yenilənməsi yoxlanılır.
+- Gecikmiş və təkrar imzalı callback balansı yalnız bir dəfə artırır; naməlum checkout nəticəsi yeni kart sorğusu kimi avtomatik təkrar edilmir.
 - Fərdi abunəlik `30 coin`, biznes abunəliyi `100 coin` çıxır.
 - Kifayət qədər coin olmadıqda balans dəyişmir və balans artırma keçidi görünür.
 - Eyni ödəniş istinadı təkrar göndərildikdə ikinci debit yaranmır.
 - Biznesin 6-cı otağı bloklanır və WhatsApp müraciəti görünür.
+- İlk beş biznes otağı ödənişdən əvvəl `DRAFT` kimi yaradıla bilir; yayım və canlı əməliyyatlar abunəlik tələb edir.
 - Admin istifadəçini tapa, auditli coin əlavə edə və biznes limitini yalnız artıra bilir.
 - Yeni admin yaradıla və həmin hesabla giriş edilə bilir.
 - Köhnə subscription bank endpoint-ləri autentifikasiyadan sonra `410 Gone` qaytarır.

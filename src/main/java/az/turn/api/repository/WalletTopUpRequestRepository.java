@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.Optional;
 import java.util.Collection;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public interface WalletTopUpRequestRepository extends JpaRepository<WalletTopUpRequestEntity, Long> {
     Optional<WalletTopUpRequestEntity> findByActiveUserId(long userId);
@@ -25,6 +27,29 @@ public interface WalletTopUpRequestRepository extends JpaRepository<WalletTopUpR
     Slice<WalletTopUpRequestEntity> findByStatusInOrderByReceiptUploadedAtAscIdAsc(
             Collection<WalletTopUpRequestStatus> statuses,
             Pageable pageable
+    );
+
+    Slice<WalletTopUpRequestEntity> findByStatusInOrderByCreatedAtDescIdDesc(
+            Collection<WalletTopUpRequestStatus> statuses,
+            Pageable pageable
+    );
+
+    long countByStatusIn(Collection<WalletTopUpRequestStatus> statuses);
+
+    @Query("select coalesce(sum(request.amountAzn), 0) from WalletTopUpRequestEntity request "
+            + "where request.status = :status and request.receiptUploadedAt >= :from and request.receiptUploadedAt < :to")
+    BigDecimal sumAmountByStatusAndReceiptUploadedAt(
+            WalletTopUpRequestStatus status,
+            LocalDateTime from,
+            LocalDateTime to
+    );
+
+    @Query("select coalesce(sum(request.amountAzn), 0) from WalletTopUpRequestEntity request "
+            + "where request.status in :statuses and request.reviewedAt >= :from and request.reviewedAt < :to")
+    BigDecimal sumAmountByStatusInAndReviewedAt(
+            Collection<WalletTopUpRequestStatus> statuses,
+            LocalDateTime from,
+            LocalDateTime to
     );
 
     Slice<WalletTopUpRequestEntity> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);

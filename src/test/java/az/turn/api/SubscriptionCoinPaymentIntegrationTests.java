@@ -133,6 +133,40 @@ class SubscriptionCoinPaymentIntegrationTests {
     }
 
     @Test
+    void permitsFiveDraftBusinessRoomsBeforePaymentButKeepsTheRoomLimit() {
+        UserEntity owner = user("+994501390007");
+        BusinessResponseDto business = businessService.create(
+                owner.getId(),
+                new BusinessUpsertRequestDto(
+                        "Ödənişsiz hazırlıq", null, null, null, null, "0501390007", "Asia/Baku", null, null
+                )
+        );
+        BranchResponseDto branch = branchService.create(
+                business.id(),
+                owner.getId(),
+                new BranchUpsertRequestDto(
+                        "Əsas filial", "Nizami 1", "Bakı", "Nəsimi", null, null, null, null, "Asia/Baku"
+                )
+        );
+
+        for (int index = 1; index <= 5; index++) {
+            RoomResponseDto room = roomService.createBusinessRoom(
+                    branch.id(), owner.getId(), roomRequest("Qaralama " + index)
+            );
+            assertThat(room.status()).isEqualTo(RoomStatus.DRAFT);
+        }
+        assertThat(subscriptionRepository.findByScopeTypeAndScopeId(
+                ProviderScopeType.BUSINESS, business.id()
+        )).isEmpty();
+        assertThatThrownBy(() -> roomService.createBusinessRoom(
+                branch.id(), owner.getId(), roomRequest("Altıncı qaralama")
+        )).isInstanceOfSatisfying(ResponseStatusException.class, exception -> {
+            assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(exception.getReason()).contains("5 otaq limitinə");
+        });
+    }
+
+    @Test
     void businessPlanCostsOneHundredCoinsAndBlocksTheSixthRoom() {
         UserEntity owner = user("+994501390003");
         credit(owner, 100, "business-credit");

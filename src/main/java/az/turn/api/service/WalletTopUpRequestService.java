@@ -8,13 +8,13 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Locale;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class WalletTopUpRequestService {
-    private final UserRepository userRepository;
-    private final WalletTopUpPackageRepository packageRepository;
-    private final WalletTopUpRequestRepository requestRepository;
+    private final WalletTopUpCheckoutService checkoutService;
+    private final WalletProperties walletProperties;
     private final WalletTopUpRequestStateService stateService;
     private final EpointWalletPaymentService epointPaymentService;
     private final SecureAttachmentService attachmentService;
@@ -23,9 +23,8 @@ public class WalletTopUpRequestService {
     private final Clock clock;
 
     public WalletTopUpRequestService(
-            UserRepository userRepository,
-            WalletTopUpPackageRepository packageRepository,
-            WalletTopUpRequestRepository requestRepository,
+            WalletTopUpCheckoutService checkoutService,
+            WalletProperties walletProperties,
             WalletTopUpRequestStateService stateService,
             EpointWalletPaymentService epointPaymentService,
             SecureAttachmentService attachmentService,
@@ -33,9 +32,8 @@ public class WalletTopUpRequestService {
             SecureAttachmentRepository attachmentRepository,
             Clock clock
     ) {
-        this.userRepository = userRepository;
-        this.packageRepository = packageRepository;
-        this.requestRepository = requestRepository;
+        this.checkoutService = checkoutService;
+        this.walletProperties = walletProperties;
         this.stateService = stateService;
         this.epointPaymentService = epointPaymentService;
         this.attachmentService = attachmentService;
@@ -44,50 +42,28 @@ public class WalletTopUpRequestService {
         this.clock = clock;
     }
 
-    @Transactional
     public WalletTopUpRequestDto create(long userId, String packageCode) {
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new WalletTopUpException(
-                        WalletTopUpFailure.REQUEST_NOT_FOUND,
-                        "İstifadəçi tapılmadı."
-                ));
-        WalletTopUpPackageEntity topUpPackage = packageRepository.findById(normalizeCode(packageCode))
-                .filter(WalletTopUpPackageEntity::isActive)
-                .orElseThrow(() -> new WalletTopUpException(
-                        WalletTopUpFailure.PACKAGE_NOT_FOUND,
-                        "Seçilmiş balans paketi mövcud deyil."
-                ));
-        LocalDateTime now = LocalDateTime.now(clock);
-        requestRepository.findActiveByUserIdForUpdate(userId).ifPresent(active -> {
-            if (active.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT && active.expire(now)) {
-                requestRepository.saveAndFlush(active);
-            } else if (active.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT
-                    && !"manual".equalsIgnoreCase(active.getPaymentProvider())) {
-                active.failExternalPayment("REPLACED-" + active.getId(), "replaced_by_new_request", now);
-                requestRepository.saveAndFlush(active);
-            } else {
-                throw new WalletTopUpException(
-                        WalletTopUpFailure.ACTIVE_REQUEST_EXISTS,
-                        "Əvvəlki balans artırma sorğusu tamamlanmalıdır."
-                );
-            }
-        });
-        try {
-            WalletTopUpRequestEntity savedRequest = requestRepository.saveAndFlush(new WalletTopUpRequestEntity(user, topUpPackage, now));
-            if (epointPaymentService.isConfigured()) {
-                savedRequest = epointPaymentService.start(savedRequest);
-            }
-            return map(savedRequest, now);
-        } catch (DataIntegrityViolationException exception) {
-            throw new WalletTopUpException(
-                    WalletTopUpFailure.ACTIVE_REQUEST_EXISTS,
-                    "Əvvəlki balans artırma sorğusu tamamlanmalıdır."
-            );
+        boolean external = epointPaymentService.isConfigured();
+        if (!external && !walletProperties.manualTopUpEnabled()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Kartla ödəniş hazırda əlçatan deyil.");
         }
+        WalletTopUpPreparationDto prepared;
+        try {
+            prepared = checkoutService.prepare(userId, packageCode, external);
+        } catch (DataIntegrityViolationException exception) {
+            throw new WalletTopUpException(WalletTopUpFailure.ACTIVE_REQUEST_EXISTS,
+                    "Əvvəlki balans artırma sorğusu tamamlanmalıdır.");
+        }
+        return prepared.dispatch() ? epointPaymentService.start(prepared.request()) : prepared.request();
     }
 
+    @Transactional(noRollbackFor = WalletTopUpException.class)
     public WalletTopUpRequestDto active(long userId) {
-        return map(stateService.active(userId), LocalDateTime.now(clock));
+        return WalletTopUpRequestMapper.map(stateService.active(userId), LocalDateTime.now(clock));
+    }
+
+    public WalletTopUpRequestDto get(long userId, long requestId) {
+        return checkoutService.get(userId, requestId);
     }
 
     public WalletTopUpRequestDto uploadReceipt(long userId, long requestId, MultipartFile file) {
@@ -100,7 +76,7 @@ public class WalletTopUpRequestService {
                     attachmentId,
                     LocalDateTime.now(clock)
             );
-            return map(request, LocalDateTime.now(clock));
+            return WalletTopUpRequestMapper.map(request, LocalDateTime.now(clock));
         } catch (RuntimeException exception) {
             deleteAttachment(userId, attachmentId, exception);
             throw exception;
@@ -141,23 +117,4 @@ public class WalletTopUpRequestService {
         });
     }
 
-    private WalletTopUpRequestDto map(WalletTopUpRequestEntity request, LocalDateTime now) {
-        return new WalletTopUpRequestDto(
-                request.getId(),
-                request.getTopUpPackage().getCode(),
-                request.getAmountAzn(),
-                request.getCoinAmount(),
-                request.getCurrency(),
-                request.getPaymentUrl(),
-                request.getStatus(),
-                request.getClickedAt(),
-                request.getReceiptDeadlineAt(),
-                request.getReceiptUploadedAt(),
-                request.isReceiptWindowOpen(now)
-        );
-    }
-
-    private String normalizeCode(String packageCode) {
-        return packageCode == null ? "" : packageCode.trim().toUpperCase(Locale.ROOT);
-    }
 }

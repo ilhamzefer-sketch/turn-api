@@ -33,9 +33,9 @@ class WalletTopUpPersistenceIntegrationTests {
         List<WalletTopUpPackageEntity> packages = packageRepository.findByActiveTrueOrderByDisplayOrderAsc();
 
         assertThat(packages).extracting(WalletTopUpPackageEntity::getAmountAzn)
-                .containsExactly(new BigDecimal("0.10"), new BigDecimal("5.00"), new BigDecimal("10.00"), new BigDecimal("15.00"), new BigDecimal("20.00"));
+                .containsExactly(new BigDecimal("3.00"), new BigDecimal("5.00"), new BigDecimal("10.00"), new BigDecimal("15.00"), new BigDecimal("20.00"));
         assertThat(packages).extracting(WalletTopUpPackageEntity::getCoinAmount)
-                .containsExactly(1L, 50L, 100L, 150L, 200L);
+                .containsExactly(30L, 50L, 100L, 150L, 200L);
     }
 
     @Test

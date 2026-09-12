@@ -8,3 +8,5 @@ The cluster must provide these secrets outside Git:
 - `ghcr-creds`: a pull secret with read access to the private GHCR images
 
 The CI workflow builds an immutable image tagged with the source commit SHA and updates `k8s/stage/kustomization.yaml`. Argo CD then performs the rolling deployment automatically.
+
+`k8s/stage` deploys the live-payment API and does not include the Epoint sandbox. For isolated payment testing, `k8s/sandbox` is an optional overlay with the sandbox workload and checkout assets. Its image is pinned by digest. Apply that overlay only in a dedicated test environment with an appropriate sandbox route; Argo CD's stage application continues to watch `k8s/stage` alone.

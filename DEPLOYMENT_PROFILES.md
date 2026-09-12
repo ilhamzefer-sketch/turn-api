@@ -25,6 +25,9 @@ docker compose -f compose.local.yml up -d
 - `APP_ALLOWED_ORIGINS`
 - `APP_LEGACY_API_ENABLED=false`, `APP_PAYMENT_RECONCILIATION_ENABLED=false`
 - `APP_WALLET_COINS_PER_AZN=10`, `APP_WALLET_WHATSAPP_URL=https://wa.me/message/P63GI5XJ3PQLC1`
+- `APP_PAYMENT_MODE=live`, `APP_PAYMENT_PROVIDER=epoint`, `EPOINT_PUBLIC_KEY` və `EPOINT_PRIVATE_KEY` (hər ikisi external secret-də)
+- `EPOINT_CONNECT_TIMEOUT=3s`, `EPOINT_REQUEST_TIMEOUT=10s` (connection ≤ request ≤ 15s)
+- `APP_WALLET_MANUAL_TOP_UP_ENABLED=false` (yalnız planlı manual fallback üçün `true` edin; mövcud manual sorğular flag-dən asılı olmayaraq tamamlanır)
 - `APP_UPLOAD_STORAGE_ROOT=/var/lib/novbetime/uploads`
 - `APP_UPLOAD_ANTIVIRUS_ENABLED=true`, `APP_UPLOAD_CLAMAV_HOST=clamav`, `APP_UPLOAD_CLAMAV_PORT=3310`
 
@@ -38,6 +41,8 @@ docker compose -f compose.local.yml up -d
 - `APP_PAYMENT_RECONCILIATION_ENABLED=false`
 - `APP_WALLET_COINS_PER_AZN=10`
 - `APP_WALLET_WHATSAPP_URL=https://wa.me/message/P63GI5XJ3PQLC1`
+- `APP_PAYMENT_MODE=live`, `APP_PAYMENT_PROVIDER=epoint`, `EPOINT_PUBLIC_KEY` və `EPOINT_PRIVATE_KEY`
+- `APP_WALLET_MANUAL_TOP_UP_ENABLED=false`
 - `APP_ALLOWED_ORIGINS=https://app.example.az`
 - `APP_JWT_SECRET=<ən azı 32 simvolluq random secret>`
 - `ADMIN_USERNAME=<admin-dən fərqli ad>`

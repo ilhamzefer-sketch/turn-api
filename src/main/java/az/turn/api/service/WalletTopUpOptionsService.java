@@ -26,6 +26,7 @@ public class WalletTopUpOptionsService {
                 "AZN",
                 properties.whatsappUrl().toString(),
                 epointPaymentService.isConfigured(),
+                properties.manualTopUpEnabled() && !epointPaymentService.isConfigured(),
                 packageRepository.findByActiveTrueOrderByDisplayOrderAsc().stream()
                         .map(item -> new WalletTopUpPackageDto(
                                 item.getCode(),

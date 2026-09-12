@@ -61,6 +61,11 @@ public class WalletController {
         return topUpRequestService.active(userId(authentication));
     }
 
+    @GetMapping("/top-up-requests/{requestId}")
+    public WalletTopUpRequestDto topUpRequest(@PathVariable long requestId, Authentication authentication) {
+        return topUpRequestService.get(userId(authentication), requestId);
+    }
+
     @PostMapping(value = "/top-up-requests/{requestId}/receipt", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public WalletTopUpRequestDto uploadReceipt(
             @PathVariable long requestId,

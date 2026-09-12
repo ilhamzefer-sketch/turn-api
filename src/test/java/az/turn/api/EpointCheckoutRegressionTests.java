@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.payment.epoint.result-url=http://127.0.0.1:8082/api/payments/epoint/callback"
 })
 @AutoConfigureMockMvc
-class EpointWalletTopUpIntegrationTests {
+class EpointCheckoutRegressionTests {
     private static final String PRIVATE_KEY = "sandbox_private_key_0000000001";
     private static HttpServer epointServer;
 
@@ -60,7 +60,7 @@ class EpointWalletTopUpIntegrationTests {
     @DynamicPropertySource
     static void epointProperties(DynamicPropertyRegistry registry) throws IOException {
         epointServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        epointServer.createContext("/api/1/payment-request", EpointWalletTopUpIntegrationTests::checkout);
+        epointServer.createContext("/api/1/payment-request", EpointCheckoutRegressionTests::checkout);
         epointServer.start();
         registry.add(
                 "app.payment.epoint.api-base-url",
@@ -76,77 +76,44 @@ class EpointWalletTopUpIntegrationTests {
     }
 
     @Test
-    void successfulEpointCallbackCreditsWalletAndReleasesActiveTopUp() throws Exception {
+    void successfulCallbackAfterReplacementMustStillCreditOriginalPayment() throws Exception {
         TestCsrfToken csrf = csrf();
-        String accessToken = register(csrf, "0501290124");
-
-        MvcResult created = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_3").toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paymentUrl").value("https://epoint.test/checkout"))
-                .andReturn();
-
-        long requestId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asLong();
-        WalletTopUpRequestEntity request = topUpRequestRepository.findById(requestId).orElseThrow();
-        assertThat(request.getExternalOrderId()).startsWith("wallet-" + requestId + "-");
-
-        mockMvc.perform(post("/api/payments/epoint/callback")
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .content(signedForm(Map.of(
-                                "order_id", request.getExternalOrderId(),
-                                "status", "success",
-                                "amount", "3.00",
-                                "transaction", request.getExternalCheckoutTransactionId()
-                        ))))
+        String token = register(csrf, "0501290191");
+        long first = createRequest(csrf, token);
+        WalletTopUpRequestEntity original = topUpRequestRepository.findById(first).orElseThrow();
+        mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                .cookie(csrf.cookie()).header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"packageCode\":\"AZN_5\"}"))
                 .andExpect(status().isOk());
-
-        WalletTopUpRequestEntity paid = topUpRequestRepository.findById(requestId).orElseThrow();
-        assertThat(paid.getStatus()).isEqualTo(WalletTopUpRequestStatus.PAID);
-        assertThat(paid.getActiveUserId()).isNull();
-        assertThat(paid.getWalletTransaction()).isNotNull();
-        assertThat(walletAccountRepository.findByUserId(paid.getUser().getId()).orElseThrow().getBalance()).isEqualTo(30);
-
-        mockMvc.perform(get("/api/users/me/wallet")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.balance").value(30));
+        assertThat(topUpRequestRepository.findById(first).orElseThrow().getStatus())
+                .isEqualTo(WalletTopUpRequestStatus.SUPERSEDED);
+        mockMvc.perform(post("/api/payments/epoint/callback")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .content(signedForm(Map.of("order_id", original.getExternalOrderId(), "status", "success", "amount", "10.00", "currency", "AZN", "transaction", original.getExternalCheckoutTransactionId()))))
+                .andExpect(status().isOk());
+        assertThat(topUpRequestRepository.findById(first).orElseThrow().getStatus()).isEqualTo(WalletTopUpRequestStatus.PAID);
     }
 
     @Test
-    void newEpointTopUpReplacesUnfinishedExternalCheckout() throws Exception {
+    void activeExternalCheckoutMustRemainVisibleBeforeDeadline() throws Exception {
         TestCsrfToken csrf = csrf();
-        String accessToken = register(csrf, "0501290125");
-
-        MvcResult first = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_10").toString()))
+        String token = register(csrf, "0501290192");
+        long id = createRequest(csrf, token);
+        mockMvc.perform(get("/api/users/me/wallet/top-up-requests/active")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("AWAITING_RECEIPT"))
-                .andReturn();
+                .andExpect(jsonPath("$.id").value(id));
+    }
 
-        long firstRequestId = objectMapper.readTree(first.getResponse().getContentAsString()).get("id").asLong();
-
-        mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
-                        .cookie(csrf.cookie())
-                        .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.createObjectNode().put("packageCode", "AZN_3").toString()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.packageCode").value("AZN_3"))
-                .andExpect(jsonPath("$.status").value("AWAITING_RECEIPT"));
-
-        WalletTopUpRequestEntity replaced = topUpRequestRepository.findById(firstRequestId).orElseThrow();
-        assertThat(replaced.getStatus()).isEqualTo(WalletTopUpRequestStatus.SUPERSEDED);
-        assertThat(replaced.getExternalPaymentStatus()).isNull();
-        assertThat(replaced.getActiveUserId()).isNull();
+    private long createRequest(TestCsrfToken csrf, String token) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/users/me/wallet/top-up-requests")
+                .cookie(csrf.cookie()).header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.createObjectNode().put("packageCode", "AZN_10").toString()))
+                .andExpect(status().isOk()).andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
     }
 
     private static void checkout(HttpExchange exchange) throws IOException {

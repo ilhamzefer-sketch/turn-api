@@ -36,6 +36,7 @@ public class WalletTopUpRequestStateService {
                         "Balans artırma sorğusu tapılmadı."
                 ));
         requireOwner(request, userId);
+        requireManualRequest(request);
         LocalDateTime now = LocalDateTime.now(clock);
         if (request.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT && !request.isReceiptWindowOpen(now)) {
             request.expire(now);
@@ -67,6 +68,7 @@ public class WalletTopUpRequestStateService {
                         "Balans artırma sorğusu tapılmadı."
                 ));
         requireOwner(request, userId);
+        requireManualRequest(request);
         if (request.getStatus() != WalletTopUpRequestStatus.AWAITING_RECEIPT) {
             throw new WalletTopUpException(
                     WalletTopUpFailure.RECEIPT_ALREADY_SUBMITTED,
@@ -117,8 +119,10 @@ public class WalletTopUpRequestStateService {
     }
 
     private WalletTopUpRequestEntity expireIfNeeded(WalletTopUpRequestEntity request, LocalDateTime now) {
-        if (request.getStatus() == WalletTopUpRequestStatus.AWAITING_RECEIPT && !request.isReceiptWindowOpen(now)) {
-            request.expire(now);
+        if (!"manual".equals(request.getPaymentProvider()) && request.getCheckoutState() != WalletCheckoutState.READY) {
+            return request;
+        }
+        if (request.expire(now)) {
             requestRepository.saveAndFlush(request);
             throw new WalletTopUpException(
                     WalletTopUpFailure.REQUEST_NOT_FOUND,
@@ -126,6 +130,13 @@ public class WalletTopUpRequestStateService {
             );
         }
         return request;
+    }
+
+    private void requireManualRequest(WalletTopUpRequestEntity request) {
+        if (!"manual".equals(request.getPaymentProvider())) {
+            throw new WalletTopUpException(WalletTopUpFailure.RECEIPT_ALREADY_SUBMITTED,
+                    "Kartla ödəniş üçün çek yükləmək tələb olunmur.");
+        }
     }
 
     private void requireOwner(WalletTopUpRequestEntity request, long userId) {

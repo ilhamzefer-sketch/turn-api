@@ -6,6 +6,7 @@ public record AdminTopUpRequestPageDto(
         List<AdminTopUpRequestDto> items,
         int page,
         int size,
-        boolean hasNext
+        boolean hasNext,
+        AdminTopUpSummaryDto summary
 ) {
 }
