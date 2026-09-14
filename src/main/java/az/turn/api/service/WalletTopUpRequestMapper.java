@@ -8,7 +8,7 @@ final class WalletTopUpRequestMapper {
     static WalletTopUpRequestDto map(WalletTopUpRequestEntity request, LocalDateTime now) {
         return new WalletTopUpRequestDto(
                 request.getId(),
-                request.getTopUpPackage().getCode(),
+                request.getTopUpPackage() == null ? null : request.getTopUpPackage().getCode(),
                 request.getAmountAzn(),
                 request.getCoinAmount(),
                 request.getCurrency(),

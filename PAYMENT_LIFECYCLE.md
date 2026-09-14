@@ -2,15 +2,31 @@
 
 This contract applies to the backend and matching `enovbe-web` wallet/admin changes. Stage runs in live Epoint mode only when its external merchant keys are configured. Automated tests use an isolated fake provider; they do not perform a live card payment.
 
+## Custom amount contract (Step 1, V44)
+
+`POST /api/users/me/wallet/top-up-requests` now accepts `{ "amountAzn": "0.10" }` (a JSON number also works). Send exactly one of `amountAzn` and the legacy `packageCode`. The endpoint keeps its existing HTTP 200 success response. Missing/both selections, amounts below the minimum, excessive precision, non-10-qəpik increments, and amounts over the configured maximum return 400 before creating an attempt.
+
+The minimum is **0.10 AZN / 10 qəpik = 1 coin**. The rate is fixed at 10 coins per AZN, matching the existing database and package catalog; configuration now rejects other rates. Wallets hold whole coins, so amounts increase in 0.10 AZN steps. Current stage limits remain 1–1,000,000 coins (0.10–100,000.00 AZN). The backend validates with decimal arithmetic and derives `coinAmount`; a client-provided coin count cannot change it. Amount and coins are persisted together as the purchase snapshot, and callbacks credit that snapshot only after the exact payment amount is confirmed.
+
+Top-up options add `customAmountEnabled`, `minimumAmountAzn`, `maximumAmountAzn`, and `amountStepAzn`. Existing fields and package choices remain for compatibility with the currently deployed UI. Custom requests have `packageCode: null`; both user and admin responses support this. Equivalent legacy and custom amounts reuse the same active checkout. Different amounts supersede READY attempts; PREPARING/UNKNOWN attempts block a different amount until their outcome is resolved. Late success still credits the original saved amount exactly once.
+
+Custom amounts require a configured card gateway. They return 503 when it is unavailable, even if manual top-ups are enabled: a static package payment link cannot safely charge an arbitrary amount. Historical manual requests keep their existing receipt workflow.
+
+V44 makes the package reference optional and extends the request constraint with a separate custom-amount branch. Custom rows require the external provider, at least 0.10 AZN, and exactly 10 coins per AZN. Legacy package constraints, catalog entries, saved request amounts, and ledger history remain unchanged. No existing migration is edited.
+
+Step 2 consumes these fields: replace package cards with an AZN input and live coin total, use **Ödəniş et**, and remove provider names from customer-facing copy. Release this compatible backend before that frontend change. Rollback after custom requests exist must retain nullable-package support; use a forward correction rather than deploying the old backend against new custom rows.
+
+Verification includes minimum/maximum values, invalid payloads, client coin tampering, owner-only lookup, duplicate/late callbacks, same-amount retries, changed and unknown attempts, manual fallback rejection, PostgreSQL constraints, and historical migration fixtures. Provider traffic is simulated; no real card payment is made.
+
 ## Payment authority and durable attempts
 
-A short database transaction saves the package snapshot and unique external order before any provider request. Provider I/O runs after that transaction commits. A second short transaction stores the provider transaction and redirect. A signed callback can therefore arrive before the checkout response and still find its order. Checkout finalization never replaces the financial outcome recorded by a callback.
+A short database transaction saves the amount and coin snapshot and unique external order before any provider request. Provider I/O runs after that transaction commits. A second short transaction stores the provider transaction and redirect. A signed callback can therefore arrive before the checkout response and still find its order. Checkout finalization never replaces the financial outcome recorded by a callback.
 
 The normal provider deadline is 10 seconds, including waiting for its response body; connection establishment is limited to 3 seconds. `EPOINT_CONNECT_TIMEOUT` and `EPOINT_REQUEST_TIMEOUT` configure these values, with positive connect <= request <= 15 seconds. Requests do not follow HTTP redirects. Provider checkout responses require success, a transaction identifier, and an HTTPS checkout URL.
 
-Same-package retries reuse the active attempt and do not issue another provider request. Changing packages supersedes a ready attempt; its old checkout can still be paid, so it remains eligible for a valid late callback. A concurrent first-create conflict returns 409; fetching the active request or retrying the same package resumes the winning attempt.
+Same-amount retries reuse the active attempt and do not issue another provider request. Changing amounts supersedes a ready attempt; its old checkout can still be paid, so it remains eligible for a valid late callback. A concurrent first-create conflict returns 409; fetching the active request or retrying the same amount resumes the winning attempt.
 
-Timeouts, invalid responses, and transport/provider errors preserve the attempt as `UNKNOWN`. They do not imply that the customer was charged or that payment failed. The create endpoint returns the persisted request with a null checkout URL. A retry of that package returns the same attempt. Selecting another package while the outcome is unknown returns 409.
+Timeouts, invalid responses, and transport/provider errors preserve the attempt as `UNKNOWN`. They do not imply that the customer was charged or that payment failed. The create endpoint returns the persisted request with a null checkout URL. A retry of that amount returns the same attempt. Selecting another amount while the outcome is unknown returns 409.
 
 Callbacks verify the signature, exact persisted order, provider transaction, and payment amount. Currency is checked against the request snapshot when supplied. The documented callback does not include currency as a standard field, so its absence is accepted; the checkout itself always uses the saved AZN currency. If supplied, operation code must be `100` for a successful customer payment. Missing amount or transaction cannot credit a wallet. Only `failed` and `error` produce a provider failure; intermediate statuses cannot mark payment failed.
 

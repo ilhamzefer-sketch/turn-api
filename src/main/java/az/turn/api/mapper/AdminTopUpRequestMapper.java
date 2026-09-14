@@ -13,7 +13,7 @@ public class AdminTopUpRequestMapper {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getNormalizedPhone(),
-                request.getTopUpPackage().getCode(),
+                request.getTopUpPackage() == null ? null : request.getTopUpPackage().getCode(),
                 request.getAmountAzn(),
                 request.getCoinAmount(),
                 request.getCurrency(),

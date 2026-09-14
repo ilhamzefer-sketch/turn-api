@@ -31,10 +31,15 @@ class WalletPaymentAvailabilityTests extends WalletPaymentTestSupport {
         long before = repository.count();
         mvc.perform(get("/api/users/me/wallet/top-up-options").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.bankCardEnabled").value(false))
-                .andExpect(jsonPath("$.manualTopUpEnabled").value(false));
+                .andExpect(jsonPath("$.manualTopUpEnabled").value(false))
+                .andExpect(jsonPath("$.customAmountEnabled").value(false));
         mvc.perform(post("/api/users/me/wallet/top-up-requests").cookie(csrf.cookie())
                 .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"packageCode\":\"AZN_3\"}"))
+                .andExpect(status().isServiceUnavailable());
+        mvc.perform(post("/api/users/me/wallet/top-up-requests").cookie(csrf.cookie())
+                .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"amountAzn\":0.10}"))
                 .andExpect(status().isServiceUnavailable());
         assertThat(repository.count()).isEqualTo(before);
     }

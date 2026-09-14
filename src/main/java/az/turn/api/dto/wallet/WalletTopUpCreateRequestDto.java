@@ -1,11 +1,21 @@
 package az.turn.api;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Pattern;
 
+import java.math.BigDecimal;
+
 public record WalletTopUpCreateRequestDto(
-        @NotBlank(message = "Ödəniş paketi seçilməlidir.")
         @Pattern(regexp = "AZN_(3|5|10|15|20)", message = "Ödəniş paketi düzgün deyil.")
-        String packageCode
+        String packageCode,
+        @DecimalMin(value = "0.10", message = "Minimum məbləğ 0.10 ₼-dir.")
+        @Digits(integer = 8, fraction = 2, message = "Məbləğ ən çox iki onluq rəqəmlə yazılmalıdır.")
+        BigDecimal amountAzn
 ) {
+    @AssertTrue(message = "Yalnız məbləğ və ya ödəniş paketi göndərilməlidir.")
+    public boolean isSelectionValid() {
+        return (packageCode != null) != (amountAzn != null);
+    }
 }

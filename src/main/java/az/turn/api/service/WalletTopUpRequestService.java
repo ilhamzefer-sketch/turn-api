@@ -43,13 +43,20 @@ public class WalletTopUpRequestService {
     }
 
     public WalletTopUpRequestDto create(long userId, String packageCode) {
+        return create(userId, new WalletTopUpCreateRequestDto(packageCode, null));
+    }
+
+    public WalletTopUpRequestDto create(long userId, WalletTopUpCreateRequestDto selection) {
+        if (selection == null || !selection.isSelectionValid()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yalnız məbləğ və ya ödəniş paketi göndərilməlidir.");
+        }
         boolean external = epointPaymentService.isConfigured();
-        if (!external && !walletProperties.manualTopUpEnabled()) {
+        if (!external && (selection.amountAzn() != null || !walletProperties.manualTopUpEnabled())) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Kartla ödəniş hazırda əlçatan deyil.");
         }
         WalletTopUpPreparationDto prepared;
         try {
-            prepared = checkoutService.prepare(userId, packageCode, external);
+            prepared = checkoutService.prepare(userId, selection, external);
         } catch (DataIntegrityViolationException exception) {
             throw new WalletTopUpException(WalletTopUpFailure.ACTIVE_REQUEST_EXISTS,
                     "Əvvəlki balans artırma sorğusu tamamlanmalıdır.");

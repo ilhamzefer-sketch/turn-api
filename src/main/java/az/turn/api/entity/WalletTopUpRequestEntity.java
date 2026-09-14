@@ -43,8 +43,8 @@ public class WalletTopUpRequestEntity {
     @Column(unique = true)
     private Long activeUserId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "package_code", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "package_code")
     private WalletTopUpPackageEntity topUpPackage;
 
     @Column(nullable = false, precision = 10, scale = 2)
@@ -126,26 +126,30 @@ public class WalletTopUpRequestEntity {
     protected WalletTopUpRequestEntity() {
     }
 
-    public WalletTopUpRequestEntity(
-            UserEntity user,
-            WalletTopUpPackageEntity topUpPackage,
-            LocalDateTime clickedAt
-    ) {
+    public WalletTopUpRequestEntity(UserEntity user, WalletTopUpPackageEntity topUpPackage, LocalDateTime clickedAt) {
+        this(user, Objects.requireNonNull(topUpPackage), topUpPackage.getAmountAzn(), topUpPackage.getCoinAmount(), clickedAt);
+    }
+
+    public WalletTopUpRequestEntity(UserEntity user, BigDecimal amount, long coins, LocalDateTime clickedAt) {
+        this(user, null, amount, coins, clickedAt);
+    }
+
+    private WalletTopUpRequestEntity(UserEntity user, WalletTopUpPackageEntity topUpPackage,
+            BigDecimal amount, long coins, LocalDateTime clickedAt) {
         this.user = Objects.requireNonNull(user);
-        if (user.getId() == null) {
-            throw new IllegalArgumentException("İstifadəçi saxlanılmış olmalıdır.");
+        if (user.getId() == null || (topUpPackage != null && !topUpPackage.isActive())) {
+            throw new IllegalArgumentException("İstifadəçi saxlanılmış, paket isə aktiv olmalıdır.");
         }
-        this.topUpPackage = Objects.requireNonNull(topUpPackage);
-        if (!topUpPackage.isActive()) {
-            throw new IllegalArgumentException("Balans artırma paketi aktiv deyil.");
-        }
+        WalletTopUpRequestValidation.requireAmount(amount, coins);
+        this.topUpPackage = topUpPackage;
         this.clickedAt = Objects.requireNonNull(clickedAt);
         activeUserId = user.getId();
-        amountAzn = topUpPackage.getAmountAzn();
-        coinAmount = topUpPackage.getCoinAmount();
+        amountAzn = amount;
+        coinAmount = coins;
         currency = "AZN";
-        paymentUrl = topUpPackage.getPaymentUrl();
-        paymentProvider = "manual";
+        paymentUrl = topUpPackage == null ? "about:blank" : topUpPackage.getPaymentUrl();
+        paymentProvider = topUpPackage == null ? "epoint" : "manual";
+        checkoutState = topUpPackage == null ? WalletCheckoutState.PREPARING : WalletCheckoutState.NOT_REQUIRED;
         status = WalletTopUpRequestStatus.AWAITING_RECEIPT;
         receiptDeadlineAt = clickedAt.plusMinutes(RECEIPT_WINDOW_MINUTES);
         createdAt = clickedAt;

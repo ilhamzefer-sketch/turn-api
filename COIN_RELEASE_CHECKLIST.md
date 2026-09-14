@@ -63,3 +63,16 @@ Bu sənəd coin balansı və abunəliyi ilə yanaşı V41–V43 Epoint wallet mi
 - Problem frontend-dədirsə əvvəlki frontend image-nə qayıdın; yeni backend coin contract-ını saxlayın.
 - Problem backend-dədirsə verilənlər bazasını saxlayan uyğun düzəldilmiş backend image yayımlayın.
 - Backup-dan tam bərpa yalnız planlı dayanma zamanı və backup-dan sonra yaranmış wallet əməliyyatlarının ayrıca uzlaşdırılması ilə aparılmalıdır.
+
+## Custom amount release (V44)
+
+- Keep stage conversion at 10 coins/AZN, minimum 1 coin, and the existing maximum of 1,000,000 coins.
+- Deploy the backend and V44 before the custom amount input; old package requests remain supported.
+- Require all backend tests, including PostgreSQL custom checkout and migration coverage, to pass; require the CI security scan and immutable image publication before updating stage.
+- Verify the published revision in the stage manifest and check the public API after release. A healthy public endpoint alone does not prove the cluster is running the new revision.
+- A real payment smoke test, when performed, uses 0.10 AZN and must credit exactly 1 coin after the signed callback. Automated tests never charge a card.
+- After custom requests exist, rollback must retain nullable package support; use a forward fix.
+
+Implementation standards consulted: `java-spring-boot-class-structure-hard-constraints.md` (top-level classes and 400-line limit), `java-spring-boot-project-aligned-delivery-contract.md` (additive API and preserved service boundaries), and `professional-spring-boot-testing-strategy.md` (unit validation plus real PostgreSQL/payment-flow verification), from the local Research Brain Java/Spring Boot collection.
+
+Local verification on 2026-09-14: Java 17 in Linux/UTC, `mvn -B clean verify`: 256 tests, 0 failures, 0 errors, 0 skipped; build successful. Surefire reported a 30-second JVM shutdown timeout after the tests while a PostgreSQL pool was closing; the build still exited successfully. All changed Java files are below 400 lines.

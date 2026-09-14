@@ -53,7 +53,7 @@ public class WalletController {
             @Valid @RequestBody WalletTopUpCreateRequestDto request,
             Authentication authentication
     ) {
-        return topUpRequestService.create(userId(authentication), request.packageCode());
+        return topUpRequestService.create(userId(authentication), request);
     }
 
     @GetMapping("/top-up-requests/active")

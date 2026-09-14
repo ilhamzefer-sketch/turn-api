@@ -1,5 +1,6 @@
 package az.turn.api;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public record WalletTopUpOptionsDto(
@@ -10,6 +11,10 @@ public record WalletTopUpOptionsDto(
         String whatsappUrl,
         boolean bankCardEnabled,
         boolean manualTopUpEnabled,
-        List<WalletTopUpPackageDto> packages
+        List<WalletTopUpPackageDto> packages,
+        boolean customAmountEnabled,
+        BigDecimal minimumAmountAzn,
+        BigDecimal maximumAmountAzn,
+        BigDecimal amountStepAzn
 ) {
 }

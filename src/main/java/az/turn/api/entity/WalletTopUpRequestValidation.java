@@ -1,5 +1,6 @@
 package az.turn.api;
 
+import java.math.BigDecimal;
 import java.util.Objects;
 
 final class WalletTopUpRequestValidation {
@@ -67,6 +68,14 @@ final class WalletTopUpRequestValidation {
                 && status != WalletTopUpRequestStatus.MANUAL_REVIEW
                 && status != WalletTopUpRequestStatus.PENDING_REVIEW) {
             throw new IllegalStateException("Balans artırma sorğusunun statusu uyğun deyil.");
+        }
+    }
+
+    static void requireAmount(BigDecimal amount, long coins) {
+        if (amount == null || amount.scale() > 2 || amount.compareTo(new BigDecimal("0.10")) < 0
+                || amount.compareTo(new BigDecimal("99999999.90")) > 0
+                || amount.multiply(BigDecimal.TEN).compareTo(BigDecimal.valueOf(coins)) != 0) {
+            throw new IllegalArgumentException("Ödəniş məbləği və coin sayı uyğun deyil.");
         }
     }
 }
