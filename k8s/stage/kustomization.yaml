@@ -24,4 +24,4 @@ resources:
 
 images:
   - name: ghcr.io/ilhamzefer-sketch/turn-api
-    newTag: 307a1da8edbaae50ac896e94f665570545ad6836
+    newTag: b9524fc22c44c623f5cd444595245c64a50b9232
