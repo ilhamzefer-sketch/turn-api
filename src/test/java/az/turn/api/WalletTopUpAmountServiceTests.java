@@ -16,10 +16,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class WalletTopUpAmountServiceTests {
     private final WalletTopUpAmountService amounts = new WalletTopUpAmountService(
-            new WalletProperties(10, 1, 1000000, URI.create("https://example.com"), false));
+            new WalletProperties(10, 1, 500, URI.create("https://example.com"), false));
 
     @ParameterizedTest
-    @CsvSource({"0.10,1", "0.20,2", "1,10", "7.3,73", "99999.90,999999", "100000,1000000"})
+    @CsvSource({"0.10,1", "0.20,2", "1,10", "7.3,73", "49.90,499", "50,500"})
     void convertsAllowedAmountsExactly(String amount, long coins) {
         assertThat(amounts.coins(new BigDecimal(amount))).isEqualTo(coins);
         assertThat(amounts.normalize(new BigDecimal(amount)).scale()).isEqualTo(2);
@@ -27,14 +27,14 @@ class WalletTopUpAmountServiceTests {
 
     @ParameterizedTest
     @NullSource
-    @ValueSource(strings = {"0", "-0.10", "0.09", "0.11", "0.101", "0.100", "100000.10", "1E+30"})
+    @ValueSource(strings = {"0", "-0.10", "0.09", "0.11", "0.101", "0.100", "50.10", "1E+30"})
     void rejectsAmountsOutsideTheContract(String amount) {
         BigDecimal value = amount == null ? null : new BigDecimal(amount);
         assertThatThrownBy(() -> amounts.coins(value)).isInstanceOf(ResponseStatusException.class);
     }
     @Test
     void customAmountsCannotFallBackToStaticManualLinks() {
-        WalletProperties manual = new WalletProperties(10, 1, 1000000, URI.create("https://example.com"), true);
+        WalletProperties manual = new WalletProperties(10, 1, 500, URI.create("https://example.com"), true);
         WalletTopUpRequestService requests = new WalletTopUpRequestService(null, manual, null,
                 mock(EpointWalletPaymentService.class), null, null, null, null);
         assertThatThrownBy(() -> requests.create(1L, new WalletTopUpCreateRequestDto(null, new BigDecimal("0.10"))))

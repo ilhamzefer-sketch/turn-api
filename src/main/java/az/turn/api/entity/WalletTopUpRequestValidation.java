@@ -72,8 +72,8 @@ final class WalletTopUpRequestValidation {
     }
 
     static void requireAmount(BigDecimal amount, long coins) {
-        if (amount == null || amount.scale() > 2 || amount.compareTo(new BigDecimal("0.10")) < 0
-                || amount.compareTo(new BigDecimal("99999999.90")) > 0
+        if (amount == null || coins < 1 || coins > 500 || amount.scale() > 2 || amount.compareTo(new BigDecimal("0.10")) < 0
+                || amount.compareTo(new BigDecimal("50.00")) > 0
                 || amount.multiply(BigDecimal.TEN).compareTo(BigDecimal.valueOf(coins)) != 0) {
             throw new IllegalArgumentException("Ödəniş məbləği və coin sayı uyğun deyil.");
         }

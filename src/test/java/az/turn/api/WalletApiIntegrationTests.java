@@ -63,7 +63,7 @@ class WalletApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.coinsPerAzn").value(10))
                 .andExpect(jsonPath("$.minimumCoins").value(1))
-                .andExpect(jsonPath("$.maximumCoins").value(1000000))
+                .andExpect(jsonPath("$.maximumCoins").value(500))
                 .andExpect(jsonPath("$.currency").value("AZN"))
                 .andExpect(jsonPath("$.whatsappUrl").value("https://wa.me/message/P63GI5XJ3PQLC1"))
                 .andExpect(jsonPath("$.bankCardEnabled").value(false));

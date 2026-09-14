@@ -39,7 +39,7 @@ app:
     manual-top-up-enabled: true
     coins-per-azn: 10
     minimum-top-up-coins: 1
-    maximum-top-up-coins: 1000000
+    maximum-top-up-coins: 500
     whatsapp-url: https://wa.me/message/P63GI5XJ3PQLC1
   legacy-api:
     enabled: true

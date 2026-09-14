@@ -2,17 +2,17 @@
 
 This contract applies to the backend and matching `enovbe-web` wallet/admin changes. Stage runs in live Epoint mode only when its external merchant keys are configured. Automated tests use an isolated fake provider; they do not perform a live card payment.
 
-## Custom amount contract (Step 1, V44)
+## Custom amount contract (Steps 1–2, V44–V45)
 
 `POST /api/users/me/wallet/top-up-requests` now accepts `{ "amountAzn": "0.10" }` (a JSON number also works). Send exactly one of `amountAzn` and the legacy `packageCode`. The endpoint keeps its existing HTTP 200 success response. Missing/both selections, amounts below the minimum, excessive precision, non-10-qəpik increments, and amounts over the configured maximum return 400 before creating an attempt.
 
-The minimum is **0.10 AZN / 10 qəpik = 1 coin**. The rate is fixed at 10 coins per AZN, matching the existing database and package catalog; configuration now rejects other rates. Wallets hold whole coins, so amounts increase in 0.10 AZN steps. Current stage limits remain 1–1,000,000 coins (0.10–100,000.00 AZN). The backend validates with decimal arithmetic and derives `coinAmount`; a client-provided coin count cannot change it. Amount and coins are persisted together as the purchase snapshot, and callbacks credit that snapshot only after the exact payment amount is confirmed.
+The minimum is **0.10 AZN / 10 qəpik = 1 coin** and the maximum is **50.00 AZN = 500 coins**. The rate is fixed at 10 coins per AZN, matching the existing database and package catalog; configuration now rejects other rates. Wallets hold whole coins, so amounts increase in 0.10 AZN steps. The backend validates with decimal arithmetic and derives `coinAmount`; a client-provided coin count cannot change it. Amount and coins are persisted together as the purchase snapshot, and callbacks credit that snapshot only after the exact payment amount is confirmed.
 
 Top-up options add `customAmountEnabled`, `minimumAmountAzn`, `maximumAmountAzn`, and `amountStepAzn`. Existing fields and package choices remain for compatibility with the currently deployed UI. Custom requests have `packageCode: null`; both user and admin responses support this. Equivalent legacy and custom amounts reuse the same active checkout. Different amounts supersede READY attempts; PREPARING/UNKNOWN attempts block a different amount until their outcome is resolved. Late success still credits the original saved amount exactly once.
 
 Custom amounts require a configured card gateway. They return 503 when it is unavailable, even if manual top-ups are enabled: a static package payment link cannot safely charge an arbitrary amount. Historical manual requests keep their existing receipt workflow.
 
-V44 makes the package reference optional and extends the request constraint with a separate custom-amount branch. Custom rows require the external provider, at least 0.10 AZN, and exactly 10 coins per AZN. Legacy package constraints, catalog entries, saved request amounts, and ledger history remain unchanged. No existing migration is edited.
+V44 makes the package reference optional and extends the request constraint with a separate custom-amount branch. V45 caps that branch at 50.00 AZN / 500 coins. Custom rows require the external provider, at least 0.10 AZN, and exactly 10 coins per AZN. Legacy package constraints, catalog entries, saved request amounts, and ledger history remain unchanged. No existing migration is edited.
 
 Step 2 consumes these fields: replace package cards with an AZN input and live coin total, use **Ödəniş et**, and remove provider names from customer-facing copy. Release this compatible backend before that frontend change. Rollback after custom requests exist must retain nullable-package support; use a forward correction rather than deploying the old backend against new custom rows.
 

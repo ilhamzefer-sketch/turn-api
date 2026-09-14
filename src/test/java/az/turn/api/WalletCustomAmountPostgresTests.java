@@ -98,12 +98,12 @@ class WalletCustomAmountPostgresTests extends WalletPaymentTestSupport {
         mvc.perform(get("/api/users/me/wallet/top-up-options").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.customAmountEnabled").value(true))
                 .andExpect(jsonPath("$.minimumAmountAzn").value(0.10))
-                .andExpect(jsonPath("$.maximumAmountAzn").value(100000))
+                .andExpect(jsonPath("$.maximumAmountAzn").value(50))
                 .andExpect(jsonPath("$.amountStepAzn").value(0.10))
                 .andExpect(jsonPath("$.coinsPerAzn").value(10))
                 .andExpect(jsonPath("$.packages.length()").value(5));
-        WalletTopUpRequestDto maximum = create("{\"amountAzn\":100000}");
-        assertThat(maximum.coinAmount()).isEqualTo(1000000);
+        WalletTopUpRequestDto maximum = create("{\"amountAzn\":50}");
+        assertThat(maximum.coinAmount()).isEqualTo(500);
     }
 
     @Test
@@ -112,7 +112,7 @@ class WalletCustomAmountPostgresTests extends WalletPaymentTestSupport {
         for (String body : List.of("{}", "{\"amountAzn\":null}", "{\"packageCode\":\"AZN_3\",\"amountAzn\":3}",
                 "{\"packageCode\":\"\"}", "{\"amountAzn\":\"bad\"}", "{\"amountAzn\":0}", "{\"amountAzn\":-1}",
                 "{\"amountAzn\":0.09}", "{\"amountAzn\":0.11}", "{\"amountAzn\":0.101}",
-                "{\"amountAzn\":100000.10}", "{\"amountAzn\":999999999999999999999999}")) {
+                "{\"amountAzn\":50.10}", "{\"amountAzn\":999999999999999999999999}")) {
             mvc.perform(post("/api/users/me/wallet/top-up-requests").cookie(csrf.cookie())
                     .header(CsrfCookieFilter.CSRF_HEADER_NAME, csrf.value()).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
@@ -168,6 +168,7 @@ class WalletCustomAmountPostgresTests extends WalletPaymentTestSupport {
     void databaseRejectsIncorrectCoinsAndManualCustomPayments() throws Exception {
         WalletTopUpRequestDto request = create("{\"amountAzn\":7.30}");
         for (String assignment : List.of("coin_amount=74", "amount_azn=0.09, coin_amount=1",
+                "amount_azn=50.10, coin_amount=501",
                 "payment_provider='manual', checkout_state='NOT_REQUIRED'", "package_code='AZN_3'")) {
             assertThatThrownBy(() -> jdbc.update("update wallet_top_up_requests set " + assignment + " where id=?", request.id()))
                     .isInstanceOf(DataIntegrityViolationException.class);

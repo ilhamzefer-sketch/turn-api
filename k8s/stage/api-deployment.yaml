@@ -148,7 +148,7 @@ spec:
             - name: APP_WALLET_MINIMUM_TOP_UP_COINS
               value: "1"
             - name: APP_WALLET_MAXIMUM_TOP_UP_COINS
-              value: "1000000"
+              value: "500"
             - name: APP_WALLET_WHATSAPP_URL
               value: https://wa.me/message/P63GI5XJ3PQLC1
             - name: APP_PAYMENT_MODE

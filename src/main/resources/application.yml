@@ -69,7 +69,7 @@ app:
     manual-top-up-enabled: ${APP_WALLET_MANUAL_TOP_UP_ENABLED:false}
     coins-per-azn: ${APP_WALLET_COINS_PER_AZN:10}
     minimum-top-up-coins: ${APP_WALLET_MINIMUM_TOP_UP_COINS:1}
-    maximum-top-up-coins: ${APP_WALLET_MAXIMUM_TOP_UP_COINS:1000000}
+    maximum-top-up-coins: ${APP_WALLET_MAXIMUM_TOP_UP_COINS:500}
     whatsapp-url: ${APP_WALLET_WHATSAPP_URL:https://wa.me/message/P63GI5XJ3PQLC1}
   legacy-api:
     enabled: ${APP_LEGACY_API_ENABLED:false}

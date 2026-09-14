@@ -15,7 +15,7 @@ import java.net.URI;
 public record WalletProperties(
         @Min(10) @Max(10) int coinsPerAzn,
         @Min(1) long minimumTopUpCoins,
-        @Min(1) @Max(999999999) long maximumTopUpCoins,
+        @Min(1) @Max(500) long maximumTopUpCoins,
         @NotNull URI whatsappUrl,
         boolean manualTopUpEnabled
 ) {

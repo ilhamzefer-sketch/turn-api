@@ -1,6 +1,6 @@
 # Coin sisteminin yayımlama yoxlama siyahısı
 
-Bu sənəd coin balansı və abunəliyi ilə yanaşı V41–V43 Epoint wallet miqrasiyalarını, legacy manual sorğuları və biznes otaq limitini əhatə edir.
+Bu sənəd coin balansı və abunəliyi ilə yanaşı V41–V45 Epoint wallet miqrasiyalarını, legacy manual sorğuları və biznes otaq limitini əhatə edir.
 
 ## Yayımlamadan əvvəl
 
@@ -16,7 +16,7 @@ Bu sənəd coin balansı və abunəliyi ilə yanaşı V41–V43 Epoint wallet mi
 
 ## Yayımlama ardıcıllığı
 
-1. Yeni backend image-ni yayımlayın. Flyway tətbiq olunmamış V41–V43 miqrasiyalarını tətbiq edəcək.
+1. Yeni backend image-ni yayımlayın. Flyway tətbiq olunmamış V41–V45 miqrasiyalarını tətbiq edəcək.
 2. Readiness uğurlu olmadan frontend-i yeni versiyaya keçirməyin.
 3. Backend hazır olduqdan sonra frontend image-ni yayımlayın.
 4. Wallet, subscription, biznes otaqları və admin panel üçün aşağıdakı smoke testləri aparın.
@@ -64,9 +64,9 @@ Bu sənəd coin balansı və abunəliyi ilə yanaşı V41–V43 Epoint wallet mi
 - Problem backend-dədirsə verilənlər bazasını saxlayan uyğun düzəldilmiş backend image yayımlayın.
 - Backup-dan tam bərpa yalnız planlı dayanma zamanı və backup-dan sonra yaranmış wallet əməliyyatlarının ayrıca uzlaşdırılması ilə aparılmalıdır.
 
-## Custom amount release (V44)
+## Custom amount release (V44–V45)
 
-- Keep stage conversion at 10 coins/AZN, minimum 1 coin, and the existing maximum of 1,000,000 coins.
+- Keep stage conversion at 10 coins/AZN, minimum 1 coin (0.10 AZN), and maximum 500 coins (50.00 AZN).
 - Deploy the backend and V44 before the custom amount input; old package requests remain supported.
 - Require all backend tests, including PostgreSQL custom checkout and migration coverage, to pass; require the CI security scan and immutable image publication before updating stage.
 - Verify the published revision in the stage manifest and check the public API after release. A healthy public endpoint alone does not prove the cluster is running the new revision.
